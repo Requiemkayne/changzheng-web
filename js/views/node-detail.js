@@ -1,0 +1,205 @@
+/**
+ * 节点详情 —— 7 种 blocks 渲染 + 打卡 + 答题入口
+ * 打卡前置：requireReadBeforeCheckin 时需「勾选已读」或「滚动到底」才亮按钮
+ */
+;(function (root) {
+  const VIEWS = root.CZ_VIEWS || (root.CZ_VIEWS = {})
+  const F = root.CZ_FORMAT
+  const api = root.CZ_API
+  const progressUtil = root.CZ_PROGRESS
+  const UI = root.CZ_UI
+
+  VIEWS.node = {
+    mount(rootEl, params) {
+      const code = params.code
+      rootEl.innerHTML = '<div class="page-center"><div class="page-center-icon">🏮</div><div>加载中…</div></div>'
+
+      Promise.all([api.getConfig(), api.getNodes(), api.getProgress()])
+        .then(([config, nodes, progress]) => {
+          const node = nodes.find(n => n.code === code)
+          if (!node) {
+            rootEl.innerHTML = '<div class="page-center"><div class="page-center-icon">🏮</div><div>节点不存在</div></div>'
+            return
+          }
+          const st = progressUtil.computeStates(nodes, progress, config).byCode[code]
+          render(rootEl, node, st, config)
+        })
+        .catch(err => {
+          console.error('详情页加载失败', err)
+          rootEl.innerHTML =
+            '<div class="page-center"><div class="page-center-icon">🏮</div><div>加载失败，请返回重试</div>' +
+            '<div style="font-size:12px;margin-top:6px">' + F.escapeHtml(err.message) + '</div></div>'
+        })
+    }
+  }
+
+  /* ---------- blocks 渲染器（7 种 type，与小程序版同构） ---------- */
+
+  function renderBlocks(blocks) {
+    let html = ''
+    ;(blocks || []).forEach(b => {
+      switch (b.type) {
+        case 'heading':
+          html += '<div class="block block-heading">' + F.escapeHtml(b.text) + '</div>'
+          break
+        case 'paragraph':
+          html += '<div class="block block-paragraph">' + F.escapeHtml(b.text) + '</div>'
+          break
+        case 'image': {
+          const src = F.escapeHtml(b.src || '')
+          html += '<div class="block block-image" data-src="' + src + '">' +
+            (src
+              ? '<img src="' + src + '" alt="' + F.escapeHtml(b.caption || '') + '">'
+              : '<div class="img-ph">插画素材待交付</div>') +
+            (b.caption ? '<div class="block-caption">' + F.escapeHtml(b.caption) + '</div>' : '') +
+            '</div>'
+          break
+        }
+        case 'quote':
+          html += '<div class="block block-quote">「' + F.escapeHtml(b.text) + '」</div>'
+          break
+        case 'timeline': {
+          let items = ''
+          ;(b.items || []).forEach(it => {
+            items += '<div class="block-tl-item">' +
+              '<div class="block-tl-date">' + F.escapeHtml(it.date) + '</div>' +
+              '<div class="block-tl-text">' + F.escapeHtml(it.text) + '</div>' +
+              '</div>'
+          })
+          html += '<div class="block block-timeline">' + items + '</div>'
+          break
+        }
+        case 'dataCard':
+          html += '<div class="block block-dataGrid">' +
+            '<div class="block-dataCard">' +
+              '<div class="block-dataCard-label">' + F.escapeHtml(b.label) + '</div>' +
+              '<div class="block-dataCard-value">' + F.escapeHtml(b.value) + '</div>' +
+            '</div></div>'
+          break
+        // 未知类型忽略（向后兼容：文案组新增类型不崩页面）
+      }
+    })
+    return html
+  }
+
+  function render(rootEl, node, st, config) {
+    const cover = node.images && node.images.cover ? node.images.cover : ''
+    const requireRead = config.requireReadBeforeCheckin
+    const hasImg = /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(cover)
+
+    let html =
+      '<div class="page">' +
+      '<a class="back-link" href="javascript:history.back()">‹ 返回</a>' +
+      '<div class="cover' + (hasImg ? ' has-img' : '') + '">' +
+        (hasImg ? '<img src="' + F.escapeHtml(cover) + '" alt="">' : '') +
+        '<div class="cover-kicker">' + F.escapeHtml(node.stage) + '</div>' +
+        '<div class="cover-name">' + F.escapeHtml(node.name) + '</div>' +
+        '<div class="cover-sub">' + F.escapeHtml(node.subtitle) + '</div>' +
+        '<div class="cover-hairline"></div>' +
+        '<div class="cover-meta">' + F.escapeHtml(node.date) + ' · ' + F.escapeHtml(node.location.name) + '</div>' +
+      '</div>' +
+      renderBlocks(node.detail.blocks) +
+      '<div class="checkin-area">' + checkinHTML(node, st, requireRead) + '</div>' +
+      '</div>'
+
+    rootEl.innerHTML = html
+    bind(rootEl, node, st, config)
+  }
+
+  function checkinHTML(node, st, requireRead) {
+    if (st.state === 'locked') {
+      return '<div class="checkin-hint">🔒 顺序模式：需先完成上一节点的打卡才能到达本节点</div>'
+    }
+    if (st.state === 'checkedIn' || st.state === 'quizPassed') {
+      const passed = st.state === 'quizPassed'
+      return '<div class="checkin-done">' +
+        '<span class="checkin-done-flag">' + (passed ? '🎖' : '🏁') + '</span>' +
+        '<div class="checkin-done-text">' + (passed ? '本节点已通关' : '已到达打卡') + '</div>' +
+        '<div class="checkin-done-sub">' + (passed ? '历史最佳 ' + st.quizBest + ' 分' : '完成答题即可通关本节点') + '</div>' +
+        '<div class="quiz-actions">' +
+          '<button class="btn btn-primary" id="go-quiz">📝 ' + (passed ? '再次挑战' : '挑战答题') + '</button>' +
+        '</div>' +
+        '</div>'
+    }
+    // state === open
+    let html = ''
+    if (requireRead) {
+      html +=
+        '<div class="checkin-hint">阅读完本页历史知识后，勾选「已读完」或滑动到页面底部即可打卡</div>' +
+        '<label class="read-row"><input type="checkbox" id="read-check"> 我已认真阅读完本节点内容</label>'
+    }
+    html +=
+      '<button class="btn btn-primary" id="btn-checkin" disabled>🏁 到达打卡</button>'
+    return html
+  }
+
+  function bind(rootEl, node, st, config) {
+    const requireRead = config.requireReadBeforeCheckin
+
+    // 插图点击放大（fileID 素材交付后同逻辑换新标签页预览）
+    rootEl.querySelectorAll('.block-image[data-src]').forEach(el => {
+      el.addEventListener('click', () => {
+        const src = el.dataset.src
+        if (src) window.open(src, '_blank')
+      })
+    })
+
+    const quizBtn = rootEl.querySelector('#go-quiz')
+    if (quizBtn) {
+      quizBtn.addEventListener('click', () => {
+        location.hash = '#/quiz/node/' + node.code
+      })
+    }
+
+    const checkinBtn = rootEl.querySelector('#btn-checkin')
+    if (checkinBtn) {
+      const readCheck = rootEl.querySelector('#read-check')
+      let readByScroll = false
+      const update = () => {
+        checkinBtn.disabled = requireRead && !(readCheck.checked || readByScroll)
+      }
+      if (readCheck) {
+        readCheck.addEventListener('change', update)
+      }
+      let onScroll = null
+      if (requireRead) {
+        onScroll = () => {
+          const bottom = window.innerHeight + window.scrollY >= document.body.scrollHeight - 60
+          if (bottom && !readByScroll) {
+            readByScroll = true
+            update()
+          }
+        }
+        window.addEventListener('scroll', onScroll)
+      }
+      update()
+
+      checkinBtn.addEventListener('click', () => {
+        checkinBtn.disabled = true
+        checkinBtn.textContent = '打卡中…'
+        api.checkin(node.code).then(r => {
+          if (!r.ok) {
+            UI.toast('打卡失败，请重试')
+            checkinBtn.disabled = false
+            return
+          }
+          if (r.alreadyChecked) {
+            UI.toast('已打过卡')
+          } else {
+            UI.toast('🎉 打卡成功！')
+          }
+          // 重新渲染为已打卡态
+          const st2 = progressUtil.computeStates([node], r.progress, config).byCode[node.code]
+          render(rootEl, node, st2, config)
+          if (onScroll) window.removeEventListener('scroll', onScroll)
+        }).catch(() => {
+          UI.toast('打卡失败，请重试')
+          checkinBtn.disabled = false
+          checkinBtn.textContent = '🏁 到达打卡'
+        })
+      })
+
+      return () => { if (onScroll) window.removeEventListener('scroll', onScroll) }
+    }
+  }
+})(typeof self !== 'undefined' ? self : this)
