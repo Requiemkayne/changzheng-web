@@ -19,7 +19,7 @@
       let meta = null
       let submitting = false
 
-      rootEl.innerHTML = '<div class="page-center"><div class="page-center-icon">🏮</div><div>正在出题…</div></div>'
+      rootEl.innerHTML = '<div class="page-center">' + UI.icon('lantern', 'page-center-icon') + '<div>正在出题…</div></div>'
 
       api.getQuiz(mode, code).then(r => {
         if (!r.ok) return handleUnlockError(rootEl, r.error, mode, code)
@@ -29,7 +29,7 @@
       }).catch(err => {
         console.error('取题失败', err)
         rootEl.innerHTML =
-          '<div class="page-center"><div class="page-center-icon">🏮</div><div>取题失败，请返回重试</div>' +
+          '<div class="page-center">' + UI.icon('lantern', 'page-center-icon') + '<div>取题失败，请返回重试</div>' +
           '<div style="font-size:12px;margin-top:6px">' + F.escapeHtml(err.message) + '</div></div>'
       })
 
@@ -47,7 +47,7 @@
           const sel = selected.indexOf(i) > -1
           options +=
             '<div class="option' + (sel ? ' option-selected' : '') + '" data-opt="' + i + '">' +
-              '<div class="option-marker' + (sel ? ' marker-selected' : '') + '">' + (sel ? '✓' : '') + '</div>' +
+              '<div class="option-marker' + (sel ? ' marker-selected' : '') + '">' + (sel ? UI.icon('check') : '') + '</div>' +
               '<div class="option-text">' + F.escapeHtml(opt) + '</div>' +
             '</div>'
         })
@@ -135,7 +135,7 @@
           review +=
             '<div class="review-item">' +
               '<div class="review-q">' +
-                '<span class="review-mark ' + (x.correct ? 'mark-right' : 'mark-wrong') + '">' + (x.correct ? '✓' : '✗') + '</span>' +
+                '<span class="review-mark ' + (x.correct ? 'mark-right' : 'mark-wrong') + '">' + UI.icon(x.correct ? 'check' : 'xmark') + '</span>' +
                 '<span>' + F.escapeHtml(x.question) + '</span>' +
               '</div>' +
               answerLine +
@@ -148,23 +148,28 @@
           cert =
             '<div class="certificate card">' +
               '<div class="cert-inner">' +
-                '<div class="cert-star">★</div>' +
+                '<div class="cert-star">' + UI.icon('star') + '</div>' +
                 '<div class="cert-title">结业证书</div>' +
                 '<div class="cert-line"></div>' +
                 '<div class="cert-text">重走长征路 · 传承长征魂</div>' +
                 '<div class="cert-text">已走完全部 11 个节点并完成总结答题</div>' +
                 '<div class="cert-score">毕业得分 ' + r.score + ' 分</div>' +
-                '<div class="cert-seal">长征</div>' +
+                '<div class="cert-seal cert-seal-in">长征</div>' +
               '</div>' +
             '</div>'
         }
+
+        // 签名动作：通关盖章（红章落在金底上最醒目），失败不盖章
+        const stamp = r.passed
+          ? '<div class="stamp stamp-in"><span>通 关</span></div>'
+          : '<div class="result-emoji">' + UI.icon('flag') + '</div>'
 
         rootEl.innerHTML =
           '<div class="page">' +
           '<a class="back-link" href="javascript:history.back()">‹ 返回</a>' +
           '<div class="result-hero ' + (r.passed ? 'hero-passed' : 'hero-failed') + '">' +
-            '<div class="result-emoji">' + (r.passed ? '🎉' : '💪') + '</div>' +
-            '<div class="result-title">' + (r.passed ? '恭喜通关！' : '差一点，再试一次！') + '</div>' +
+            stamp +
+            '<div class="result-title">' + (r.passed ? '恭喜通关' : '差一点，再试一次') + '</div>' +
             '<div class="result-score"><span class="score-num">' + r.score + '</span><span class="score-unit">分</span></div>' +
             '<div class="result-detail">答对 ' + r.correctCount + ' / ' + r.total + ' 题 · 历史最佳 ' + r.best + ' 分 · 第 ' + r.attempts + ' 次挑战</div>' +
           '</div>' +
@@ -174,7 +179,7 @@
             review +
           '</div>' +
           '<div class="quiz-actions">' +
-            '<button class="btn btn-primary" id="btn-restart">🔄 重新挑战</button>' +
+            '<button class="btn btn-primary" id="btn-restart">重新挑战</button>' +
             '<button class="btn btn-ghost action-gap" id="btn-back">返回</button>' +
           '</div>' +
           '</div>'
@@ -201,7 +206,7 @@
       NODE_NOT_FOUND: { title: '节点不存在', content: '内容已调整，请返回路线重新进入。', ok: '返回' }
     }
     const d = map[error] || { title: '取题失败', content: '请稍后重试。', ok: '返回' }
-    rootEl.innerHTML = '<div class="page-center"><div class="page-center-icon">🔒</div><div>' + F.escapeHtml(d.title) + '</div></div>'
+    rootEl.innerHTML = '<div class="page-center">' + UI.icon('lock', 'page-center-icon') + '<div>' + F.escapeHtml(d.title) + '</div></div>'
     UI.dialog(d.title, d.content, [{ text: d.ok, primary: true, onClick: () => {
       if (error === 'NOT_CHECKED_IN') location.hash = '#/node/' + code
       else location.hash = '#/'

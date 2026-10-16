@@ -2,7 +2,8 @@
  * 网页版配置（与 miniprogram/config.js 同构）
  *
  * USE_MOCK=true  → 本地 mock 数据 + localStorage 进度，双击 index.html 即可运行
- * USE_MOCK=false → 预留后端接口（api.js 中返回明确错误，接入后端时实现）
+ * USE_MOCK=false → 本地后端模式：需 node server/server.js 启动后通过
+ *                  http://localhost:8088 访问（file:// 下无法请求接口）
  */
 ;(function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -12,8 +13,8 @@
   }
 })(typeof self !== 'undefined' ? self : this, function () {
   return {
-    USE_MOCK: true,          // 唯一配置点：接后端时置 false 并实现 api.js 中的 fetch 分支
-    API_BASE: '',            // 预留：后端接口根地址
+    USE_MOCK: false,         // 本地后端模式（需 node server/server.js）；纯静态预览时置 true
+    API_BASE: '',            // 后端接口根地址（'' = 同源；后端部署他处时填 http://ip:port）
     CACHE_TTL: 10 * 60 * 1000
   }
 })

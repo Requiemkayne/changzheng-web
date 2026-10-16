@@ -11,7 +11,7 @@
 
   VIEWS.home = {
     mount(rootEl) {
-      rootEl.innerHTML = '<div class="page-center"><div class="page-center-icon">🏮</div><div>加载中…</div></div>'
+      rootEl.innerHTML = '<div class="page-center">' + UI.icon('lantern', 'page-center-icon') + '<div>加载中…</div></div>'
 
       Promise.all([api.getConfig(), api.getNodes(), api.getProgress()])
         .then(([config, nodes, progress]) => {
@@ -21,7 +21,7 @@
         .catch(err => {
           console.error('首页加载失败', err)
           rootEl.innerHTML =
-            '<div class="page-center"><div class="page-center-icon">🏮</div><div>加载失败，请刷新重试</div>' +
+            '<div class="page-center">' + UI.icon('lantern', 'page-center-icon') + '<div>加载失败，请刷新重试</div>' +
             '<div style="font-size:12px;margin-top:6px">' + F.escapeHtml(err.message) + '</div></div>'
         })
     }
@@ -37,14 +37,13 @@
     let html =
       '<div class="page">' +
       '<div class="hero">' +
-        '<div class="hero-star">★</div>' +
-        '<div class="hero-kicker">两万五千里</div>' +
+        '<div class="hero-star">' + UI.icon('star') + '</div>' +
         '<div class="hero-title">重走长征路</div>' +
         '<div class="hero-sub">十一个关键节点 · 传承长征精神</div>' +
         '<div class="hero-stats">' +
           '<div class="hero-stat"><div class="hero-stat-num">' + states.checkedCount + '/' + states.total + '</div><div class="hero-stat-label">打卡节点</div></div>' +
           '<div class="hero-stat"><div class="hero-stat-num">' + states.passedCount + '/' + states.total + '</div><div class="hero-stat-label">答题通关</div></div>' +
-          '<div class="hero-stat"><div class="hero-stat-num">' + (graduated ? '★' : '—') + '</div><div class="hero-stat-label">毕业</div></div>' +
+          '<div class="hero-stat"><div class="hero-stat-num">' + (graduated ? UI.icon('star') : '—') + '</div><div class="hero-stat-label">毕业</div></div>' +
         '</div>' +
       '</div>'
 
@@ -66,12 +65,12 @@
     // 总结答题入口
     html +=
       '<div class="' + finalCardCls + '" id="final-entry">' +
-        '<div class="final-icon">' + (graduated ? '🎖' : '🏆') + '</div>' +
+        '<div class="final-icon">' + UI.icon(graduated ? 'medal' : 'trophy') + '</div>' +
         '<div style="flex:1">' +
           '<div class="final-title">' + F.escapeHtml(config.finalExam.title) + '</div>' +
           '<div class="final-sub">' + F.escapeHtml(finalText) + '</div>' +
         '</div>' +
-        '<span class="tl-arrow">›</span>' +
+        UI.icon('chevron', 'tl-arrow') +
       '</div>' +
       '</div>'
 

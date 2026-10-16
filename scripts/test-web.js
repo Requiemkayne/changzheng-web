@@ -5,6 +5,9 @@
  * 运行：node web/scripts/test-web.js
  */
 const assert = require('assert')
+// 强制 mock 模式（config.USE_MOCK 当前指向后端模式；本测试验证 mock 数据与链路）
+const config = require('../js/config')
+config.USE_MOCK = true
 const api = require('../js/api')
 const progress = require('../js/progress')
 const nodes = require('../js/mock/nodes')

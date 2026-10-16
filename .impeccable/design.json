@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-16T12:00:00+08:00",
+  "title": "Design System: 长征 · 重走长征路（红色文献装帧）",
+  "extensions": {
+    "colorMeta": {
+      "red-deep": { "role": "primary", "displayName": "深红（夜幕端）", "canonical": "#4A0510", "tonalRamp": ["#4A0510", "#6E0918", "#A8182C", "#C8102E", "#D43A4E"] },
+      "red-dark": { "role": "primary", "displayName": "深红（shell 端）", "canonical": "#6E0918" },
+      "red": { "role": "primary", "displayName": "红（主色）", "canonical": "#A8182C" },
+      "red-mid": { "role": "primary", "displayName": "亮红（渐变高光端）", "canonical": "#C8102E" },
+      "gold": { "role": "secondary", "displayName": "烫金", "canonical": "#C9A227", "tonalRamp": ["#8F6E0B", "#C9A227", "#E8C86A"] },
+      "gold-light": { "role": "secondary", "displayName": "金（深底用）", "canonical": "#E8C86A" },
+      "gold-deep": { "role": "secondary", "displayName": "金（宣纸底用）", "canonical": "#8F6E0B" },
+      "paper": { "role": "neutral", "displayName": "宣纸（页面底）", "canonical": "#F5EFE0" },
+      "card": { "role": "neutral", "displayName": "纸面（卡片）", "canonical": "#FFFDF6" },
+      "ink": { "role": "neutral", "displayName": "墨字", "canonical": "#33261A" },
+      "muted": { "role": "neutral", "displayName": "淡墨（次要文字）", "canonical": "#6E6350" },
+      "line": { "role": "neutral", "displayName": "纸线（描边）", "canonical": "#E3D6B8" },
+      "green": { "role": "semantic", "displayName": "青绿（通过辅助）", "canonical": "#3E7C44" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "铅印大标", "purpose": "hero / 页面大标 / 印章字，Noto Serif SC 900 + 0.3em 字距。" },
+      "headline": { "displayName": "宋体标题", "purpose": "区块标题 / 节点名，Noto Serif SC 700。" },
+      "body": { "displayName": "黑体正文", "purpose": "正文与表单，系统黑体栈 15px/1.65。" },
+      "label": { "displayName": "注脚小字", "purpose": "日期 / 提示 / 徽章，12px + 字距。" }
+    },
+    "shadows": [
+      { "name": "ambient-low", "value": "0 4px 18px rgba(74, 5, 16, 0.10)", "purpose": "默认卡片落影（近无，靠金线分层）" },
+      { "name": "hover-card", "value": "0 6px 22px rgba(74, 5, 16, 0.14)", "purpose": "可点卡片 hover 加深" },
+      { "name": "card-on-night", "value": "0 14px 34px rgba(8, 1, 3, 0.52)", "purpose": "登录卡在夜幕中的近黑落影" },
+      { "name": "focus-ring", "value": "0 0 0 3px rgba(201, 162, 39, 0.18)", "purpose": "focus-visible 金环（功能环，非装饰发光）" },
+      { "name": "desktop-shell", "value": "0 10px 36px rgba(74, 5, 16, 0.12)", "purpose": "桌面 >520px #app 外壳落影" }
+    ],
+    "motion": [
+      { "name": "stampIn", "value": "scale(1.9) rotate(-14deg) blur(2px) → scale(1) rotate(-3deg) blur(0), 320ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "签名动作：打卡 = 盖章" },
+      { "name": "certSealIn", "value": "scale(2.2) rotate(-34deg) blur(2px) → scale(1) rotate(-10deg) blur(0), 480ms", "purpose": "证书加印（终态 -10deg 与静态章一致）" },
+      { "name": "cardIn", "value": "translateY(18px) opacity(0) → none/1, 500ms cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "登录卡入场" },
+      { "name": "twinkle", "value": "opacity 0.25↔1, 3.6s ease-in-out infinite", "purpose": "登录页星空两层错时闪烁（brief 锁定）" },
+      { "name": "floatStar", "value": "translateY(0) rotate(0) → translateY(-8px) rotate(10deg), 3.6s infinite", "purpose": "登录页金星悬浮" },
+      { "name": "press", "value": "transform scale(0.98), 80ms", "purpose": "按钮按压反馈" },
+      { "name": "state", "value": "transition 150~200ms", "purpose": "颜色 / 边框 / 投影状态过渡" }
+    ],
+    "breakpoints": [
+      { "name": "desktop", "value": "520px", "purpose": "#app 居中 480px + 金侧线 + 落影，两侧露宣纸" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "全宽主按钮：深红渐变 + 金描边 + 方角。",
+      "html": "<button class=\"ds-btn-primary\">打卡答题</button>",
+      "css": ".ds-btn-primary { display:block; width:100%; border:1px solid rgba(232,200,106,0.55); border-radius:5px; padding:14px 0; background:linear-gradient(170deg,#C8102E,#6E0918); color:#FFF6E0; font-size:16px; font-weight:600; letter-spacing:3px; text-align:center; cursor:pointer; box-shadow:0 4px 14px rgba(74,5,16,0.30); transition:transform .08s, filter .2s; } .ds-btn-primary:hover:not(:disabled){ filter:brightness(1.08); } .ds-btn-primary:active{ transform:scale(0.98); } .ds-btn-primary:disabled{ opacity:0.45; cursor:not-allowed; } .ds-btn-primary:focus-visible{ outline:none; box-shadow:0 0 0 3px rgba(201,162,39,0.18); }"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "次要按钮：纸面红字红边。",
+      "html": "<button class=\"ds-btn-ghost\">稍后再答</button>",
+      "css": ".ds-btn-ghost { display:block; width:100%; border:1.5px solid rgba(168,24,44,0.5); border-radius:5px; padding:14px 0; background:#FFFDF6; color:#6E0918; font-size:16px; font-weight:600; letter-spacing:3px; text-align:center; cursor:pointer; transition:transform .08s; } .ds-btn-ghost:active{ transform:scale(0.98); }"
+    },
+    {
+      "name": "Stamp（印章）",
+      "kind": "custom",
+      "refersTo": "stamp",
+      "description": "签名动作组件：打卡 = 盖章。红印「到 达」，通关金章「通 关」。",
+      "html": "<div class=\"ds-stamp ds-stamp-in\"><span>到 达</span></div>",
+      "css": ".ds-stamp { display:inline-flex; align-items:center; justify-content:center; width:62px; height:62px; border:2.5px solid #6E0918; border-radius:6px; color:#6E0918; font-family:'Noto Serif SC','Songti SC',serif; font-size:18px; font-weight:900; letter-spacing:3px; transform:rotate(-3deg); background:radial-gradient(circle at 30% 25%, rgba(168,24,44,0.06) 0 2px, transparent 3px), radial-gradient(circle at 65% 70%, rgba(168,24,44,0.08) 0 2px, transparent 3px); } .ds-stamp-in { animation:ds-stampIn .32s cubic-bezier(0.22,1,0.36,1) both; } @keyframes ds-stampIn { from { transform:scale(1.9) rotate(-14deg); filter:blur(2px); opacity:.3; } to { transform:scale(1) rotate(-3deg); filter:blur(0); opacity:1; } }"
+    },
+    {
+      "name": "Status Badge（状态四色）",
+      "kind": "chip",
+      "refersTo": "badge",
+      "description": "节点状态：待打卡 / 已打卡 / 通关 / 未解锁。方角 3px，无胶囊。",
+      "html": "<span class=\"ds-badge ds-badge-open\">待打卡</span><span class=\"ds-badge ds-badge-checked\">已打卡</span><span class=\"ds-badge ds-badge-passed\">已通关</span><span class=\"ds-badge ds-badge-locked\">未解锁</span>",
+      "css": ".ds-badge { display:inline-block; padding:2px 10px; border-radius:3px; font-size:12px; letter-spacing:2px; font-variant-numeric:tabular-nums; } .ds-badge-open{ background:#FFFFFF; color:#A8182C; box-shadow:inset 0 0 0 1px #A8182C; } .ds-badge-checked{ background:#A8182C; color:#FFF4DC; box-shadow:inset 0 0 0 1px #E8C86A; } .ds-badge-passed{ background:#C9A227; color:#4A0510; box-shadow:inset 0 0 0 1px #FFFFFF; } .ds-badge-locked{ background:#C9C0AC; color:#F7F2E7; box-shadow:inset 0 0 0 1px #FFFFFF; }"
+    },
+    {
+      "name": "Card（纸卡）",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "宣纸工作区上的纸面卡片：金框细线，近无投影。",
+      "html": "<div class=\"ds-card\">卡片内容</div>",
+      "css": ".ds-card { background:#FFFDF6; border:1px solid rgba(201,162,39,0.45); border-radius:8px; padding:16px 18px; box-shadow:0 4px 18px rgba(74,5,16,0.10); }"
+    },
+    {
+      "name": "Tabbar（深红 shell）",
+      "kind": "nav",
+      "refersTo": "tabbar",
+      "description": "底部固定导航：深红渐变 + 顶部金线，active 金色。",
+      "html": "<nav class=\"ds-tabbar\"><span class=\"ds-tab ds-tab-active\">路线</span><span class=\"ds-tab\">地图</span><span class=\"ds-tab\">我的</span></nav>",
+      "css": ".ds-tabbar { position:fixed; left:0; right:0; bottom:0; display:flex; max-width:480px; margin:0 auto; background:linear-gradient(180deg,#7A0C1C,#5E0713); border-top:1px solid rgba(232,200,106,0.5); padding-bottom:env(safe-area-inset-bottom); } .ds-tab { flex:1; text-align:center; padding:10px 0 12px; color:rgba(255,244,220,0.55); font-size:11px; letter-spacing:2px; cursor:pointer; } .ds-tab-active { color:#E8C86A; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "红色文献装帧 —— 苏区出版物与革命文物的材料语言",
+    "overview": "「重走长征路」面向单位红色教育活动的打卡答题应用，移动优先。视觉世界取革命文物与苏区出版物的材料：铅印宋体黑重大标、深红 shell、宣纸工作区、烫金状态四色。签名动作「打卡 = 盖章」把每步确认做成仪式：红色印章盖下，通关变金章，毕业证书加印。登录页是政治特色第一屏：深红夜幕、星空、山峦剪影、金框纸卡。",
+    "keyCharacteristics": [
+      "铅印宋体黑重大标（Noto Serif SC 900 自托管）",
+      "深红 shell + 宣纸工作区的双层世界",
+      "烫金状态四色（待打卡红圈 / 已打卡红底金边 / 通关金 / 锁定灰褐）",
+      "方形倒角 r-lg 12 / r-md 8 / r-sm 5，无胶囊",
+      "签名动作：打卡 = 盖章（stampIn）",
+      "自绘 SVG 图标集，禁 emoji"
+    ],
+    "rules": [
+      { "name": "金线只做细线", "body": "金色装饰一律 1px 描边或 hairline，不做金色大色块；金色块只留给通关状态与金章。", "section": "colors" },
+      { "name": "状态只讲四色", "body": "节点状态只允许待打卡/已打卡/通关/锁定四种徽章配色，不发明第五态。", "section": "colors" },
+      { "name": "光源统一", "body": "投影一律有偏移、红色调，禁零偏移光晕与暗底彩色投影。", "section": "elevation" },
+      { "name": "禁眉题", "body": "不用 kicker/eyebrow 小眉题，信息并进正文或副标题。", "section": "typography" },
+      { "name": "世界语言受 brief 保护", "body": "星空 twinkle、山峦 clip-path、hero 斜纹、地图网格是政治特色艺术化的组成部分，饱和图案警告不适用。", "section": "elevation" }
+    ],
+    "dos": [
+      "用金线、菱形、五角星（自绘 path）做装饰",
+      "深红渐变走 160~170deg 斜向",
+      "标题 Noto Serif SC 900 + 大字距",
+      "打卡用盖章动画，通关用金章",
+      "数字用 tabular-nums"
+    ],
+    "donts": [
+      "不用 emoji 或彩色圆点做图标",
+      "不用零偏移光晕 / 暗底彩色投影",
+      "不用胶囊形状",
+      "不用感叹号语气",
+      "不用系统 display 字体",
+      "不用彩色 border-left >1px"
+    ]
+  }
+}

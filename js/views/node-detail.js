@@ -12,13 +12,13 @@
   VIEWS.node = {
     mount(rootEl, params) {
       const code = params.code
-      rootEl.innerHTML = '<div class="page-center"><div class="page-center-icon">🏮</div><div>加载中…</div></div>'
+      rootEl.innerHTML = '<div class="page-center">' + UI.icon('lantern', 'page-center-icon') + '<div>加载中…</div></div>'
 
       Promise.all([api.getConfig(), api.getNodes(), api.getProgress()])
         .then(([config, nodes, progress]) => {
           const node = nodes.find(n => n.code === code)
           if (!node) {
-            rootEl.innerHTML = '<div class="page-center"><div class="page-center-icon">🏮</div><div>节点不存在</div></div>'
+            rootEl.innerHTML = '<div class="page-center">' + UI.icon('lantern', 'page-center-icon') + '<div>节点不存在</div></div>'
             return
           }
           const st = progressUtil.computeStates(nodes, progress, config).byCode[code]
@@ -27,7 +27,7 @@
         .catch(err => {
           console.error('详情页加载失败', err)
           rootEl.innerHTML =
-            '<div class="page-center"><div class="page-center-icon">🏮</div><div>加载失败，请返回重试</div>' +
+            '<div class="page-center">' + UI.icon('lantern', 'page-center-icon') + '<div>加载失败，请返回重试</div>' +
             '<div style="font-size:12px;margin-top:6px">' + F.escapeHtml(err.message) + '</div></div>'
         })
     }
@@ -92,11 +92,10 @@
       '<a class="back-link" href="javascript:history.back()">‹ 返回</a>' +
       '<div class="cover' + (hasImg ? ' has-img' : '') + '">' +
         (hasImg ? '<img src="' + F.escapeHtml(cover) + '" alt="">' : '') +
-        '<div class="cover-kicker">' + F.escapeHtml(node.stage) + '</div>' +
         '<div class="cover-name">' + F.escapeHtml(node.name) + '</div>' +
         '<div class="cover-sub">' + F.escapeHtml(node.subtitle) + '</div>' +
         '<div class="cover-hairline"></div>' +
-        '<div class="cover-meta">' + F.escapeHtml(node.date) + ' · ' + F.escapeHtml(node.location.name) + '</div>' +
+        '<div class="cover-meta">' + F.escapeHtml(node.stage) + ' · ' + F.escapeHtml(node.date) + ' · ' + F.escapeHtml(node.location.name) + '</div>' +
       '</div>' +
       renderBlocks(node.detail.blocks) +
       '<div class="checkin-area">' + checkinHTML(node, st, requireRead) + '</div>' +
@@ -108,16 +107,17 @@
 
   function checkinHTML(node, st, requireRead) {
     if (st.state === 'locked') {
-      return '<div class="checkin-hint">🔒 顺序模式：需先完成上一节点的打卡才能到达本节点</div>'
+      return '<div class="checkin-hint">' + UI.icon('lock') + ' 顺序模式：需先完成上一节点的打卡才能到达本节点</div>'
     }
     if (st.state === 'checkedIn' || st.state === 'quizPassed') {
       const passed = st.state === 'quizPassed'
+      // 签名动作：盖章落印（到达=红章，通关=金章）
       return '<div class="checkin-done">' +
-        '<span class="checkin-done-flag">' + (passed ? '🎖' : '🏁') + '</span>' +
+        '<div class="stamp' + (passed ? ' stamp-gold' : '') + ' stamp-in"><span>' + (passed ? '通 关' : '到 达') + '</span></div>' +
         '<div class="checkin-done-text">' + (passed ? '本节点已通关' : '已到达打卡') + '</div>' +
         '<div class="checkin-done-sub">' + (passed ? '历史最佳 ' + st.quizBest + ' 分' : '完成答题即可通关本节点') + '</div>' +
         '<div class="quiz-actions">' +
-          '<button class="btn btn-primary" id="go-quiz">📝 ' + (passed ? '再次挑战' : '挑战答题') + '</button>' +
+          '<button class="btn btn-primary" id="go-quiz">' + (passed ? '再次挑战' : '挑战答题') + '</button>' +
         '</div>' +
         '</div>'
     }
@@ -129,7 +129,7 @@
         '<label class="read-row"><input type="checkbox" id="read-check"> 我已认真阅读完本节点内容</label>'
     }
     html +=
-      '<button class="btn btn-primary" id="btn-checkin" disabled>🏁 到达打卡</button>'
+      '<button class="btn btn-primary" id="btn-checkin" disabled>' + UI.icon('flag') + ' 到达打卡</button>'
     return html
   }
 
@@ -176,7 +176,7 @@
 
       checkinBtn.addEventListener('click', () => {
         checkinBtn.disabled = true
-        checkinBtn.textContent = '打卡中…'
+        checkinBtn.innerHTML = '打卡中…'
         api.checkin(node.code).then(r => {
           if (!r.ok) {
             UI.toast('打卡失败，请重试')
@@ -186,16 +186,16 @@
           if (r.alreadyChecked) {
             UI.toast('已打过卡')
           } else {
-            UI.toast('🎉 打卡成功！')
+            UI.toast('打卡成功')
           }
-          // 重新渲染为已打卡态
+          // 重新渲染为已打卡态（盖章动画随 stamp-in 触发）
           const st2 = progressUtil.computeStates([node], r.progress, config).byCode[node.code]
           render(rootEl, node, st2, config)
           if (onScroll) window.removeEventListener('scroll', onScroll)
         }).catch(() => {
           UI.toast('打卡失败，请重试')
           checkinBtn.disabled = false
-          checkinBtn.textContent = '🏁 到达打卡'
+          checkinBtn.innerHTML = UI.icon('flag') + ' 到达打卡'
         })
       })
 

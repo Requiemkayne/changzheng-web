@@ -1,0 +1,75 @@
+[
+  {
+    "antipattern": "pulsing-dot",
+    "name": "Pulsing status dot",
+    "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "C:\\Users\\liwenyang\\Desktop\\长征\\web\\index.html",
+    "line": 0,
+    "snippet": ".login-stars::before — 3x3px dot with infinite \"twinkle\" animation"
+  },
+  {
+    "antipattern": "pulsing-dot",
+    "name": "Pulsing status dot",
+    "description": "Small pulsing status dots simulate liveness decoratively. Reserve pulse animation for indicators tied to genuinely live, changing data; a static indicator with clear labeling is honest and calmer.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "C:\\Users\\liwenyang\\Desktop\\长征\\web\\index.html",
+    "line": 0,
+    "snippet": ".login-stars::after — 2x2px dot with infinite \"twinkle\" animation"
+  },
+  {
+    "antipattern": "organic-clip-path",
+    "name": "Organic contour drawn as clip-path",
+    "description": "A clip-path polygon with many arbitrary vertices, or a curved clip-path path(), is CSS approximating a torn edge, blob, or silhouette. It reads as the cheap version of the effect and is usually a produced or photographic material replaced with code. Derive an alpha matte from the real image, or ship the shape as a cut-out raster; keep clip-path for geometry (cut corners, diagonals, hexagons).",
+    "severity": "warning",
+    "category": "quality",
+    "file": "C:\\Users\\liwenyang\\Desktop\\长征\\web\\index.html",
+    "line": 0,
+    "snippet": "clip-path: polygon() with 10 vertices approximating an organic contour"
+  },
+  {
+    "antipattern": "dark-glow",
+    "name": "Glowing shadow accents",
+    "description": "Colored glow shadows — a zero-offset chromatic halo (box- or text-shadow) on any background, or any colored blurred shadow on a dark background — are the default \"cool\" look of AI-generated UIs. Use neutral elevation shadows and subtle, purposeful lighting instead.",
+    "severity": "warning",
+    "category": "slop",
+    "file": "C:\\Users\\liwenyang\\Desktop\\长征\\web\\index.html",
+    "line": 0,
+    "snippet": "Colored box-shadow glow (#4a0510) on dark page"
+  },
+  {
+    "antipattern": "repeating-stripes-gradient",
+    "name": "Repeating-gradient stripes",
+    "description": "Repeating-gradient stripes used as surface decoration are a recurring generated-UI signature. Reach for a deliberate texture or leave the surface plain.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "C:\\Users\\liwenyang\\Desktop\\长征\\web\\index.html",
+    "line": 0,
+    "snippet": "repeating-gradient decorative stripes",
+    "advisory": true
+  },
+  {
+    "antipattern": "codex-grid-background",
+    "name": "Decorative grid-line background",
+    "description": "A decorative grid or line-field background drawn with hairline linear-gradient layers tiled by a fixed pixel cell is a recurring generated-UI signature. Reserve grid overlays for actual canvas, map, blueprint, or measurement surfaces; elsewhere use product structure or a plain surface.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "C:\\Users\\liwenyang\\Desktop\\长征\\web\\index.html",
+    "line": 0,
+    "snippet": "two-axis grid-line gradient background",
+    "advisory": true
+  },
+  {
+    "antipattern": "codex-grid-background",
+    "name": "Decorative grid-line background",
+    "description": "A decorative grid or line-field background drawn with hairline linear-gradient layers tiled by a fixed pixel cell is a recurring generated-UI signature. Reserve grid overlays for actual canvas, map, blueprint, or measurement surfaces; elsewhere use product structure or a plain surface.",
+    "severity": "advisory",
+    "category": "slop",
+    "file": "C:\\Users\\liwenyang\\Desktop\\长征\\web\\css\\style.css",
+    "line": 602,
+    "snippet": "two-axis grid-line gradient background",
+    "advisory": true
+  }
+]

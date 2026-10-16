@@ -2,7 +2,7 @@
  * 数据访问统一层 —— 视图只通过本层取数（与 miniprogram/utils/api.js 同构）
  *
  * USE_MOCK=true  → 本地 mock 数据 + localStorage 进度（双击 index.html 即可运行）
- * USE_MOCK=false → 后端接口（TODO：接入后端时实现 fetch 分支）
+ * USE_MOCK=false → 后端接口（node server/server.js 启动，需通过 http:// 访问）
  *
  * 视图代码对两种模式零感知。
  */
@@ -21,6 +21,7 @@
 
   const STORAGE_PROGRESS = 'cz_progress'
   const STORAGE_CHECKINS = 'cz_checkins'
+  const STORAGE_TOKEN = 'cz_token'
 
   /* ================= 存储抽象（浏览器 localStorage；node 测试用内存兜底） ================= */
 
@@ -63,14 +64,62 @@
 
   /* ================= 内部工具 ================= */
 
-  /** 后端接口（USE_MOCK=false 时实现；当前后端未接入，返回明确错误） */
-  function http(path, data) {
-    const msg = '云端模式未接入：请在 api.js 的 http() 中实现后端接口（' + path + '）'
-    return Promise.reject(new Error(msg))
+  /* ---------- 会话令牌 ---------- */
+
+  function getToken() {
+    try {
+      let t = store().getItem(STORAGE_TOKEN) || ''
+      // 兼容旧版误存 JSON 引号格式（storeSet 曾 stringify token）
+      if (t.length > 2 && t[0] === '"' && t[t.length - 1] === '"') t = t.slice(1, -1)
+      return t
+    } catch (e) { return '' }
   }
 
-  function backendNotReady() {
-    return Promise.reject(new Error('USE_MOCK=false：请实现 api.js 中对应方法的后端分支'))
+  function setToken(token) {
+    // token 直接原样存（storeSet 会 JSON.stringify，读出会带引号导致服务端验签失败）
+    if (token) {
+      try { store().setItem(STORAGE_TOKEN, token) } catch (e) { /* 存储不可用忽略 */ }
+    } else {
+      storeRemove(STORAGE_TOKEN)
+    }
+  }
+
+  /** 是否已登录（仅 http 模式有意义；mock 模式恒为本地单用户） */
+  function isLoggedIn() {
+    return config.USE_MOCK ? true : !!getToken()
+  }
+
+  /**
+   * 后端请求（USE_MOCK=false 时使用）
+   * @param {string} path 接口路径（可带 query，如 'quiz?mode=node&code=x'）
+   * @param {object} [data] 存在则 POST JSON，否则 GET
+   */
+  function http(path, data) {
+    const opts = { method: data ? 'POST' : 'GET', headers: {} }
+    if (data) {
+      opts.headers['Content-Type'] = 'application/json'
+      opts.body = JSON.stringify(data)
+    }
+    const token = getToken()
+    if (token) opts.headers['Authorization'] = 'Bearer ' + token
+
+    return fetch(config.API_BASE + '/api/' + path, opts).then(res => {
+      return res.json().then(body => {
+        if (!res.ok || body.ok === false) {
+          const err = new Error(body.message || ('请求失败（' + res.status + '）'))
+          err.code = body.error || ''
+          err.status = res.status
+          if (res.status === 401) {
+            setToken('') // 令牌失效，本地登出
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('cz:unauthorized'))
+            }
+          }
+          throw err
+        }
+        return body
+      })
+    })
   }
 
   function getConfigDoc() {
@@ -84,7 +133,7 @@
         theme: { primary: '#C8102E', gold: '#D4A017' }
       }
     }
-    return http('config')
+    return http('config').then(r => r.config)
   }
 
   function cacheGet(key, fetchFn) {
@@ -114,7 +163,7 @@
         .sort((a, b) => a.order - b.order)
       return Promise.resolve(list)
     }
-    return http('nodes')
+    return http('nodes').then(r => r.nodes)
   }
 
   /** 单个节点 */
@@ -123,7 +172,7 @@
       const node = mockNodes.find(n => n.code === code)
       return Promise.resolve(node || null)
     }
-    return http('nodes/' + code)
+    return http('nodes').then(r => (r.nodes || []).find(n => n.code === code) || null)
   }
 
   /* ================= 用户进度 ================= */
@@ -140,12 +189,12 @@
     storeSet(STORAGE_PROGRESS, p)
   }
 
-  /** 当前用户进度（不存在返回空结构，不报错） */
+  /** 当前用户进度（不存在返回空结构，不报错；未登录返回空结构，游客可浏览） */
   function getProgress() {
     if (config.USE_MOCK) {
       return Promise.resolve(mockProgress())
     }
-    return http('progress')
+    return http('progress').then(r => r.progress || emptyProgress())
   }
 
   /** 打卡流水（我的页足迹时间线，按时间倒序） */
@@ -153,7 +202,7 @@
     if (config.USE_MOCK) {
       return Promise.resolve(storeGet(STORAGE_CHECKINS) || [])
     }
-    return http('checkins')
+    return http('checkins').then(r => r.checkins || [])
   }
 
   /** 保存昵称 */
@@ -165,6 +214,37 @@
       return Promise.resolve({ ok: true, nickname })
     }
     return http('profile', { nickname })
+  }
+
+  /* ================= 账号（USE_MOCK=false 时使用） ================= */
+
+  /** 注册：成功自动保存令牌 */
+  function register(username, password, nickname) {
+    return http('register', { username, password, nickname }).then(r => {
+      setToken(r.token)
+      return r
+    })
+  }
+
+  /** 登录：成功自动保存令牌 */
+  function login(username, password) {
+    return http('login', { username, password }).then(r => {
+      setToken(r.token)
+      return r
+    })
+  }
+
+  /** 退出：吊销服务端会话 + 清本地令牌（网络失败也本地登出） */
+  function logout() {
+    return http('logout', {}).catch(() => ({ ok: true })).then(r => {
+      setToken('')
+      return r
+    })
+  }
+
+  /** 当前用户信息（未登录抛 AUTH_REQUIRED） */
+  function me() {
+    return http('me').then(r => r.user)
   }
 
   /* ================= 核心链路（后端 / mock 同构） ================= */
@@ -248,7 +328,7 @@
         })
       })
     }
-    return http('quiz', { mode, code })
+    return http('quiz?mode=' + encodeURIComponent(mode) + '&code=' + encodeURIComponent(code || ''))
   }
 
   /**
@@ -308,7 +388,7 @@
         })
       })
     }
-    return http('submitQuiz', { mode, code, answers })
+    return http('quiz/submit', { mode, code, answers })
   }
 
   /* ================= 题目工具 ================= */
@@ -342,6 +422,11 @@
     saveNickname,
     checkin,
     getQuiz,
-    submitQuiz
+    submitQuiz,
+    register,
+    login,
+    logout,
+    me,
+    isLoggedIn
   }
 })
