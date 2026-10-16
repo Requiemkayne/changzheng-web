@@ -14,3 +14,6 @@ server/data.db-shm
 server.log
 server.err.log
 .impeccable/tmp/
+
+# 字体下载源清单（参考用，不入库）
+fonts/urls.txt

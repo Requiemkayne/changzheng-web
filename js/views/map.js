@@ -63,6 +63,9 @@
       st: states.byCode[n.code]
     }))
 
+    // 路线 d（隐藏 path：供描线动画与星火 animateMotion 引用）
+    const routeD = 'M' + pts.map(p => p.x + ',' + p.y).join('L')
+
     const polyline = pts.map(p => p.x + ',' + p.y).join(' ')
 
     // 节点：圆 + 序号；起终点加五角星（自绘 path，不用字形）
@@ -76,7 +79,7 @@
       const labelAbove = p.i % 2 === 0
       const ly = labelAbove ? p.y - 26 : p.y + 29
       nodesHtml +=
-        '<g class="map-node" data-code="' + p.node.code + '" data-i="' + p.i + '">' +
+        '<g class="map-node" data-code="' + p.node.code + '" data-i="' + p.i + '" style="animation-delay:' + (1.35 + p.i * 0.15) + 's">' +
           (p.i === 0 ? star(p.x, p.y - 34, 'map-star-start') : '') +
           (p.i === nodes.length - 1 ? star(p.x, p.y - 34, 'map-star-end') : '') +
           '<circle cx="' + p.x + '" cy="' + p.y + '" r="15" fill="' + s.fill + '" stroke="' + s.stroke + '" stroke-width="2.5"/>' +
@@ -101,11 +104,18 @@
             '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="10" fill="url(#grid)"/>' +
             '<rect class="map-frame-outer" x="6" y="6" width="' + (W - 12) + '" height="' + (H - 12) + '" rx="8"/>' +
             '<rect class="map-frame-inner" x="13" y="13" width="' + (W - 26) + '" height="' + (H - 26) + '" rx="5"/>' +
+            '<path id="mapRoutePath" d="' + routeD + '" fill="none" stroke="none"/>' +
             '<polyline class="map-route" points="' + polyline + '"/>' +
             '<polyline class="map-route-gold" points="' + polyline + '"/>' +
+            '<circle class="map-spark" r="5" fill="#E8C86A">' +
+              '<animateMotion dur="2.1s" fill="freeze" keyPoints="0;1" keyTimes="0;1" calcMode="linear">' +
+                '<mpath href="#mapRoutePath"/>' +
+              '</animateMotion>' +
+            '</circle>' +
             nodesHtml +
           '</svg>' +
         '</div>' +
+        '<div class="map-replay-wrap"><button class="btn btn-mini btn-mini-ghost" id="map-replay" type="button">' + UI.icon('replay', 'map-replay-ic') + ' 重播行军动画</button></div>' +
         '<div class="map-legend">' +
           '<span><i class="legend-open"></i>待打卡</span>' +
           '<span><i class="legend-checked"></i>已打卡</span>' +
@@ -114,6 +124,26 @@
         '</div>' +
         '<div class="map-strip" id="map-strip"></div>' +
       '</div>'
+
+    // 行军动画：初始播放一次，可重播（prefers-reduced-motion 时直接静态）
+    const svg = rootEl.querySelector('.map-svg')
+    const goldLine = rootEl.querySelector('.map-route-gold')
+    const spark = rootEl.querySelector('.map-spark')
+    const routePath = rootEl.querySelector('#mapRoutePath')
+    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    function playMarch() {
+      if (reduced) return
+      const len = routePath.getTotalLength()
+      goldLine.style.strokeDasharray = len
+      goldLine.style.strokeDashoffset = len
+      svg.classList.remove('map-anim')
+      void svg.getBoundingClientRect()   // 强制回流，重启动画
+      svg.classList.add('map-anim')
+      spark.querySelector('animateMotion').beginElement()
+    }
+    playMarch()
+    rootEl.querySelector('#map-replay').addEventListener('click', playMarch)
 
     // 节点点击 → 详情
     rootEl.querySelectorAll('.map-node').forEach(g => {

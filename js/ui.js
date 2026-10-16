@@ -20,6 +20,7 @@
     cap: '<path d="M3 9l9-4.5L21 9l-9 4.5L3 9z"/><path d="M6.5 11v4.2c3.5 2 7.5 2 11 0V11"/><path d="M21 9v5"/>',
     chevron: '<path d="M9 6l6 6-6 6"/>',
     check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
+    replay: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 3.5v4h4"/>',
     xmark: '<path d="M6 6l12 12M18 6L6 18"/>',
     lantern: '<rect x="9" y="3.5" width="6" height="2" rx="1"/><path d="M12 5.5c-3.5 0-6 2.2-6 5.3V19h12v-8.2c0-3.1-2.5-5.3-6-5.3z"/><path d="M4.5 12.5h15M8.5 19h-2M17.5 19h-2"/>'
   }
@@ -123,5 +124,5 @@
     toastTimer = setTimeout(() => el.classList.remove('toast-show'), 1800)
   }
 
-  root.CZ_UI = { icon, badgeHTML, nodeRowHTML, dialog, toast }
+  root.CZ_UI = { icon, badgeHTML, nodeRowHTML, dialog, toast, ICON_PATHS }
 })(typeof self !== 'undefined' ? self : this)

@@ -1358,7 +1358,101 @@ a { color: var(--red-mid); text-decoration: none; }
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+  .map-spark, .map-replay-wrap { display: none; }
 }
+
+/* ---------- 开场动画（深红夜幕揭幕：路线绘出 + 两万五千里） ---------- */
+
+.intro {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 0 28px;
+  background:
+    radial-gradient(860px 400px at 50% -80px, rgba(232, 200, 106, 0.10), transparent 70%),
+    linear-gradient(180deg, #5E0713 0%, #7A0C1C 32%, #4A0510 66%, #2B0309 100%);
+  animation: introFadeIn .35s ease-out both;
+}
+.intro-out { animation: introFadeOut .45s ease-in forwards; }
+@keyframes introFadeIn { from { opacity: 0; } }
+@keyframes introFadeOut { to { opacity: 0; } }
+
+.intro-skip {
+  position: absolute;
+  top: max(20px, env(safe-area-inset-top)); right: 20px;
+  padding: 7px 16px; border-radius: 5px;
+  background: transparent; border: 1px solid rgba(232, 200, 106, 0.5);
+  color: rgba(255, 244, 220, 0.85);
+  font-family: var(--font-body); font-size: 13px; letter-spacing: 2px;
+  cursor: pointer;
+}
+.intro-skip:active { transform: scale(0.97); }
+
+.intro-svg { width: min(78vw, 340px); height: min(58.5vw, 255px); color: #E8C86A; }
+.intro-route {
+  fill: none; stroke: #E8C86A; stroke-width: 2.5; stroke-linecap: round;
+  stroke-dasharray: 100; stroke-dashoffset: 100;
+  animation: introDraw 2.2s .3s cubic-bezier(.4, 0, .2, 1) forwards;
+}
+@keyframes introDraw { to { stroke-dashoffset: 0; } }
+
+.intro-dot {
+  fill: #E8C86A; opacity: 0;
+  transform-box: fill-box; transform-origin: center;
+  animation: introDot .35s ease-out forwards;
+}
+@keyframes introDot {
+  from { opacity: 0; transform: scale(.3); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.intro-star { opacity: 0; transform-box: fill-box; transform-origin: center; animation: introStar .5s 2.5s ease-out forwards; }
+.intro-star-b { animation-delay: 2.65s; }
+@keyframes introStar {
+  from { opacity: 0; transform: scale(.4) rotate(-18deg); }
+  to { opacity: 1; }
+}
+
+.intro-title {
+  font-family: var(--font-title); font-weight: 900;
+  font-size: 40px; line-height: 1.2;
+  color: #FFF4DC; letter-spacing: 14px; text-indent: 14px;
+  margin-top: 20px; opacity: 0;
+  animation: introRise .6s 2.5s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+.intro-sub {
+  margin-top: 12px; color: rgba(255, 244, 220, 0.62);
+  font-size: 13px; letter-spacing: 4px; opacity: 0;
+  animation: introRise .6s 2.8s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+.intro-years {
+  margin-top: 18px; display: flex; gap: 30px;
+  color: rgba(232, 200, 106, 0.8);
+  font-size: 13px; font-variant-numeric: tabular-nums; letter-spacing: 2px; opacity: 0;
+  animation: introRise .6s 2.9s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+@keyframes introRise {
+  from { opacity: 0; transform: translateY(14px) scale(.97); }
+  to { opacity: 1; }
+}
+
+/* ---------- 地图行军动画（路线推进 + 节点依次点亮 + 星火） ---------- */
+
+.map-svg.map-anim .map-route-gold { animation: routeMarch 2.1s ease-out forwards; }
+@keyframes routeMarch { to { stroke-dashoffset: 0; } }
+
+.map-svg.map-anim .map-node {
+  opacity: 0;
+  transform-box: fill-box; transform-origin: center;
+  animation: nodePop .45s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+@keyframes nodePop {
+  from { opacity: 0; transform: scale(1.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.map-replay-wrap { text-align: center; margin-top: 12px; }
+.map-replay-wrap .btn-mini { display: inline-flex; align-items: center; gap: 6px; }
+.map-replay-ic { font-size: 14px; }
 
 /* ---------- 桌面微调（>480px 时纸页居中，两侧留白） ---------- */
 
