@@ -16,6 +16,7 @@
     {
       order: 1,
       code: 'ruijin',
+      category: 'march',
       name: '瑞金出发',
       subtitle: '长征从这里开始',
       date: '1934年10月',
@@ -41,6 +42,7 @@
     {
       order: 2,
       code: 'xiangjiang',
+      category: 'battle',
       name: '湘江战役',
       subtitle: '血战湘江',
       date: '1934年11月—12月',
@@ -63,6 +65,7 @@
     {
       order: 3,
       code: 'zunyi',
+      category: 'event',
       name: '遵义会议',
       subtitle: '伟大的转折',
       date: '1935年1月',
@@ -85,6 +88,7 @@
     {
       order: 4,
       code: 'sidu-chishui',
+      category: 'battle',
       name: '四渡赤水',
       subtitle: '运动战的典范',
       date: '1935年1月—3月',
@@ -112,6 +116,7 @@
     {
       order: 5,
       code: 'jinshajiang',
+      category: 'march',
       name: '巧渡金沙江',
       subtitle: '跳出包围圈',
       date: '1935年5月',
@@ -133,6 +138,7 @@
     {
       order: 6,
       code: 'daduhe',
+      category: 'battle',
       name: '强渡大渡河',
       subtitle: '十七勇士',
       date: '1935年5月',
@@ -154,6 +160,7 @@
     {
       order: 7,
       code: 'luding',
+      category: 'battle',
       name: '飞夺泸定桥',
       subtitle: '十三根铁索',
       date: '1935年5月',
@@ -176,6 +183,7 @@
     {
       order: 8,
       code: 'xueshan',
+      category: 'march',
       name: '爬雪山',
       subtitle: '翻越夹金山',
       date: '1935年6月',
@@ -197,6 +205,7 @@
     {
       order: 9,
       code: 'caodi',
+      category: 'march',
       name: '过草地',
       subtitle: '穿越死亡之地',
       date: '1935年8月',
@@ -221,6 +230,7 @@
     {
       order: 10,
       code: 'lazikou',
+      category: 'battle',
       name: '激战腊子口',
       subtitle: '打通北上之路',
       date: '1935年9月',
@@ -241,6 +251,7 @@
     {
       order: 11,
       code: 'huining',
+      category: 'event',
       name: '会宁会师',
       subtitle: '长征胜利结束',
       date: '1936年10月',

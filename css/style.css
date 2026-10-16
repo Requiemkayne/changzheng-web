@@ -7,21 +7,22 @@
    ============================================================ */
 
 :root {
+  /* 配色对齐设计稿规范：长征红 / 纪念金 / 纸张米白 / 深棕正文 / 灰棕辅助 */
   --red-deep: #4A0510;
   --red-dark: #6E0918;
-  --red: #A8182C;
-  --red-mid: #C8102E;
+  --red: #821626;        /* 长征红（设计稿主色） */
+  --red-mid: #A8182C;
   --red-bright: #D43A4E;
   --red-bg: #FAEEEF;
-  --gold: #C9A227;
+  --gold: #C6A343;       /* 纪念金（设计稿） */
   --gold-light: #E8C86A;
   --gold-deep: #8F6E0B;
   --gold-pale: #F5E9C8;
   --gold-bg: #FAF4E2;
-  --paper: #F5EFE0;
-  --card: #FFFDF6;
-  --ink: #33261A;
-  --muted: #6E6350;
+  --paper: #F7F0DF;      /* 纸张米白（设计稿） */
+  --card: #FFFDF7;
+  --ink: #35291F;        /* 正文深棕（设计稿） */
+  --muted: #8C8475;      /* 辅助灰棕（设计稿） */
   --line: #E3D6B8;
   --green: #3E7C44;
   --green-bg: #EDF4EC;
@@ -268,6 +269,35 @@ a { color: var(--red-mid); text-decoration: none; }
 .hero .ic { font-size: 18px; color: var(--gold-light); }
 
 /* ---------- 时间轴路线图 ---------- */
+
+/* 路线分类 Tab：行军路线（全部）/ 重要战役 / 历史事件 */
+.route-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 8px;
+}
+.route-tab {
+  flex: 1;
+  padding: 9px 0 8px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  font-family: var(--font-title);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--ink);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: all .2s;
+}
+.route-tab:active { transform: scale(0.97); }
+.route-tab.route-tab-active {
+  background: linear-gradient(160deg, var(--red-dark), var(--red));
+  border-color: var(--gold);
+  color: #FFF4DC;
+  box-shadow: 0 2px 8px rgba(74, 5, 16, 0.35);
+}
 
 .tl-stage {
   margin: 22px 0 12px;
@@ -915,6 +945,11 @@ a { color: var(--red-mid); text-decoration: none; }
 .map-star-start { fill: #C9A227; }
 .map-star-end   { fill: #E8C86A; }
 
+/* 简化地理底图（示意，非精确边界） */
+.map-province { fill: none; stroke: rgba(140, 132, 117, 0.45); stroke-width: 1; stroke-dasharray: 2 4; }
+.map-river    { fill: none; stroke: rgba(120, 112, 98, 0.75); stroke-width: 1.4; stroke-dasharray: 2 3; stroke-linecap: round; }
+.map-mountain { fill: rgba(140, 132, 117, 0.3); stroke: rgba(140, 132, 117, 0.5); stroke-width: 1; stroke-linejoin: round; }
+
 .map-legend {
   display: flex; gap: 14px;
   font-size: 11px; color: var(--muted);
@@ -931,6 +966,10 @@ a { color: var(--red-mid); text-decoration: none; }
 .legend-checked { background: var(--red); border: 1px solid var(--gold); }
 .legend-passed  { background: var(--gold); }
 .legend-locked  { background: #C4B99F; }
+.legend-route {
+  width: 15px !important; height: 3px !important; border-radius: 2px;
+  background: linear-gradient(90deg, var(--red-mid), var(--gold-light));
+}
 
 .map-strip {
   display: flex;
@@ -956,6 +995,45 @@ a { color: var(--red-mid); text-decoration: none; }
   background: linear-gradient(135deg, #FDF3E0, #F8E9C6);
   color: var(--red-dark);
   font-weight: 700;
+}
+
+/* 节点详情浮窗 */
+.map-float { display: none; margin-top: 14px; }
+.map-float-card { padding: 16px 16px 14px; }
+.map-float-head { display: flex; align-items: center; gap: 11px; }
+.map-float-order {
+  width: 36px; height: 36px; border-radius: 50%;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #FFF6E2; border: 2px solid var(--red);
+  color: var(--red);
+  font-family: var(--font-title); font-size: 16px; font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.map-float-name {
+  font-family: var(--font-title);
+  font-size: 18px; font-weight: 900;
+  color: var(--red-dark);
+  letter-spacing: 1px;
+}
+.map-float-meta { font-size: 12px; color: var(--muted); margin-top: 3px; letter-spacing: 1px; }
+.map-float-sub {
+  font-size: 13px; line-height: 1.7; color: var(--ink);
+  border-top: 1px dashed rgba(201, 162, 39, 0.4);
+  margin-top: 12px; padding-top: 10px;
+}
+.map-float-actions { margin-top: 12px; display: flex; align-items: center; }
+.map-float-locked {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--muted); letter-spacing: 1px;
+}
+.map-float-locked svg { width: 13px; height: 13px; }
+
+.map-note {
+  text-align: center;
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 1px;
+  margin-top: 4px;
 }
 
 /* ---------- 登录 / 注册表单（纸卡） ---------- */
@@ -1067,6 +1145,28 @@ a { color: var(--red-mid); text-decoration: none; }
 }
 .stat-label { font-size: 11px; color: var(--muted); margin-top: 3px; letter-spacing: 1px; }
 .stat + .stat { border-left: 1px solid var(--line); }
+
+/* 学习统计卡 */
+.learn-card { padding: 14px 16px 16px; }
+.learn-head { display: flex; align-items: center; gap: 7px; margin-bottom: 12px; }
+.learn-head-ic { width: 16px; height: 16px; color: var(--red); }
+.learn-title {
+  font-family: var(--font-title);
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--red-dark);
+}
+.learn-grid { display: flex; }
+.learn-item { flex: 1; text-align: center; }
+.learn-num {
+  font-family: var(--font-title);
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--red);
+  font-variant-numeric: tabular-nums;
+}
+.learn-label { font-size: 11px; color: var(--muted); margin-top: 3px; letter-spacing: 1px; }
+.learn-item + .learn-item { border-left: 1px dashed rgba(201, 162, 39, 0.4); }
 
 .cert-entry { display: flex; align-items: center; cursor: pointer; }
 .cert-entry:active { transform: scale(0.985); }

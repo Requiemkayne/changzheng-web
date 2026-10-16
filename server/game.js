@@ -31,29 +31,41 @@ function getPublishedNodes() {
 /* ---------- 进度读写 ---------- */
 
 function emptyProgress() {
-  return { checkins: {}, quizScores: {}, finalExam: { attempts: 0, best: 0, passed: false, lastTime: null } }
+  return {
+    checkins: {},
+    quizScores: {},
+    finalExam: { attempts: 0, best: 0, passed: false, lastTime: null },
+    stats: { correctCount: 0, totalCount: 0 }
+  }
 }
 
 function loadProgress(db, userId) {
-  const row = db.prepare('SELECT checkins, quiz_scores, final_exam FROM progress WHERE user_id = ?').get(userId)
+  const row = db.prepare('SELECT checkins, quiz_scores, final_exam, stats FROM progress WHERE user_id = ?').get(userId)
   if (!row) return emptyProgress()
   return {
     checkins: JSON.parse(row.checkins),
     quizScores: JSON.parse(row.quiz_scores),
-    finalExam: JSON.parse(row.final_exam)
+    finalExam: JSON.parse(row.final_exam),
+    stats: row.stats ? JSON.parse(row.stats) : { correctCount: 0, totalCount: 0 }
   }
 }
 
 function saveProgress(db, userId, p) {
   db.prepare(`
-    INSERT INTO progress (user_id, checkins, quiz_scores, final_exam, updated_at)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO progress (user_id, checkins, quiz_scores, final_exam, stats, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?)
     ON CONFLICT(user_id) DO UPDATE SET
       checkins = excluded.checkins,
       quiz_scores = excluded.quiz_scores,
       final_exam = excluded.final_exam,
+      stats = excluded.stats,
       updated_at = excluded.updated_at
-  `).run(userId, JSON.stringify(p.checkins), JSON.stringify(p.quizScores), JSON.stringify(p.finalExam), Date.now())
+  `).run(userId,
+    JSON.stringify(p.checkins),
+    JSON.stringify(p.quizScores),
+    JSON.stringify(p.finalExam),
+    JSON.stringify(p.stats || { correctCount: 0, totalCount: 0 }),
+    Date.now())
 }
 
 /* ---------- 打卡 ---------- */
@@ -174,6 +186,11 @@ function submitQuiz(db, userId, mode, code, answers) {
   const score = Math.round(correctCount / total * 100)
   const passScore = mode === 'final' ? cfg.finalExam.passScore : 60
   const passed = score >= passScore
+
+  // 学习统计累计（兼容旧数据无 stats 字段）
+  p.stats = p.stats || { correctCount: 0, totalCount: 0 }
+  p.stats.correctCount += correctCount
+  p.stats.totalCount += total
 
   if (mode === 'final') {
     p.finalExam.attempts = (p.finalExam.attempts || 0) + 1

@@ -40,6 +40,7 @@ function openDb(dbPath) {
       checkins    TEXT NOT NULL DEFAULT '{}',
       quiz_scores TEXT NOT NULL DEFAULT '{}',
       final_exam  TEXT NOT NULL DEFAULT '{"attempts":0,"best":0,"passed":false,"lastTime":null}',
+      stats       TEXT NOT NULL DEFAULT '{"correctCount":0,"totalCount":0}',
       updated_at  INTEGER NOT NULL
     );
 
@@ -81,6 +82,12 @@ function openDb(dbPath) {
 
     CREATE INDEX IF NOT EXISTS idx_contests_user ON contests(user_id, created_at);
   `)
+
+  // 旧库迁移：progress 表补 stats 列（学习统计）
+  const cols = db.prepare(`SELECT name FROM pragma_table_info('progress')`).all().map(r => r.name)
+  if (!cols.includes('stats')) {
+    db.exec(`ALTER TABLE progress ADD COLUMN stats TEXT NOT NULL DEFAULT '{"correctCount":0,"totalCount":0}'`)
+  }
 
   return db
 }

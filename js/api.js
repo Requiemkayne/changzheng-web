@@ -178,7 +178,12 @@
   /* ================= 用户进度 ================= */
 
   function emptyProgress() {
-    return { checkins: {}, quizScores: {}, finalExam: { attempts: 0, best: 0, passed: false, lastTime: null } }
+    return {
+      checkins: {},
+      quizScores: {},
+      finalExam: { attempts: 0, best: 0, passed: false, lastTime: null },
+      stats: { correctCount: 0, totalCount: 0 }
+    }
   }
 
   function mockProgress() {
@@ -362,6 +367,10 @@
           const score = Math.round(correctCount / total * 100)
           const passScore = mode === 'final' ? cfg.finalExam.passScore : 60
           const passed = score >= passScore
+          // 学习统计累计（兼容旧数据无 stats 字段）
+          p.stats = p.stats || { correctCount: 0, totalCount: 0 }
+          p.stats.correctCount += correctCount
+          p.stats.totalCount += total
           // 写成绩
           if (mode === 'final') {
             p.finalExam.attempts = (p.finalExam.attempts || 0) + 1

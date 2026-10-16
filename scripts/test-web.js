@@ -136,6 +136,10 @@ async function chain() {
   assert.strictEqual(flow.length, 11)
   ok('进度 11 打卡 / ruijin 通关 / 流水 11 条')
 
+  // 学习统计：3 次提交共 9 题，答对 2+3+0=5
+  assert.ok(p.stats && p.stats.totalCount === 9 && p.stats.correctCount === 5)
+  ok('学习统计累计 9 题 / 5 对')
+
   // final 毕业链路
   r = await api.getQuiz('final')
   assert.strictEqual(r.ok, true)

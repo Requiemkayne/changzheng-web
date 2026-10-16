@@ -67,6 +67,16 @@
         '</div>'
     })
 
+    // 学习统计（兼容旧数据无 stats 字段）
+    const stats = progress.stats || { correctCount: 0, totalCount: 0 }
+    const rate = stats.totalCount > 0 ? Math.round(stats.correctCount / stats.totalCount * 100) : 0
+    let attemptsTotal = 0
+    nodes.forEach(n => {
+      const q = progress.quizScores && progress.quizScores[n.code]
+      if (q) attemptsTotal += q.attempts || 0
+    })
+    attemptsTotal += (progress.finalExam && progress.finalExam.attempts) || 0
+
     // 足迹时间线
     let foot = ''
     if (checkins.length) {
@@ -104,6 +114,15 @@
         '<div class="stat"><div class="stat-num">' + states.passedCount + '/' + states.total + '</div><div class="stat-label">答题通关</div></div>' +
         '<div class="stat"><div class="stat-num">' + (graduated ? states.finalBest : '—') + '</div><div class="stat-label">毕业得分</div></div>' +
       '</div></div>' +
+
+      '<div class="card learn-card">' +
+        '<div class="learn-head">' + UI.icon('cap', 'learn-head-ic') + '<span class="learn-title">学习统计</span></div>' +
+        '<div class="learn-grid">' +
+          '<div class="learn-item"><div class="learn-num">' + stats.totalCount + '</div><div class="learn-label">累计答题（题）</div></div>' +
+          '<div class="learn-item"><div class="learn-num">' + rate + '%</div><div class="learn-label">正确率</div></div>' +
+          '<div class="learn-item"><div class="learn-num">' + attemptsTotal + '</div><div class="learn-label">答题次数（次）</div></div>' +
+        '</div>' +
+      '</div>' +
 
       '<div class="card cert-entry" id="cert-entry">' +
         '<div class="final-icon">' + UI.icon('cap') + '</div>' +

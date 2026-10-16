@@ -27,6 +27,35 @@
     }
   }
 
+  // 路线 Tab：行军路线（全部节点）/ 重要战役 / 历史事件
+  const TABS = [
+    { key: 'march', label: '行军路线' },
+    { key: 'battle', label: '重要战役' },
+    { key: 'event', label: '历史事件' }
+  ]
+
+  function filterNodes(nodes, key) {
+    return key === 'march' ? nodes : nodes.filter(n => n.category === key)
+  }
+
+  function tlHtml(nodes, states) {
+    let html = ''
+    let lastStage = null
+    nodes.forEach((node, i) => {
+      const st = states.byCode[node.code]
+      const isLast = i === nodes.length - 1
+      if (node.stage !== lastStage) {
+        lastStage = node.stage
+        html += '<div class="tl-stage">' + F.escapeHtml(node.stage) + '</div>'
+      }
+      html += '<div class="tl">' + UI.nodeRowHTML(node, st, {
+        current: st.state === 'open' && node.code === states.currentCode,
+        isLast
+      }) + '</div>'
+    })
+    return html
+  }
+
   function render(rootEl, config, nodes, progress, states) {
     const graduated = states.finalState === 'passed'
     const finalCardCls = 'card final-card' + (states.finalState === 'locked' ? ' final-locked' : '')
@@ -49,22 +78,11 @@
           '<div class="hero-stat"><div class="hero-stat-num">' + states.passedCount + '/' + states.total + '</div><div class="hero-stat-label">答题通关</div></div>' +
           '<div class="hero-stat"><div class="hero-stat-num">' + (graduated ? UI.icon('star') : '—') + '</div><div class="hero-stat-label">毕业</div></div>' +
         '</div>' +
-      '</div>'
-
-    // 时间轴（stage 分组）
-    let lastStage = null
-    nodes.forEach((node, i) => {
-      const st = states.byCode[node.code]
-      const isLast = i === nodes.length - 1
-      if (node.stage !== lastStage) {
-        lastStage = node.stage
-        html += '<div class="tl-stage">' + F.escapeHtml(node.stage) + '</div>'
-      }
-      html += '<div class="tl">' + UI.nodeRowHTML(node, st, {
-        current: st.state === 'open' && node.code === states.currentCode,
-        isLast
-      }) + '</div>'
-    })
+      '</div>' +
+      '<div class="route-tabs">' +
+        TABS.map(t => '<button type="button" class="route-tab' + (t.key === 'march' ? ' route-tab-active' : '') + '" data-tab="' + t.key + '">' + F.escapeHtml(t.label) + '</button>').join('') +
+      '</div>' +
+      '<div id="tl-wrap">' + tlHtml(nodes, states) + '</div>'
 
     // 伟大长征精神（五条官方表述）
     if (spirit && spirit.spirit) {
@@ -117,7 +135,7 @@
     html += '</div>'
 
     rootEl.innerHTML = html
-    bind(rootEl, states)
+    bind(rootEl, nodes, states)
 
     // 锚定到当前应到达节点（路由重置滚动后执行）
     setTimeout(() => {
@@ -126,11 +144,26 @@
     }, 60)
   }
 
-  function bind(rootEl, states) {
+  function bind(rootEl, nodes, states) {
     // 节点行点击 → 详情
-    rootEl.querySelectorAll('[data-code]').forEach(row => {
-      row.addEventListener('click', () => {
-        location.hash = '#/node/' + row.dataset.code
+    const bindRows = container => {
+      container.querySelectorAll('[data-code]').forEach(row => {
+        row.addEventListener('click', () => {
+          location.hash = '#/node/' + row.dataset.code
+        })
+      })
+    }
+    bindRows(rootEl)
+
+    // 路线 Tab 切换：行军路线（全部）/ 重要战役 / 历史事件
+    const tabs = rootEl.querySelectorAll('.route-tab')
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const key = tab.dataset.tab
+        tabs.forEach(t => t.classList.toggle('route-tab-active', t === tab))
+        const wrap = rootEl.querySelector('#tl-wrap')
+        wrap.innerHTML = tlHtml(filterNodes(nodes, key), states)
+        bindRows(wrap)
       })
     })
     // 总结答题入口

@@ -155,6 +155,10 @@ async function main() {
     r = await req('POST', '/api/quiz/submit', { mode: 'node', code: code2, answers: answersFor(code2) }, token)
     ok('0 分后再考 100 → best 保持 100', r.body.best === 100 && r.body.attempts === 2)
 
+    // 学习统计累计：4 次提交共 12 题，答对 3+2+0+3=8
+    r = await req('GET', '/api/progress', undefined, token)
+    ok('学习统计累计 12 题 / 8 对', r.body.progress.stats && r.body.progress.stats.totalCount === 12 && r.body.progress.stats.correctCount === 8)
+
     /* ---------- 8. final 毕业 ---------- */
     console.log('\n[8] 总结答题')
     r = await req('POST', '/api/register', { username: '毕业生', password: 'final123' }, token)
