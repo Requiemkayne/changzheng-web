@@ -114,6 +114,19 @@
         UI.icon('chevron', 'tl-arrow') +
       '</div>' +
 
+      '<div class="entry-grid">' +
+        '<div class="card entry-card" id="contest-entry">' +
+          '<div class="entry-ic">' + UI.icon('trophy') + '</div>' +
+          '<div class="entry-name">知识竞赛</div>' +
+          '<div class="entry-sub">' + (graduated ? '来赛一场' : '毕业解锁') + '</div>' +
+        '</div>' +
+        '<div class="card entry-card" id="lb-entry">' +
+          '<div class="entry-ic">' + UI.icon('medal') + '</div>' +
+          '<div class="entry-name">排行榜</div>' +
+          '<div class="entry-sub">谁是先锋</div>' +
+        '</div>' +
+      '</div>' +
+
       '<div class="section-title">节点成绩</div>' +
       '<div class="card">' + scoreRows + '</div>' +
 
@@ -202,6 +215,10 @@
       }
       location.hash = '#/quiz/final'
     })
+
+    // 竞赛 / 排行榜入口
+    rootEl.querySelector('#contest-entry').addEventListener('click', () => { location.hash = '#/contest' })
+    rootEl.querySelector('#lb-entry').addEventListener('click', () => { location.hash = '#/leaderboard' })
 
     // 成绩清单 → 详情
     rootEl.querySelectorAll('.score-row').forEach(row => {

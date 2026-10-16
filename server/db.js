@@ -56,6 +56,30 @@ function openDb(dbPath) {
       key   TEXT PRIMARY KEY,
       value TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS bank_questions (
+      id          TEXT PRIMARY KEY,
+      question    TEXT NOT NULL,
+      options     TEXT NOT NULL,
+      answer      TEXT NOT NULL,
+      explanation TEXT NOT NULL DEFAULT '',
+      created_at  INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS contests (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      status      TEXT NOT NULL DEFAULT 'in_progress',
+      questions   TEXT NOT NULL,
+      answers     TEXT NOT NULL DEFAULT '{}',
+      score       INTEGER NOT NULL DEFAULT 0,
+      correct     INTEGER NOT NULL DEFAULT 0,
+      total       INTEGER NOT NULL DEFAULT 0,
+      duration_ms INTEGER NOT NULL DEFAULT 0,
+      created_at  INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_contests_user ON contests(user_id, created_at);
   `)
 
   return db

@@ -21,7 +21,7 @@
   let currentView = null
   let currentCleanup = null
 
-  const TAB_OF = { home: 'home', node: 'home', quiz: 'home', map: 'map', profile: 'profile' }
+  const TAB_OF = { home: 'home', node: 'home', quiz: 'home', map: 'map', profile: 'profile', contest: 'profile', leaderboard: 'profile' }
 
   function parseHash() {
     const segs = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean)
@@ -33,6 +33,8 @@
     }
     if (segs[0] === 'map') return { name: 'map', params: {} }
     if (segs[0] === 'profile') return { name: 'profile', params: {} }
+    if (segs[0] === 'contest') return { name: 'contest', params: {} }
+    if (segs[0] === 'leaderboard') return { name: 'leaderboard', params: {} }
     return { name: 'home', params: {} }
   }
 

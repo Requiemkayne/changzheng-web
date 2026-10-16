@@ -71,8 +71,26 @@
           '<div class="final-sub">' + F.escapeHtml(finalText) + '</div>' +
         '</div>' +
         UI.icon('chevron', 'tl-arrow') +
-      '</div>' +
       '</div>'
+
+    // 竞赛入口（毕业解锁后展示）
+    if (graduated) {
+      html +=
+        '<div class="entry-grid">' +
+          '<div class="card entry-card entry-card-red" id="contest-entry">' +
+            '<div class="entry-ic">' + UI.icon('trophy') + '</div>' +
+            '<div class="entry-name">知识竞赛</div>' +
+            '<div class="entry-sub">来赛一场</div>' +
+          '</div>' +
+          '<div class="card entry-card" id="lb-entry">' +
+            '<div class="entry-ic">' + UI.icon('medal') + '</div>' +
+            '<div class="entry-name">排行榜</div>' +
+            '<div class="entry-sub">谁是先锋</div>' +
+          '</div>' +
+        '</div>'
+    }
+
+    html += '</div>'
 
     rootEl.innerHTML = html
     bind(rootEl, states)
@@ -100,5 +118,10 @@
       }
       location.hash = '#/quiz/final'
     })
+    // 竞赛 / 排行榜入口（毕业解锁后渲染）
+    const contestEntry = rootEl.querySelector('#contest-entry')
+    const lbEntry = rootEl.querySelector('#lb-entry')
+    if (contestEntry) contestEntry.addEventListener('click', () => { location.hash = '#/contest' })
+    if (lbEntry) lbEntry.addEventListener('click', () => { location.hash = '#/leaderboard' })
   }
 })(typeof self !== 'undefined' ? self : this)

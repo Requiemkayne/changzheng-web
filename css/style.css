@@ -1465,3 +1465,199 @@ a { color: var(--red-mid); text-decoration: none; }
   #app { border-left: 1px solid rgba(201, 162, 39, 0.18); border-right: 1px solid rgba(201, 162, 39, 0.18); box-shadow: 0 10px 36px rgba(74, 5, 16, 0.12); }
   #tabbar { border-left: 1px solid rgba(232, 200, 106, 0.2); border-right: 1px solid rgba(232, 200, 106, 0.2); }
 }
+
+/* ============================================================
+   竞赛（积分赛）与排行榜 —— 红金装帧·奖杯勋章语言
+   ============================================================ */
+
+/* ---------- 入口卡（我的页 / 首页毕业解锁后） ---------- */
+
+.entry-grid { display: flex; gap: 12px; margin-bottom: 18px; }
+.entry-card {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 18px 10px 14px;
+  margin: 0;
+}
+.entry-card-red {
+  background: linear-gradient(160deg, #A8182C, var(--red-deep));
+  border: 1px solid rgba(232, 200, 106, 0.4);
+}
+.entry-ic { font-size: 30px; color: var(--gold); }
+.entry-card-red .entry-ic { color: var(--gold-light); }
+.entry-name {
+  margin-top: 8px;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+.entry-card-red .entry-name { color: #FFF4DC; }
+.entry-sub { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+.entry-card-red .entry-sub { color: rgba(255, 244, 220, 0.75); }
+
+/* ---------- 竞赛介绍 / 锁态 ---------- */
+
+.contest-hero {
+  position: relative;
+  background:
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.028) 0 14px, transparent 14px 28px),
+    linear-gradient(160deg, #A8182C 0%, var(--red-dark) 58%, var(--red-deep) 100%);
+  border-radius: var(--r-lg);
+  border: 1px solid rgba(232, 200, 106, 0.35);
+  color: #FFF4DC;
+  padding: 26px 20px 22px;
+  margin-bottom: 14px;
+  text-align: center;
+  box-shadow: 0 8px 26px rgba(74, 5, 16, 0.35);
+  overflow: hidden;
+}
+.contest-hero-ic { font-size: 34px; color: var(--gold-light); }
+.contest-hero-title {
+  margin-top: 8px;
+  font-family: var(--font-title);
+  font-weight: 900;
+  font-size: 26px;
+  letter-spacing: 6px;
+}
+.contest-hero-sub { margin-top: 4px; font-size: 13px; letter-spacing: 2px; color: rgba(255, 244, 220, 0.82); }
+
+.contest-stats { display: flex; gap: 12px; margin-bottom: 14px; }
+.contest-stat {
+  flex: 1;
+  background: var(--card);
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  border-radius: var(--r-md);
+  padding: 12px 6px 10px;
+  text-align: center;
+}
+.contest-stat-num {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 22px;
+  color: var(--red-mid);
+}
+.contest-stat-label { margin-top: 2px; font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+
+.contest-rule { padding: 16px; margin-bottom: 18px; }
+.contest-rule-title {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 16px;
+  letter-spacing: 2px;
+  color: var(--ink);
+  padding-bottom: 10px;
+  border-bottom: 1px dashed rgba(201, 162, 39, 0.45);
+}
+.contest-rule-row { display: flex; padding: 8px 2px 0; font-size: 13px; }
+.contest-rule-k {
+  flex: none; width: 48px;
+  color: var(--red-mid);
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+.contest-rule-v { color: var(--muted); line-height: 1.55; }
+
+.contest-locked { padding: 32px 20px; text-align: center; margin-top: 40px; }
+.contest-locked-ic { font-size: 38px; color: var(--gold-deep); }
+.contest-locked-title {
+  margin-top: 10px;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 19px;
+  letter-spacing: 2px;
+}
+.contest-locked-sub { margin: 8px 0 18px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+/* ---------- 按钮内图标 ---------- */
+
+.btn-ic { font-size: 15px; vertical-align: -2px; margin-right: 4px; }
+
+/* ---------- 结算 ---------- */
+
+.contest-trophy { font-size: 40px; color: var(--gold-light); margin-bottom: 2px; }
+
+/* ---------- 排行榜 ---------- */
+
+.lb-tabs {
+  display: flex;
+  background: rgba(201, 162, 39, 0.12);
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  border-radius: var(--r-md);
+  padding: 4px;
+  margin-bottom: 14px;
+}
+.lb-tab {
+  flex: 1;
+  padding: 8px 0;
+  border: 0;
+  border-radius: calc(var(--r-md) - 3px);
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.lb-tab-active {
+  background: linear-gradient(160deg, #A8182C, var(--red-dark));
+  color: #FFF4DC;
+  font-weight: 600;
+  box-shadow: 0 3px 10px rgba(74, 5, 16, 0.25);
+}
+
+.lb-list { padding: 8px 0; margin-bottom: 14px; }
+.lb-row {
+  display: flex; align-items: center;
+  padding: 10px 16px;
+  border-bottom: 1px dashed rgba(201, 162, 39, 0.3);
+}
+.lb-row:last-child { border-bottom: 0; }
+.lb-row.lb-me {
+  background: linear-gradient(90deg, rgba(201, 162, 39, 0.16), transparent);
+  border-left: 3px solid var(--gold);
+}
+.lb-medal { font-size: 20px; width: 34px; flex: none; }
+.lb-medal-1 { color: #C9A227; }
+.lb-medal-2 { color: #9BA3AD; }
+.lb-medal-3 { color: #B0764A; }
+.lb-rank {
+  width: 34px; flex: none;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--muted);
+  text-align: center;
+}
+.lb-name {
+  flex: 1;
+  font-weight: 600;
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lb-plays { font-size: 12px; color: var(--muted); margin-right: 10px; }
+.lb-score {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--red-mid);
+}
+.lb-score-unit { font-size: 12px; font-weight: 400; color: var(--muted); }
+
+.lb-myrank {
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+  background: var(--card);
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  border-radius: var(--r-md);
+  padding: 10px;
+  margin-bottom: 18px;
+}
+.lb-myrank b { color: var(--red-mid); font-family: var(--font-title); font-size: 18px; }
+
+.lb-empty { text-align: center; padding: 30px 16px; }
+.lb-empty-ic { font-size: 36px; color: var(--gold-deep); }
+.lb-empty .lb-empty-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }

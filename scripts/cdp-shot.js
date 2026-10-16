@@ -6,9 +6,9 @@
  */
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'
 const { spawn } = require('child_process')
-const { writeFileSync } = require('fs')
+const { writeFileSync, readFileSync } = require('fs')
 
-const [, , url, out, width = '400', height = '800', wait = '6000'] = process.argv
+const [, , url, out, width = '400', height = '800', wait = '6000', seedFile] = process.argv
 const PORT = 9333 + Math.floor(Math.random() * 500)
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
@@ -64,6 +64,14 @@ async function main() {
       })
       console.log('NOTREADY ' + (r.result && r.result.result ? r.result.result.value : JSON.stringify(r)))
     }
+    // 可选：注入 localStorage 种子数据（造进度/成绩），再刷新让页面用新数据渲染
+    if (seedFile) {
+      const seedJs = readFileSync(seedFile, 'utf8')
+      await send('Runtime.evaluate', { expression: seedJs, returnByValue: true })
+      await send('Page.reload')
+      await sleep(800)
+    }
+
     await sleep(+wait)
 
     // 诊断

@@ -79,3 +79,25 @@
 | submitQuiz | POST quiz/submit | ✓ | 判分（服务端比对） |
 
 **迁移服务器**：把整个 `web/` 文件夹拷到服务器，`node server/server.js` 即可（端口 `PORT`、数据库 `DB_PATH` 环境变量可调）。上公网务必用 Nginx 反代加 HTTPS（否则密码明文传输）；多实例并发时可将 SQLite 升级 PostgreSQL（表结构不绑定 SQLite 特性）。
+
+## 知识竞赛（毕业解锁）
+
+走完 11 个节点并通过毕业考试后解锁：
+
+- **积分赛**：一场 20 题（每题 5 分，满分 100），全库随机抽题，30 分钟交卷时限
+- **双排行榜**：累计总分榜 + 单场最佳榜（公开可看，登录后标注「我的排名」）
+- **服务端快照判分**：开赛时题目落库快照，交卷按快照判分，答案永不下发
+
+### 导入题库（出题人操作）
+
+1. 编辑 `server/question-bank.json`（格式见文件内「说明」字段；id 全局唯一，如 `bank-025`）
+2. 重启 `node server/server.js` —— 启动时自动导入，日志显示「题库导入: 新增 X 题 / 跳过重复 Y 题」
+
+题目格式：`{ id, question, options[4], answer:[下标], explanation }`，支持多选/判断（判断题 options 写 `["正确","错误"]`）。竞赛随机抽题，题量少于 20 时无法开赛。
+
+| 方法 | 接口 | 鉴权 | 说明 |
+|---|---|---|---|
+| contestStatus | GET contest/status | ✓ | 毕业状态 / 我的战绩 / 规则 |
+| contestStart | POST contest/start | ✓ | 开赛（抽 20 题，未毕业报 NOT_GRADUATED） |
+| contestSubmit | POST contest/submit | ✓ | 交卷判分（超时/重复交卷拦截） |
+| contestLeaderboard | GET contest/leaderboard?type=total\|best | 公开 | 排行榜（登录附我的名次） |

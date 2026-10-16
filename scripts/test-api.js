@@ -175,6 +175,50 @@ async function main() {
     r = await req('POST', '/api/quiz/submit', { mode: 'final', code: '', answers: pickedAnswers }, t2)
     ok('final 全对 → 毕业 isFinalPassed', r.body.score === 100 && r.body.isFinalPassed === true)
 
+    /* ---------- 8.5 竞赛 ---------- */
+    console.log('\n[8.5] 竞赛（毕业解锁 + 积分赛 + 排行榜）')
+    r = await req('GET', '/api/contest/status', undefined, token1)
+    ok('未毕业 → graduated=false', r.status === 200 && r.body.graduated === false)
+    r = await req('POST', '/api/contest/start', {}, token1)
+    ok('未毕业开场 → NOT_GRADUATED', r.body.error === 'NOT_GRADUATED')
+    r = await req('GET', '/api/contest/status', undefined, t2)
+    ok('已毕业 → graduated=true 且题库 ≥20', r.body.graduated === true && r.body.bankCount >= 20)
+    r = await req('POST', '/api/contest/start', {}, t2)
+    ok('开场 → 抽 20 题且零答案字段', r.status === 200 && r.body.questions.length === 20 &&
+      r.body.questions.every(q => !('answer' in q) && !('explanation' in q) && q.id && q.options))
+    ok('meta 含满分 100', r.body.meta.questionCount === 20 && r.body.meta.subtitle.includes('100'))
+    const contestId = r.body.contestId
+    // 从库读该场次的正确答案（模拟服务端快照）
+    const { DatabaseSync: DatabaseSyncContest } = require('node:sqlite')
+    const dbContest = new DatabaseSyncContest(DB_FILE)
+    const snap = JSON.parse(dbContest.prepare('SELECT questions FROM contests WHERE id = ?').get(contestId).questions)
+    const fullRight = snap.map(q => ({ id: q.id, answer: JSON.parse(q.answer) }))
+    const fullWrong = snap.map(q => ({ id: q.id, answer: [JSON.parse(q.answer)[0] === 0 ? 1 : 0] }))
+    r = await req('POST', '/api/contest/submit', { contestId: 99999, answers: fullRight }, t2)
+    ok('无效场次 → CONTEST_NOT_FOUND', r.body.error === 'CONTEST_NOT_FOUND')
+    r = await req('POST', '/api/contest/submit', { contestId, answers: fullRight }, token1)
+    ok('他人场次 → CONTEST_NOT_FOUND（防串场）', r.body.error === 'CONTEST_NOT_FOUND')
+    r = await req('POST', '/api/contest/submit', { contestId, answers: fullWrong }, t2)
+    ok('全错交卷 → 0 分', r.status === 200 && r.body.score === 0 && r.body.correctCount === 0)
+    ok('解析返回含正确答案', r.body.results.length === 20 && r.body.results[0].correctAnswer.length > 0)
+    ok('myStats 累计 0 / 最佳 0 / 1 场', r.body.myStats.plays === 1 && r.body.myStats.totalScore === 0)
+    r = await req('POST', '/api/contest/submit', { contestId, answers: fullRight }, t2)
+    ok('重复交卷 → ALREADY_SUBMITTED', r.body.error === 'ALREADY_SUBMITTED')
+    r = await req('POST', '/api/contest/start', {}, t2)
+    const contestId2 = r.body.contestId
+    const snap2 = JSON.parse(dbContest.prepare('SELECT questions FROM contests WHERE id = ?').get(contestId2).questions)
+    const fullRight2 = snap2.map(q => ({ id: q.id, answer: JSON.parse(q.answer) }))
+    r = await req('POST', '/api/contest/submit', { contestId: contestId2, answers: fullRight2, durationMs: 88000 }, t2)
+    ok('全对 → 100 分且最佳 100', r.body.score === 100 && r.body.myStats.bestScore === 100 && r.body.myStats.plays === 2)
+    dbContest.close()
+    // 排行榜
+    r = await req('GET', '/api/contest/leaderboard?type=total')
+    ok('总榜公开可读（未登录）', r.status === 200 && Array.isArray(r.body.list))
+    r = await req('GET', '/api/contest/leaderboard?type=total', undefined, t2)
+    ok('总榜含我且名次正确', r.body.myRank !== null && r.body.list.length >= 1 && r.body.list[0].name)
+    r = await req('GET', '/api/contest/leaderboard?type=best', undefined, t2)
+    ok('最佳榜可读', r.status === 200 && r.body.type === 'best' && r.body.list[0].score === 100)
+
     /* ---------- 9. 退出登录 ---------- */
     console.log('\n[9] 退出')
     r = await req('POST', '/api/logout', {}, token)

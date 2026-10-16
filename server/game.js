@@ -17,6 +17,7 @@ function getConfigDoc() {
     requireReadBeforeCheckin: true,
     defaultPassScore: 60,
     finalExam: { questionCount: 10, passScore: 60, title: '长征知识总结答题' },
+    contest: { questionCount: 20, pointsPerQuestion: 5, timeoutMs: 30 * 60 * 1000, title: '长征知识竞赛' },
     theme: { primary: '#C8102E', gold: '#D4A017' }
   }
 }

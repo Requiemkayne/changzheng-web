@@ -391,6 +391,114 @@
     return http('quiz/submit', { mode, code, answers })
   }
 
+  /* ================= 竞赛（毕业解锁；mock 模式本地单机可玩） ================= */
+
+  const STORAGE_CONTESTS = 'cz_contests'
+
+  function contestRules() {
+    return { questionCount: 20, pointsPerQuestion: 5, fullScore: 100, title: '长征知识竞赛' }
+  }
+
+  function mockContests() {
+    return storeGet(STORAGE_CONTESTS) || []
+  }
+
+  function mockContestStats() {
+    const done = mockContests().filter(c => c.status === 'done')
+    return {
+      plays: done.length,
+      totalScore: done.reduce((s, c) => s + c.score, 0),
+      bestScore: done.reduce((s, c) => Math.max(s, c.score), 0)
+    }
+  }
+
+  /** 竞赛状态（解锁 / 我的成绩 / 题库规模） */
+  function contestStatus() {
+    if (config.USE_MOCK) {
+      return getConfig().then(cfg => {
+        return getNodes().then(nodes => {
+          const p = mockProgress()
+          const states = progressUtil.computeStates(nodes, p, cfg)
+          return {
+            ok: true,
+            graduated: states.finalState === 'passed',
+            rules: contestRules(),
+            myStats: mockContestStats(),
+            bankCount: mockQuestions.filter(q => q.status === 'published').length
+          }
+        })
+      })
+    }
+    return http('contest/status')
+  }
+
+  /** 开场：毕业校验 → 抽 20 题（无答案） */
+  function contestStart() {
+    if (config.USE_MOCK) {
+      return contestStatus().then(s => {
+        if (!s.ok || !s.graduated) return { ok: false, error: 'NOT_GRADUATED' }
+        const pool = mockQuestions.filter(q => q.status === 'published')
+        const n = Math.min(contestRules().questionCount, pool.length)
+        const picked = shuffle(pool).slice(0, n)
+        const contestId = Date.now()
+        storeSet(STORAGE_CONTESTS, mockContests().concat([{ id: contestId, status: 'in_progress', questions: picked, createdAt: Date.now() }]))
+        return {
+          ok: true, contestId,
+          meta: { title: contestRules().title, subtitle: '共 ' + n + ' 题 · 每题 5 分 · 满分 100', questionCount: n },
+          questions: stripAnswers(picked)
+        }
+      })
+    }
+    return http('contest/start', {})
+  }
+
+  /** 交卷：判分 + 落库（mock 写 localStorage） */
+  function contestSubmit(contestId, answers, durationMs) {
+    if (config.USE_MOCK) {
+      const list = mockContests()
+      const c = list.find(x => x.id === contestId)
+      if (!c || c.status !== 'in_progress') return Promise.resolve({ ok: false, error: 'CONTEST_NOT_FOUND' })
+      const results = (answers || []).map(a => {
+        const q = c.questions.find(x => x._id === a.id)
+        const correct = q && sameSet(q.answer, a.answer)
+        return {
+          id: a.id, correct: !!correct,
+          question: q ? q.question : '', options: q ? q.options : [],
+          correctAnswer: q ? q.answer : [], explanation: q ? q.explanation : ''
+        }
+      })
+      const correctCount = results.filter(r => r.correct).length
+      const total = results.length || 1
+      c.status = 'done'
+      c.score = correctCount * contestRules().pointsPerQuestion
+      c.correct = correctCount
+      c.total = total
+      c.durationMs = durationMs || 0
+      c.answers = answers
+      storeSet(STORAGE_CONTESTS, list)
+      return Promise.resolve({ ok: true, score: c.score, correctCount, total, results, myStats: mockContestStats() })
+    }
+    return http('contest/submit', { contestId, answers, durationMs })
+  }
+
+  /** 排行榜：total 累计总分 / best 单场最佳（mock 只有本机成绩） */
+  function contestLeaderboard(type) {
+    if (config.USE_MOCK) {
+      const done = mockContests().filter(c => c.status === 'done')
+      const score = type === 'best'
+        ? done.reduce((s, c) => Math.max(s, c.score), 0)
+        : done.reduce((s, c) => s + c.score, 0)
+      const p = mockProgress()
+      const name = p.nickname || '我'
+      return Promise.resolve({
+        ok: true, type: type === 'best' ? 'best' : 'total',
+        list: done.length ? [{ rank: 1, name, score, plays: done.length }] : [],
+        myRank: done.length ? 1 : null
+      })
+    }
+    return http('contest/leaderboard?type=' + (type === 'best' ? 'best' : 'total'))
+  }
+
   /* ================= 题目工具 ================= */
 
   function stripAnswers(qs) {
@@ -427,6 +535,10 @@
     login,
     logout,
     me,
-    isLoggedIn
+    isLoggedIn,
+    contestStatus,
+    contestStart,
+    contestSubmit,
+    contestLeaderboard
   }
 })

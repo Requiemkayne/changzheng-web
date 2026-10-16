@@ -16,6 +16,7 @@ const url = require('node:url')
 const { openDb } = require('./db')
 const auth = require('./auth')
 const game = require('./game')
+const contest = require('./contest')
 
 const WEB_ROOT = path.join(__dirname, '..')
 const MAX_BODY = 64 * 1024
@@ -144,7 +145,34 @@ async function handleApi(db, req, res, pathname, query) {
     return json(res, 200, r)
   }
 
+  // ---------- 竞赛（毕业解锁） ----------
+
+  if (req.method === 'GET' && pathname === '/api/contest/status') {
+    return json(res, 200, contest.getContestStatus(db, user.id))
+  }
+  if (req.method === 'POST' && pathname === '/api/contest/start') {
+    const r = contest.startContest(db, user.id)
+    if (!r.ok) return fail(res, 400, r.error, r.message)
+    return json(res, 200, r)
+  }
+  if (req.method === 'POST' && pathname === '/api/contest/submit') {
+    const b = await readBody(req)
+    const r = contest.submitContest(db, user.id, b.contestId, b.answers, b.durationMs)
+    if (!r.ok) return fail(res, 400, r.error, r.message)
+    return json(res, 200, r)
+  }
+
   return fail(res, 404, 'NOT_FOUND', '接口不存在')
+}
+
+/* ---------- 排行榜（公开：未登录可看榜，登录附我的名次） ---------- */
+
+async function handleLeaderboard(db, req, res, pathname, query) {
+  if (req.method !== 'GET' || pathname !== '/api/contest/leaderboard') return false
+  const type = query.type === 'best' ? 'best' : 'total'
+  const user = auth.getUserByToken(db, getToken(req))
+  json(res, 200, contest.leaderboard(db, type, user ? user.id : null))
+  return true
 }
 
 /* ---------- 静态文件 ---------- */
@@ -174,6 +202,13 @@ function serveStatic(res, pathname) {
 
 function startServer(port) {
   const db = openDb()
+  // 大题库导入：question-bank.json → bank_questions（幂等）
+  try {
+    const r = contest.importBank(db)
+    console.log('题库导入: 新增 ' + r.added + ' 题 / 跳过重复 ' + r.skipped + ' 题 / 库内共 ' + r.bankCount + ' 题')
+  } catch (e) {
+    console.error('题库导入失败（继续启动，竞赛接口将报错）:', e.message)
+  }
   auth.sweepSessions(db)
   setInterval(() => auth.sweepSessions(db), 60 * 60 * 1000).unref()
 
@@ -187,7 +222,8 @@ function startServer(port) {
     })
     try {
       if (u.pathname.startsWith('/api/')) {
-        await handleApi(db, req, res, u.pathname, u.query)
+        const handled = await handleLeaderboard(db, req, res, u.pathname, u.query)
+        if (!handled) await handleApi(db, req, res, u.pathname, u.query)
       } else if (req.method === 'GET') {
         serveStatic(res, u.pathname === '/' ? '/index.html' : u.pathname)
       } else {
