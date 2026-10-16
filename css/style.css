@@ -1661,3 +1661,112 @@ a { color: var(--red-mid); text-decoration: none; }
 .lb-empty { text-align: center; padding: 30px 16px; }
 .lb-empty-ic { font-size: 36px; color: var(--gold-deep); }
 .lb-empty .lb-empty-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* ============================================================
+   纪念红军长征胜利 90 周年 —— 徽标 / 伟大长征精神 / 金句
+   ============================================================ */
+
+/* ---------- 首页 hero 徽标条（官网专题横幅式） ---------- */
+
+.hero-badge {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-size: 11px; letter-spacing: 3px; color: rgba(255, 244, 220, 0.75);
+  border: 1px solid rgba(232, 200, 106, 0.45);
+  border-radius: 999px;
+  padding: 4px 14px;
+  margin-bottom: 14px;
+}
+.hero-badge-line { width: 26px; height: 1px; background: rgba(232, 200, 106, 0.6); }
+
+/* ---------- 伟大长征精神卡 ---------- */
+
+.spirit-card { padding: 18px 16px 14px; margin-bottom: 18px; }
+.spirit-head { display: flex; align-items: center; gap: 8px; justify-content: center; margin-bottom: 12px; }
+.spirit-star { font-size: 20px; color: var(--gold); filter: drop-shadow(0 1px 2px rgba(74, 5, 16, 0.3)); }
+.spirit-title {
+  font-family: var(--font-title);
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 4px;
+  color: var(--red-mid);
+}
+.spirit-list { display: flex; flex-direction: column; gap: 8px; }
+.spirit-item {
+  display: flex; align-items: baseline; gap: 10px;
+  border-bottom: 1px dashed rgba(201, 162, 39, 0.28);
+  padding-bottom: 8px;
+}
+.spirit-item:last-child { border-bottom: 0; padding-bottom: 0; }
+.spirit-k {
+  flex: none;
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: #FFF4DC;
+  background: linear-gradient(160deg, #A8182C, var(--red-deep));
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+.spirit-t { font-size: 13px; line-height: 1.6; color: var(--ink); }
+.spirit-quote {
+  margin-top: 10px;
+  text-align: right;
+  font-family: var(--font-title);
+  font-size: 12px;
+  letter-spacing: 1px;
+  color: var(--gold-deep);
+}
+
+/* ---------- 开场动画 90 周年徽标 + 金句 ---------- */
+
+.intro-badge {
+  margin-top: 22px;
+  font-size: 12px; letter-spacing: 4px;
+  color: rgba(232, 200, 106, 0.9);
+  border: 1px solid rgba(232, 200, 106, 0.4);
+  border-radius: 999px;
+  padding: 5px 16px;
+  opacity: 0;
+  animation: introRise .6s 1.9s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+.intro-quote {
+  margin-top: 16px;
+  max-width: 300px;
+  font-family: var(--font-title);
+  font-size: 12px; letter-spacing: 2px; line-height: 1.8;
+  color: rgba(255, 244, 220, 0.55);
+  opacity: 0;
+  animation: introRise .6s 3.1s cubic-bezier(.22, 1, .36, 1) forwards;
+}
+
+/* ---------- 竞赛 hero 徽标 ---------- */
+
+.contest-hero-badge {
+  display: inline-block;
+  font-size: 10px; letter-spacing: 3px;
+  color: rgba(255, 244, 220, 0.7);
+  border: 1px solid rgba(232, 200, 106, 0.4);
+  border-radius: 999px;
+  padding: 3px 12px;
+  margin-bottom: 10px;
+}
+
+/* ---------- 毕业证书金句 ---------- */
+
+.cert-quote {
+  margin-top: 10px;
+  font-family: var(--font-title);
+  font-size: 12px;
+  line-height: 1.8;
+  letter-spacing: 1px;
+  color: var(--ink);
+  opacity: 0.85;
+}
+.cert-quote-src {
+  margin-top: 4px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--gold-deep);
+  letter-spacing: 2px;
+}

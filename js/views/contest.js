@@ -58,6 +58,9 @@
       '<div class="page">' +
         '<a class="back-link" href="javascript:history.back()">‹ 返回</a>' +
         '<div class="contest-hero">' +
+          (root.CZ_SPIRIT && root.CZ_SPIRIT.anniversary
+            ? '<div class="contest-hero-badge">' + F.escapeHtml(root.CZ_SPIRIT.anniversary.badge) + '</div>'
+            : '') +
           '<div class="contest-hero-ic">' + UI.icon('trophy') + '</div>' +
           '<div class="contest-hero-title">' + F.escapeHtml(s.rules.title) + '</div>' +
           '<div class="contest-hero-sub">红军不怕远征难 · 万水千山只等闲</div>' +

@@ -154,6 +154,9 @@
                 '<div class="cert-text">重走长征路 · 传承长征魂</div>' +
                 '<div class="cert-text">已走完全部 11 个节点并完成总结答题</div>' +
                 '<div class="cert-score">毕业得分 ' + r.score + ' 分</div>' +
+                (root.CZ_SPIRIT && root.CZ_SPIRIT.quote
+                  ? '<div class="cert-quote">' + root.CZ_SPIRIT.quote + '<div class="cert-quote-src">—— 习近平</div></div>'
+                  : '') +
                 '<div class="cert-seal cert-seal-in">长征</div>' +
               '</div>' +
             '</div>'

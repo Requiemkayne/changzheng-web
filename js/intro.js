@@ -24,6 +24,9 @@
     ]
     const routeD = 'M40 250 L74 226 L108 200 L138 186 L166 200 L192 184 L216 154 L244 132 L276 112 L318 88 L360 70'
 
+    const spirit = root.CZ_SPIRIT
+    const ann = spirit ? spirit.anniversary : null
+
     const el = document.createElement('div')
     el.className = 'intro'
     el.innerHTML =
@@ -36,9 +39,11 @@
         '<g transform="translate(40,250) scale(1.2) translate(-12,-12)"><g class="intro-star intro-star-a">' + star + '</g></g>' +
         '<g transform="translate(360,70) scale(1.2) translate(-12,-12)"><g class="intro-star intro-star-b">' + star + '</g></g>' +
       '</svg>' +
+      (ann ? '<div class="intro-badge">' + ann.badge + '</div>' : '') +
       '<div class="intro-title">两万五千里</div>' +
-      '<div class="intro-sub">重走长征路 · 传承长征精神</div>' +
-      '<div class="intro-years"><span>1934.10</span><span>1936.10</span></div>'
+      '<div class="intro-sub">' + (ann ? ann.theme : '重走长征路 · 传承长征精神') + '</div>' +
+      '<div class="intro-years"><span>1934.10</span><span>1936.10</span></div>' +
+      (spirit && spirit.quote ? '<div class="intro-quote">' + spirit.quote + '</div>' : '')
 
     document.body.appendChild(el)
 

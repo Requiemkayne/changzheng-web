@@ -34,12 +34,16 @@
       ? '已毕业 · 得分 ' + states.finalBest + ' 分'
       : states.finalState === 'open' ? '全部节点已打卡，点击开始毕业考试' : '打卡全部 ' + nodes.length + ' 个节点后解锁'
 
+    const spirit = root.CZ_SPIRIT
+    const ann = spirit ? spirit.anniversary : null
+
     let html =
       '<div class="page">' +
       '<div class="hero">' +
+        (ann ? '<div class="hero-badge"><span class="hero-badge-line"></span>' + F.escapeHtml(ann.badge) + '<span class="hero-badge-line"></span></div>' : '') +
         '<div class="hero-star">' + UI.icon('star') + '</div>' +
         '<div class="hero-title">重走长征路</div>' +
-        '<div class="hero-sub">十一个关键节点 · 传承长征精神</div>' +
+        '<div class="hero-sub">' + (ann ? F.escapeHtml(ann.theme) : '十一个关键节点 · 传承长征精神') + '</div>' +
         '<div class="hero-stats">' +
           '<div class="hero-stat"><div class="hero-stat-num">' + states.checkedCount + '/' + states.total + '</div><div class="hero-stat-label">打卡节点</div></div>' +
           '<div class="hero-stat"><div class="hero-stat-num">' + states.passedCount + '/' + states.total + '</div><div class="hero-stat-label">答题通关</div></div>' +
@@ -61,6 +65,26 @@
         isLast
       }) + '</div>'
     })
+
+    // 伟大长征精神（五条官方表述）
+    if (spirit && spirit.spirit) {
+      html +=
+        '<div class="card spirit-card">' +
+          '<div class="spirit-head">' +
+            '<div class="spirit-star">' + UI.icon('star') + '</div>' +
+            '<div class="spirit-title">伟大长征精神</div>' +
+          '</div>' +
+          '<div class="spirit-list">' +
+            spirit.spirit.map((s, i) =>
+              '<div class="spirit-item">' +
+                '<span class="spirit-k">' + F.escapeHtml(s.k) + '</span>' +
+                '<span class="spirit-t">' + F.escapeHtml(s.t) + '</span>' +
+              '</div>'
+            ).join('') +
+          '</div>' +
+          (spirit.quote ? '<div class="spirit-quote">—— ' + F.escapeHtml(spirit.quote) + '</div>' : '') +
+        '</div>'
+    }
 
     // 总结答题入口
     html +=
