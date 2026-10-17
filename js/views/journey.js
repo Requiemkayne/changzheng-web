@@ -10,6 +10,13 @@
   const VIEWS = root.CZ_VIEWS || (root.CZ_VIEWS = {})
   const F = root.CZ_FORMAT
   const UI = root.CZ_UI
+  const config = root.CZ_CONFIG
+  const api = root.CZ_API
+
+  // 叙事页出口：未登录 → 登录页；已登录 → 首页（mock 模式走登录页，可游客进入）
+  function exitDest() {
+    return (!config.USE_MOCK && api.isLoggedIn()) ? '#/' : '#/login'
+  }
 
   // 蛇形飘带（viewBox 0 0 100 100，pathLength=100 便于延伸控制）
   // 节点落点在每个拐弯回到中线处，y 平均分布
@@ -88,8 +95,8 @@
           '</div>' +
         '</div>' +
         '<div class="journey-top">' +
-          '<button class="journey-back" id="journey-back" type="button">' + UI.icon('chevron', '') + ' 返回</button>' +
           '<div class="journey-top-title">长征之路</div>' +
+          '<button class="journey-back" id="journey-back" type="button">跳过 ' + UI.icon('chevron', '') + '</button>' +
         '</div>' +
         '<main class="journey-main">' +
           '<section class="j-hero">' +
@@ -108,8 +115,8 @@
         '</main>' +
       '</div>'
 
-    rootEl.querySelector('#journey-back').addEventListener('click', () => { location.hash = '#/' })
-    rootEl.querySelector('#journey-start').addEventListener('click', () => { location.hash = '#/' })
+    rootEl.querySelector('#journey-back').addEventListener('click', () => { location.hash = exitDest() })
+    rootEl.querySelector('#journey-start').addEventListener('click', () => { location.hash = exitDest() })
 
     // 飘带延伸层初始隐藏（首屏 hero 停留后再随滚动延伸）
     const fillEl = rootEl.querySelector('.jr-fill')

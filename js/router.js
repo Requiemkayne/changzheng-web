@@ -45,10 +45,24 @@
     })
   }
 
+  // 首次体验：无打卡进度且未登录 → 滚动叙事页开场（?intro=0 调试跳过）
+  function isFirstVisit() {
+    if (new URLSearchParams(location.search).get('intro') === '0') return false
+    if (!config.USE_MOCK) return !api.isLoggedIn()
+    try {
+      const p = JSON.parse(localStorage.getItem('cz_progress') || 'null')
+      return !(p && Object.keys(p.checkins || {}).length)
+    } catch (e) { return true }
+  }
+
   function render() {
     let { name, params } = parseHash()
-    // 路由守卫：http 模式未登录 → 登录页（登录页为第一屏）
-    if (!config.USE_MOCK && !api.isLoggedIn() && name !== 'login') {
+    // 首次体验（打开即首页）→ 滚动叙事页开场
+    if (name === 'home' && isFirstVisit()) {
+      name = 'journey'
+    }
+    // 路由守卫：http 模式未登录 → 登录页（登录页为第一屏；叙事页可自由浏览）
+    if (!config.USE_MOCK && !api.isLoggedIn() && name !== 'login' && name !== 'journey') {
       name = 'login'
       params = {}
     }
