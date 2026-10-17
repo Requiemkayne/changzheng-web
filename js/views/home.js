@@ -79,6 +79,14 @@
           '<div class="hero-stat"><div class="hero-stat-num">' + (graduated ? UI.icon('star') : '—') + '</div><div class="hero-stat-label">毕业</div></div>' +
         '</div>' +
       '</div>' +
+      '<div class="card journey-entry" id="journey-entry">' +
+        '<div class="journey-entry-ic">' + UI.icon('map') + '</div>' +
+        '<div style="flex:1">' +
+          '<div class="journey-entry-name">沉浸式长征路</div>' +
+          '<div class="journey-entry-sub">红飘带滚动叙事 · 从历史到今朝</div>' +
+        '</div>' +
+        UI.icon('chevron', 'tl-arrow') +
+      '</div>' +
       '<div class="route-tabs">' +
         TABS.map(t => '<button type="button" class="route-tab' + (t.key === 'march' ? ' route-tab-active' : '') + '" data-tab="' + t.key + '">' + F.escapeHtml(t.label) + '</button>').join('') +
       '</div>' +
@@ -154,6 +162,10 @@
       })
     }
     bindRows(rootEl)
+
+    // 沉浸式长征路入口
+    const journeyEntry = rootEl.querySelector('#journey-entry')
+    if (journeyEntry) journeyEntry.addEventListener('click', () => { location.hash = '#/journey' })
 
     // 路线 Tab 切换：行军路线（全部）/ 重要战役 / 历史事件
     const tabs = rootEl.querySelectorAll('.route-tab')

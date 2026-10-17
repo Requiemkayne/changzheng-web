@@ -52,7 +52,18 @@
       if (done) return
       done = true
       el.classList.add('intro-out')
-      setTimeout(() => { el.remove() }, 450)
+      // 首次体验（本地无任何打卡进度）→ 结束后进入滚动叙事页重走长征
+      let hasProgress = false
+      try {
+        const p = JSON.parse(localStorage.getItem('cz_progress') || 'null')
+        hasProgress = !!(p && Object.keys(p.checkins || {}).length)
+      } catch (e) { /* 解析失败按无进度处理 */ }
+      setTimeout(() => {
+        el.remove()
+        if (!hasProgress && (location.hash === '' || location.hash === '#' || location.hash === '#/')) {
+          location.hash = '#/journey'
+        }
+      }, 450)
     }
     el.querySelector('.intro-skip').addEventListener('click', finish)
     setTimeout(finish, DUR.draw + DUR.hold)

@@ -35,6 +35,7 @@
     if (segs[0] === 'profile') return { name: 'profile', params: {} }
     if (segs[0] === 'contest') return { name: 'contest', params: {} }
     if (segs[0] === 'leaderboard') return { name: 'leaderboard', params: {} }
+    if (segs[0] === 'journey') return { name: 'journey', params: {} }
     return { name: 'home', params: {} }
   }
 
@@ -60,9 +61,10 @@
     currentView = name
     const cleanup = view.mount(document.getElementById('app'), params)
     currentCleanup = (typeof cleanup === 'function') ? cleanup : null
-    // 登录页全屏无 tabBar；底部无 padding
-    document.getElementById('tabbar').style.display = name === 'login' ? 'none' : 'flex'
-    document.getElementById('app').classList.toggle('no-tab', name === 'login')
+    // 登录页 / 滚动叙事页全屏无 tabBar；底部无 padding
+    const fullscreen = name === 'login' || name === 'journey'
+    document.getElementById('tabbar').style.display = fullscreen ? 'none' : 'flex'
+    document.getElementById('app').classList.toggle('no-tab', fullscreen)
     updateTab(name)
     window.scrollTo(0, 0)
   }
