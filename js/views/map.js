@@ -68,6 +68,50 @@
     return PAD_Y + (LAT_MAX - n.location.latitude) / (LAT_MAX - LAT_MIN) * (H - 2 * PAD_Y)
   }
 
+  /* ---------- 投影后重叠消解 ----------
+   * 等距投影是"照实画"：两站经纬度贴得近，圆盘就糊在一起
+   * （强渡大渡河 / 飞夺泸定桥中心仅 23.2 单位，r=15 的圆盘已互相压住序号）。
+   * 解法只挪"绘制坐标"，不动节点顺序 / 数量 / 文案 / 数据：
+   * 把间距不足的两站沿连线方向对称推开，路线再用调整后的点重画，线不断裂。
+   */
+
+  const MIN_GAP = 36       // 相邻圆盘中心最小间距（face r=15 → 直径 30，余 6 单位缝）
+  const MAX_SHIFT = 10     // 单点累计位移上限：宁可靠得近一点，也不让路线走形
+
+  function relaxPoints(list) {
+    const n = list.length
+    const ox = list.map(() => 0)
+    const oy = list.map(() => 0)
+    for (let round = 0; round < 24; round++) {
+      let moved = false
+      for (let i = 0; i < n; i++) {
+        for (let j = i + 1; j < n; j++) {
+          const xi = list[i].x + ox[i], yi = list[i].y + oy[i]
+          const xj = list[j].x + ox[j], yj = list[j].y + oy[j]
+          let dx = xj - xi, dy = yj - yi
+          let d = Math.sqrt(dx * dx + dy * dy)
+          if (d >= MIN_GAP) continue
+          if (d < 0.001) { dx = 0; dy = -1; d = 1 }   // 完全重合：给个竖直方向，避免除零
+          const push = (MIN_GAP - d) / 2              // 两侧各让一半，重心不漂
+          const ux = dx / d, uy = dy / d
+          ox[i] -= ux * push; oy[i] -= uy * push
+          ox[j] += ux * push; oy[j] += uy * push
+          moved = true
+        }
+      }
+      // 位移封顶：超限等比缩回（方向不变，仍朝"分开"的一侧）
+      for (let i = 0; i < n; i++) {
+        const len = Math.sqrt(ox[i] * ox[i] + oy[i] * oy[i])
+        if (len > MAX_SHIFT) { const k = MAX_SHIFT / len; ox[i] *= k; oy[i] *= k }
+      }
+      if (!moved) break
+    }
+    return list.map((p, i) => ({
+      x: Math.round((p.x + ox[i]) * 100) / 100,
+      y: Math.round((p.y + oy[i]) * 100) / 100
+    }))
+  }
+
   // 节点四态配色（与图例一致）
   const NODE_STYLE = {
     open:      { fill: '#FFF6E2', stroke: '#821626', text: '#821626' },
@@ -106,11 +150,13 @@
   /* ---------- 渲染 ---------- */
 
   function renderMap(rootEl, nodes, states) {
+    // 先按投影落点，再做一次重叠消解，得到最终绘制坐标（route / 标签 / 天气小景全部用这一份）
+    const spots = relaxPoints(nodes.map(n => ({ x: px(n), y: py(n) })))
     const pts = nodes.map((n, i) => ({
       node: n,
       i,
-      x: px(n),
-      y: py(n),
+      x: spots[i].x,
+      y: spots[i].y,
       st: states.byCode[n.code]
     }))
 

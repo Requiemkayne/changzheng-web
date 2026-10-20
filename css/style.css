@@ -32,6 +32,9 @@
   --r-lg: 12px;
   --r-md: 8px;
   --r-sm: 5px;
+  --r-tag: 4px;          /* 极小纸签小标（10px 级标签） */
+  --r-chip: 6px;         /* 纸签 / 印章圆角矩：徽标、地图控件、气泡（DESIGN.md 禁胶囊） */
+  --grad-angle: 160deg;  /* 全局渐变角度：纸面自上而下受光，统一方向 */
   --shadow: 0 4px 18px rgba(74, 5, 16, 0.10);
   --gold-border: 1px solid rgba(201, 162, 39, 0.45);
 }
@@ -141,7 +144,7 @@ a { color: var(--red-mid); text-decoration: none; }
 .section-title::before {
   content: '';
   width: 9px; height: 9px;
-  background: linear-gradient(135deg, var(--gold), var(--red));
+  background: linear-gradient(var(--grad-angle), var(--gold), var(--red));
   transform: rotate(45deg);
   margin-right: 10px;
   border-radius: 2px;
@@ -216,7 +219,7 @@ a { color: var(--red-mid); text-decoration: none; }
   margin-bottom: 18px;
   text-align: center;
   overflow: hidden;
-  box-shadow: 0 8px 26px rgba(74, 5, 16, 0.35);
+  box-shadow: 0 8px 26px rgba(26, 20, 16, 0.35);
   border: 1px solid rgba(232, 200, 106, 0.35);
 }
 /* 星纹水印（自绘 SVG） */
@@ -276,7 +279,7 @@ a { color: var(--red-mid); text-decoration: none; }
   display: flex; align-items: center; gap: 12px;
   margin-bottom: 10px;
   padding: 13px 16px;
-  background: linear-gradient(135deg, #FDF3E0, #F8E9C6);
+  background: linear-gradient(var(--grad-angle), #FDF3E0, #F8E9C6);
   border: 1px solid rgba(198, 163, 67, 0.55);
   cursor: pointer;
   transition: transform .2s;
@@ -340,7 +343,7 @@ a { color: var(--red-mid); text-decoration: none; }
 .tl-stage::before {
   content: '';
   width: 10px; height: 10px;
-  background: linear-gradient(135deg, var(--gold), var(--red));
+  background: linear-gradient(var(--grad-angle), var(--gold), var(--red));
   transform: rotate(45deg);
   margin-right: 10px;
   border-radius: 2px;
@@ -374,15 +377,15 @@ a { color: var(--red-mid); text-decoration: none; }
   background: #D8CFBC;
   border: 2px solid #C4B99F;
 }
-.tl-dot-done   { background: linear-gradient(135deg, var(--red-mid), var(--red-dark)); border-color: var(--gold); }
-.tl-dot-passed { background: linear-gradient(135deg, var(--gold-light), var(--gold)); border-color: var(--gold-deep); }
+.tl-dot-done   { background: linear-gradient(var(--grad-angle), var(--red-mid), var(--red-dark)); border-color: var(--gold); }
+.tl-dot-passed { background: linear-gradient(var(--grad-angle), var(--gold-light), var(--gold)); border-color: var(--gold-deep); }
 .tl-dot-open   { background: #fff; border-color: var(--red); box-shadow: inset 0 0 0 3px #fff, 0 0 0 1px var(--red); }
 
-/* 当前节点：金色光环呼吸 */
+/* 当前节点：印章落纸的暖金余韵（有方向的偏移光 + 小扩散，非零偏移霓虹） */
 @keyframes tlPulse {
-  0%   { box-shadow: 0 0 0 0 rgba(201, 162, 39, 0.55); }
-  70%  { box-shadow: 0 0 0 12px rgba(201, 162, 39, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(201, 162, 39, 0); }
+  0%   { box-shadow: 0 1px 2px -1px rgba(90, 62, 20, 0.45), 0 1px 0 0 rgba(201, 162, 39, 0.5); }
+  70%  { box-shadow: 0 3px 5px -1px rgba(90, 62, 20, 0.26), 0 3px 0 3px rgba(201, 162, 39, 0); }
+  100% { box-shadow: 0 1px 2px -1px rgba(90, 62, 20, 0.45), 0 1px 0 0 rgba(201, 162, 39, 0); }
 }
 .tl-dot-current { animation: tlPulse 2.2s infinite; }
 
@@ -418,14 +421,14 @@ a { color: var(--red-mid); text-decoration: none; }
   display: flex;
   align-items: center;
   cursor: pointer;
-  background: linear-gradient(135deg, #FDF7E4, #F8EDCB);
+  background: linear-gradient(var(--grad-angle), #FDF7E4, #F8EDCB);
   border: 1px solid rgba(201, 162, 39, 0.55);
 }
 .final-card:active { transform: scale(0.985); }
 .final-icon {
   width: 50px; height: 50px;
   border-radius: var(--r-md);
-  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  background: linear-gradient(var(--grad-angle), var(--gold-light), var(--gold));
   color: #FFF9E8;
   display: flex; align-items: center; justify-content: center;
   font-size: 24px;
@@ -459,7 +462,7 @@ a { color: var(--red-mid); text-decoration: none; }
   color: #FFF4DC;
   overflow: hidden;
   border: 1px solid rgba(232, 200, 106, 0.4);
-  box-shadow: 0 8px 26px rgba(74, 5, 16, 0.3);
+  box-shadow: 0 8px 26px rgba(26, 20, 16, 0.3);
 }
 .cover::before {
   content: '';
@@ -528,7 +531,7 @@ a { color: var(--red-mid); text-decoration: none; }
   content: '';
   display: inline-block;
   width: 8px; height: 8px;
-  background: linear-gradient(135deg, var(--gold), var(--red));
+  background: linear-gradient(var(--grad-angle), var(--gold), var(--red));
   transform: rotate(45deg);
   border-radius: 2px;
   margin-right: 9px;
@@ -568,7 +571,7 @@ a { color: var(--red-mid); text-decoration: none; }
   height: 170px;
   background:
     repeating-linear-gradient(-45deg, rgba(201,162,39,0.04) 0 14px, transparent 14px 28px),
-    linear-gradient(135deg, #F4EBD6, #EADFC2);
+    linear-gradient(var(--grad-angle), #F4EBD6, #EADFC2);
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
   color: #A8956E;
@@ -598,7 +601,7 @@ a { color: var(--red-mid); text-decoration: none; }
   left: -5px; top: 7px;
   width: 8px; height: 8px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--gold), var(--red));
+  background: linear-gradient(var(--grad-angle), var(--gold), var(--red));
 }
 .block-tl-date {
   font-family: var(--font-title);
@@ -730,7 +733,7 @@ a { color: var(--red-mid); text-decoration: none; }
   font-family: var(--font-title);
   font-size: 12px;
   color: #FFF4DC;
-  background: linear-gradient(135deg, var(--red), var(--red-dark));
+  background: linear-gradient(var(--grad-angle), var(--red), var(--red-dark));
   border: 1px solid rgba(232, 200, 106, 0.5);
   padding: 3px 12px;
   border-radius: 3px;
@@ -769,7 +772,7 @@ a { color: var(--red-mid); text-decoration: none; }
 .option:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .option-selected {
   border-color: var(--gold);
-  background: linear-gradient(135deg, #FDF3E0, #F8E9C6);
+  background: linear-gradient(var(--grad-angle), #FDF3E0, #F8E9C6);
   box-shadow: 0 3px 12px rgba(201, 162, 39, 0.2);
 }
 .option-marker {
@@ -783,7 +786,7 @@ a { color: var(--red-mid); text-decoration: none; }
 }
 .option-marker .ic { font-size: 13px; stroke-width: 2.4; }
 .marker-selected {
-  background: linear-gradient(135deg, var(--red-mid), var(--red-dark));
+  background: linear-gradient(var(--grad-angle), var(--red-mid), var(--red-dark));
   border-color: var(--gold);
 }
 .option-text { font-size: 15px; }
@@ -1048,7 +1051,7 @@ a { color: var(--red-mid); text-decoration: none; }
 }
 .map-chip.chip-active {
   border-color: var(--gold);
-  background: linear-gradient(135deg, #FDF3E0, #F8E9C6);
+  background: linear-gradient(var(--grad-angle), #FDF3E0, #F8E9C6);
   color: var(--red-dark);
   font-weight: 700;
 }
@@ -1115,7 +1118,7 @@ a { color: var(--red-mid); text-decoration: none; }
   transition: color .15s, background-color .15s, box-shadow .15s;
 }
 .auth-tab-active {
-  background: linear-gradient(135deg, var(--red), var(--red-dark));
+  background: linear-gradient(var(--grad-angle), var(--red), var(--red-dark));
   color: #FFF4DC;
   box-shadow: 0 2px 8px rgba(74, 5, 16, 0.25);
 }
@@ -1150,7 +1153,7 @@ a { color: var(--red-mid); text-decoration: none; }
 .avatar {
   width: 58px; height: 58px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--red), var(--red-dark));
+  background: linear-gradient(var(--grad-angle), var(--red), var(--red-dark));
   border: 2px solid var(--gold);
   color: #FFF4DC;
   font-size: 26px;
@@ -1186,7 +1189,7 @@ a { color: var(--red-mid); text-decoration: none; }
   cursor: pointer;
   letter-spacing: 2px;
 }
-.btn-mini-primary { background: linear-gradient(135deg, var(--red), var(--red-dark)); color: #FFF4DC; }
+.btn-mini-primary { background: linear-gradient(var(--grad-angle), var(--red), var(--red-dark)); color: #FFF4DC; }
 .btn-mini-ghost { background: var(--card); color: var(--muted); border: 1px solid var(--line); }
 .btn-mini-ghost:hover { border-color: var(--red-dark); color: var(--red-dark); }
 
@@ -1226,7 +1229,7 @@ a { color: var(--red-mid); text-decoration: none; }
 
 .cert-entry { display: flex; align-items: center; cursor: pointer; }
 .cert-entry:active { transform: scale(0.985); }
-.cert-entry .final-icon { background: linear-gradient(135deg, var(--red), var(--red-dark)); }
+.cert-entry .final-icon { background: linear-gradient(var(--grad-angle), var(--red), var(--red-dark)); }
 
 .score-row {
   display: flex;
@@ -1248,7 +1251,7 @@ a { color: var(--red-mid); text-decoration: none; }
 .foot-dot {
   width: 9px; height: 9px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--gold-light), var(--gold));
+  background: linear-gradient(var(--grad-angle), var(--gold-light), var(--gold));
   margin-right: 11px;
   flex-shrink: 0;
 }
@@ -1342,7 +1345,7 @@ a { color: var(--red-mid); text-decoration: none; }
   padding: 90px 0;
   color: var(--muted);
 }
-.page-center-icon { font-size: 42px; margin-bottom: 10px; color: var(--red); display: block; }
+.page-center-icon { font-size: 42px; margin: 0 auto 10px; color: var(--red); display: block; width: 1em; }
 
 /* ================= 登录页（第一屏 · 深红夜幕 + 山峦剪影） ================= */
 
@@ -1523,7 +1526,7 @@ a { color: var(--red-mid); text-decoration: none; }
   letter-spacing: 3px;
   color: var(--gold-deep);
   border: 1px solid var(--gold);
-  border-radius: 999px;
+  border-radius: var(--r-chip);
   padding: 5px 14px;
   background: rgba(255, 253, 247, 0.75);
 }
@@ -1570,7 +1573,7 @@ a { color: var(--red-mid); text-decoration: none; }
   color: var(--red-dark);
   background: rgba(200, 16, 46, 0.05);
   border: 1px solid rgba(200, 16, 46, 0.16);
-  border-radius: 999px;
+  border-radius: var(--r-chip);
   padding: 5px 11px;
 }
 
@@ -1651,6 +1654,24 @@ a { color: var(--red-mid); text-decoration: none; }
 .map-replay-wrap { text-align: center; margin-top: 12px; }
 .map-replay-wrap .btn-mini { display: inline-flex; align-items: center; gap: 6px; }
 .map-replay-ic { font-size: 14px; }
+/* 重播行军动画：明确的次按钮（与地图内 .map-mode-btn 同族：金线描边 + 纸底 + 红 hover） */
+#map-replay {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 100%; min-height: 40px; padding: 9px 16px;
+  font-family: inherit; font-size: 12.5px; font-weight: 700; letter-spacing: 2px;
+  color: var(--red-dark);
+  background: rgba(255, 253, 247, 0.92);
+  border: 1px solid rgba(198, 163, 67, 0.6);
+  border-radius: var(--r-chip);
+  cursor: pointer;
+  box-shadow: 0 1px 0 rgba(198, 163, 67, 0.28), 0 2px 6px -4px rgba(90, 62, 20, 0.5);
+  transition: background .18s, color .18s, border-color .18s, box-shadow .18s;
+}
+#map-replay:hover, #map-replay:focus-visible {
+  background: var(--red); border-color: var(--red); color: #FFF4DC;
+  box-shadow: 0 2px 8px -4px rgba(74, 5, 16, 0.45);
+}
+#map-replay:active { transform: translateY(1px); box-shadow: none; }
 
 /* ---------- 桌面微调（>480px 时纸页居中，两侧留白） ---------- */
 
@@ -1707,7 +1728,7 @@ a { color: var(--red-mid); text-decoration: none; }
   padding: 26px 20px 22px;
   margin-bottom: 14px;
   text-align: center;
-  box-shadow: 0 8px 26px rgba(74, 5, 16, 0.35);
+  box-shadow: 0 8px 26px rgba(26, 20, 16, 0.35);
   overflow: hidden;
 }
 .contest-hero-ic { font-size: 34px; color: var(--gold-light); }
@@ -1870,7 +1891,7 @@ a { color: var(--red-mid); text-decoration: none; }
   display: inline-flex; align-items: center; gap: 10px;
   font-size: 11px; letter-spacing: 3px; color: rgba(255, 244, 220, 0.75);
   border: 1px solid rgba(232, 200, 106, 0.45);
-  border-radius: 999px;
+  border-radius: var(--r-chip);
   padding: 4px 14px;
   margin-bottom: 14px;
 }
@@ -1923,7 +1944,7 @@ a { color: var(--red-mid); text-decoration: none; }
   font-size: 10px; letter-spacing: 3px;
   color: rgba(255, 244, 220, 0.7);
   border: 1px solid rgba(232, 200, 106, 0.4);
-  border-radius: 999px;
+  border-radius: var(--r-chip);
   padding: 3px 12px;
   margin-bottom: 10px;
 }
@@ -1958,7 +1979,7 @@ a { color: var(--red-mid); text-decoration: none; }
 }
 .map-mode-btn {
   font-family: inherit; font-size: 12px; letter-spacing: 1px;
-  padding: 5px 12px; border-radius: 999px; cursor: pointer;
+  padding: 5px 12px; border-radius: var(--r-chip); cursor: pointer;
   border: 1px solid rgba(198, 163, 67, 0.6);
   background: rgba(255, 252, 244, 0.88);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
@@ -2038,7 +2059,7 @@ a { color: var(--red-mid); text-decoration: none; }
   font-size: 11px; letter-spacing: 1px; color: var(--red-dark);
   background: rgba(255, 252, 244, 0.84);
   border: 1px solid rgba(198, 163, 67, 0.45);
-  border-radius: 999px; padding: 5px 12px; white-space: nowrap;
+  border-radius: var(--r-chip); padding: 5px 12px; white-space: nowrap;
   pointer-events: none; z-index: 3; transition: opacity .8s;
 }
 .map3d-hint.off { opacity: 0; }
@@ -2074,7 +2095,7 @@ a { color: var(--red-mid); text-decoration: none; }
 .node-wx-row { display: flex; align-items: baseline; gap: 8px; }
 .node-wx-label {
   font-size: 10px; letter-spacing: 2px; color: var(--muted);
-  border: 1px solid rgba(198, 163, 67, 0.5); border-radius: 999px; padding: 1px 7px;
+  border: 1px solid rgba(198, 163, 67, 0.5); border-radius: var(--r-tag); padding: 1px 7px;
 }
 .node-wx-name {
   font-family: var(--font-title); font-size: 14px; font-weight: 900;
@@ -2107,7 +2128,7 @@ a { color: var(--red-mid); text-decoration: none; }
 .map3d-wx {
   position: absolute; top: 10px; left: 10px; z-index: 4;
   display: flex; align-items: center; gap: 6px;
-  padding: 5px 11px 5px 9px; border-radius: 999px;
+  padding: 5px 11px 5px 9px; border-radius: var(--r-chip);
   background: rgba(255, 252, 244, 0.9);
   border: 1px solid rgba(198, 163, 67, 0.55);
   -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
