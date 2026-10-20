@@ -776,6 +776,19 @@ async function chain() {
   }
   ok('style.css 契约：焦点环 —— 默认/#tabbar 之外深红、.option/.map-node/:where(button.map-chip) 均 --red-dark')
 
+  const stripBody = cssBody('.map-strip')
+  assert(stripBody !== null && /padding:\s*12px\s+6px/.test(stripBody),
+    '期望 .map-strip 的横向内边距为 6px（2px 会把首/末 .map-chip 的 2px 焦点环裁掉：overflow-x:auto 直接切掉出界像素，键盘走到两端看不见落点），实际 ' +
+    JSON.stringify(stripBody) + ' @ ' + at('css/style.css', nCss, '.map-strip'))
+  assert(stripBody !== null && /margin:\s*0\s+-4px/.test(stripBody),
+    '期望 .map-strip 用 margin: 0 -4px 抵消这 6px 内边距（否则内容盒左右各内缩 4px，快切条整体漂移），实际 ' +
+    JSON.stringify(stripBody) + ' @ ' + at('css/style.css', nCss, '.map-strip'))
+  const goldOutlines = nCssCode.match(/outline:\s*2px solid var\(--gold\)/g) || []
+  assert(goldOutlines.length === 1,
+    '期望全站只剩 1 处 outline: 2px solid var(--gold)（只有 #tabbar 深红底需要金环，纸底金环仅 2.12:1），实际 ' + goldOutlines.length + ' 处 @ ' +
+    at('css/style.css', nCss, 'outline: 2px solid var(--gold)'))
+  ok('style.css 契约：.map-strip 内边距 6px + margin 0 -4px（焦点环不被 overflow 裁掉、版式零位移）/ 全站仅 tabBar 一处金环')
+
   // ⑩【契约】对比度：分数单位无 opacity、印章实心且几何未变
   const scoreUnit = cssBody('.score-unit')
   assert(scoreUnit !== null && !/opacity/.test(scoreUnit),
