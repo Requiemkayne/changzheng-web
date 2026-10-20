@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>样例 C · 真实地形地图</title>
+<link rel="stylesheet" href="/fonts/noto-serif-sc.css">
+<link rel="stylesheet" href="./vendor/maplibre-gl.css">
+<style>
+  :root {
+    --red: #C8102E; --red-dark: #6E0918; --gold: #C6A343; --gold-light: #E8C86A;
+    --paper: #F7F0DF; --ink: #35291F; --muted: #8C8475;
+    --font-title: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; color: var(--ink); overflow: hidden; background: #EFE6D2; }
+  #map { position: fixed; inset: 0; }
+  /* 把公网底图的彩色调成站点纸色系，避免与红金设计语言冲突 */
+  #map .maplibregl-canvas { filter: sepia(.42) saturate(.72) contrast(.96) brightness(1.04); }
+
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; pointer-events: none;
+  }
+  .title { font-family: var(--font-title); font-weight: 900; letter-spacing: 4px; color: var(--red-dark); font-size: 17px; }
+  .title small { display: block; font-size: 11px; letter-spacing: 2px; color: var(--muted); font-weight: 400; margin-top: 4px; }
+  .back {
+    pointer-events: auto; text-decoration: none; color: var(--red-dark); font-size: 12px; letter-spacing: 1px;
+    border: 1px solid rgba(110,9,24,.25); background: rgba(255,253,247,.9); border-radius: 999px; padding: 6px 12px;
+  }
+
+  .panel {
+    position: fixed; left: 14px; bottom: 14px; z-index: 10;
+    background: rgba(255,253,247,.92); border: 1px solid rgba(198,163,67,.5);
+    border-radius: 12px; padding: 10px 12px; font-size: 11px; color: var(--muted); max-width: 250px; line-height: 1.7;
+  }
+  .panel b { color: var(--ink); font-weight: 600; }
+  .switch {
+    position: fixed; right: 14px; bottom: 14px; z-index: 10; display: flex; gap: 8px;
+  }
+  .switch button {
+    font-family: inherit; font-size: 12px; letter-spacing: 1px; cursor: pointer;
+    border-radius: 999px; padding: 8px 16px; border: 1px solid rgba(198,163,67,.7);
+    background: rgba(255,253,247,.95); color: var(--red-dark);
+  }
+  .switch button.on { background: var(--red); color: #FFF4DC; border-color: var(--red); }
+
+  .legend {
+    position: fixed; left: 14px; top: 76px; z-index: 10;
+    display: flex; flex-direction: column; gap: 6px;
+    background: rgba(255,253,247,.9); border: 1px solid rgba(198,163,67,.45);
+    border-radius: 12px; padding: 9px 12px; font-size: 11px;
+  }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+
+  .pin {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: grid; place-items: center; cursor: pointer;
+    font-family: var(--font-title); font-size: 12px; font-weight: 900;
+    box-shadow: 0 3px 10px rgba(60, 40, 10, .45);
+    transition: transform .15s ease-out;
+  }
+  .pin:hover { transform: scale(1.15); }
+
+  .ml-pop { font-family: -apple-system, "PingFang SC", sans-serif; }
+  .ml-pop .n { font-family: var(--font-title); font-weight: 900; font-size: 15px; color: var(--red-dark); letter-spacing: 2px; }
+  .ml-pop .m { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .ml-pop .s { display: inline-block; margin-top: 8px; font-size: 10px; letter-spacing: 1px; border-radius: 999px; padding: 2px 9px; }
+  .maplibregl-popup-content { border-radius: 12px; border: 1px solid rgba(198,163,67,.6); padding: 12px 14px; }
+
+  .notice {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 20;
+    background: rgba(255,253,247,.97); border: 1px solid rgba(198,163,67,.7);
+    border-radius: 14px; padding: 18px 20px; font-size: 12px; line-height: 1.8; max-width: 320px;
+    display: none; box-shadow: 0 20px 50px rgba(90,62,20,.2);
+  }
+  .notice.on { display: block; }
+  .notice b { color: var(--red-dark); }
+  @media (max-width: 560px) { .title small, .panel { display: none; } }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div class="topbar">
+  <div class="title">长征路线 · 真实地形<small>样例 C · MapLibre GL（需外网瓦片）</small></div>
+  <a class="back" href="./index.html">← 返回样例列表</a>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<div class="panel">
+  <b>说明</b><br>
+  底图与高程来自公网瓦片（MapLibre demotiles + AWS Terrain Tiles），
+  <b>断网即空白</b>；倾斜 58° 展示真实地形起伏。
+</div>
+
+<div class="switch">
+  <button id="btn2d">2D</button>
+  <button id="btn3d" class="on">3D 地形</button>
+</div>
+
+<div class="notice" id="notice">
+  <b>瓦片加载失败</b><br>
+  这个样例依赖外网瓦片服务。如果当前网络访问不了
+  <code>demotiles.maplibre.org</code>，只能看到空白底图 ——
+  这不是代码问题，是网络限制。<br><br>
+  离线场景请选样例 A 或 B。
+</div>
+
+<script src="./data.js"></script>
+<script src="./vendor/maplibre-gl.js"></script>
+<script>
+(function () {
+  const nodes = window.CZ3D.nodes
+  const STYLE = window.CZ3D.style
+  const STATE_TEXT = window.CZ3D.stateText
+  let ready = false
+
+  const map = new maplibregl.Map({
+    container: 'map',
+    style: 'https://demotiles.maplibre.org/style.json',
+    center: [105.6, 30.2],
+    zoom: 4.1,
+    pitch: 58,
+    bearing: -16,
+    attributionControl: false,
+    maxPitch: 75
+  })
+
+  // 失败兜底：3.5 秒内没 load 就提示网络问题
+  const failTimer = setTimeout(() => { if (!ready) document.getElementById('notice').classList.add('on') }, 6000)
+  map.on('load', () => { ready = true; clearTimeout(failTimer); document.getElementById('notice').classList.remove('on'); build() })
+  map.on('error', e => {
+    if (!ready) document.getElementById('notice').classList.add('on')
+    console.warn('[map3d] map error', e && e.error)
+  })
+
+  function build() {
+    /* ---- 真实高程 + 山体阴影 ---- */
+    map.addSource('dem', {
+      type: 'raster-dem',
+      tiles: ['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],
+      encoding: 'terrarium',
+      tileSize: 256,
+      maxzoom: 13,
+      attribution: 'AWS Terrain Tiles'
+    })
+    const firstSymbol = (map.getStyle().layers || []).find(l => l.type === 'symbol')
+    map.addLayer({
+      id: 'hillshade',
+      type: 'hillshade',
+      source: 'dem',
+      paint: {
+        'hillshade-shadow-color': '#5A4326',
+        'hillshade-highlight-color': '#FFF6E2',
+        'hillshade-accent-color': '#8A7350',
+        'hillshade-exaggeration': 0.55
+      }
+    }, firstSymbol ? firstSymbol.id : undefined)
+    map.setTerrain({ source: 'dem', exaggeration: 2.1 })
+
+    /* ---- 行军路线 ---- */
+    const coords = nodes.map(n => [n.lng, n.lat])
+    map.addSource('route', {
+      type: 'geojson',
+      data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }
+    })
+    map.addLayer({
+      id: 'route-casing',
+      type: 'line',
+      source: 'route',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': 'rgba(110,9,24,.55)', 'line-width': 7, 'line-blur': 2 }
+    })
+    map.addLayer({
+      id: 'route-line',
+      type: 'line',
+      source: 'route',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#C8102E', 'line-width': 3.4 }
+    })
+
+    /* ---- 节点标记 ---- */
+    nodes.forEach(n => {
+      const st = STYLE[n.state]
+      const el = document.createElement('div')
+      el.className = 'pin'
+      el.textContent = n.order
+      el.style.background = st.fill
+      el.style.color = st.label
+      el.style.border = '1.6px solid ' + st.stroke
+      new maplibregl.Marker({ element: el, anchor: 'center' })
+        .setLngLat([n.lng, n.lat])
+        .setPopup(new maplibregl.Popup({ offset: 18, closeButton: false }).setHTML(
+          '<div class="ml-pop"><div class="n">' + n.order + ' · ' + n.name + '</div>' +
+          '<div class="m">' + n.date + ' · ' + n.place + '</div>' +
+          '<span class="s" style="background:' + st.fill + ';color:' + st.label + '">' + STATE_TEXT[n.state] + '</span></div>'
+        ))
+        .addTo(map)
+    })
+
+    // 相机：沿路线取景，保持倾斜
+    map.fitBounds([[101.4, 24.4], [117.2, 36.8]], { padding: 60, pitch: 58, bearing: -16, duration: 1200 })
+
+    // 图例
+    document.getElementById('legend').innerHTML = ['quizPassed', 'checkedIn', 'open', 'locked'].map(k =>
+      '<span><i style="background:' + STYLE[k].fill + ';box-shadow:0 0 0 1.5px ' + STYLE[k].stroke + ' inset"></i>' + STATE_TEXT[k] + '</span>'
+    ).join('')
+  }
+
+  /* ---- 2D / 3D 切换 ---- */
+  const b2 = document.getElementById('btn2d'), b3 = document.getElementById('btn3d')
+  b2.addEventListener('click', () => {
+    b2.classList.add('on'); b3.classList.remove('on')
+    map.easeTo({ pitch: 0, bearing: 0, duration: 900 })
+  })
+  b3.addEventListener('click', () => {
+    b3.classList.add('on'); b2.classList.remove('on')
+    map.easeTo({ pitch: 58, bearing: -16, duration: 900 })
+  })
+})()
+</script>
+</body>
+</html>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3D 地图样例 · 三选一</title>
+<link rel="stylesheet" href="/fonts/noto-serif-sc.css">
+<style>
+  :root {
+    --red: #C8102E; --red-dark: #6E0918; --gold: #C6A343; --gold-light: #E8C86A;
+    --paper: #F7F0DF; --ink: #35291F; --muted: #8C8475;
+    --font-title: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: radial-gradient(120% 70% at 50% 0%, #FDF7E8, #F1E6CC 60%, #E6D9BA);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink); min-height: 100vh; padding: 34px 20px 60px;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  h1 {
+    font-family: var(--font-title); font-weight: 900; font-size: 26px; letter-spacing: 5px;
+    color: var(--red-dark); text-align: center;
+  }
+  .sub { text-align: center; color: var(--muted); font-size: 12px; letter-spacing: 2px; margin-top: 10px; }
+  .rule { width: 54px; height: 2px; background: var(--gold); opacity: .7; margin: 18px auto 30px; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+  .card {
+    background: #FFFCF4; border: 1px solid rgba(198,163,67,.5); border-radius: 16px;
+    overflow: hidden; display: flex; flex-direction: column;
+    box-shadow: 0 16px 40px -24px rgba(90,62,20,.55);
+  }
+  .card img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; display: block; border-bottom: 1px solid rgba(198,163,67,.35); }
+  .card-body { padding: 16px 18px 18px; display: flex; flex-direction: column; flex: 1; }
+  .badge {
+    align-self: flex-start; font-size: 10px; letter-spacing: 2px; color: var(--gold-deep, #8F6E0B);
+    border: 1px solid var(--gold); border-radius: 999px; padding: 3px 10px; margin-bottom: 10px;
+  }
+  .name { font-family: var(--font-title); font-size: 18px; font-weight: 900; letter-spacing: 2px; color: var(--red-dark); }
+  .desc { font-size: 12.5px; line-height: 1.85; color: var(--ink); margin: 8px 0 14px; flex: 1; }
+  .specs { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 11px; color: var(--muted); margin-bottom: 16px; }
+  .specs b { color: var(--red-dark); font-weight: 600; }
+  .open {
+    display: block; text-align: center; text-decoration: none; font-size: 13px; letter-spacing: 2px;
+    background: var(--red); color: #FFF4DC; border-radius: 999px; padding: 10px; border: 1px solid var(--red);
+  }
+  .open.ghost { background: transparent; color: var(--red-dark); border-color: rgba(198,163,67,.7); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 34px; font-size: 12.5px; background: #FFFCF4;
+    border: 1px solid rgba(198,163,67,.45); border-radius: 12px; overflow: hidden; }
+  th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid rgba(198,163,67,.28); }
+  th { background: rgba(198,163,67,.12); font-weight: 600; color: var(--red-dark); white-space: nowrap; }
+  td:first-child { color: var(--muted); white-space: nowrap; }
+  .note { margin-top: 26px; font-size: 12px; line-height: 1.9; color: var(--muted); background: #FFFCF4;
+    border: 1px dashed rgba(198,163,67,.6); border-radius: 12px; padding: 14px 16px; }
+  .note b { color: var(--red-dark); }
+  @media (max-width: 560px) { h1 { font-size: 21px; letter-spacing: 3px; } body { padding: 24px 14px 40px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>3D 地图 · 三套样例</h1>
+  <div class="sub">同一份 11 节点数据 · 同一种红金纸色语言 · 三种 3D 技术路线</div>
+  <div class="rule"></div>
+
+  <div class="cards">
+    <div class="card">
+      <img src="./preview-a2.png" alt="样例 A+ 真实地形 + 天气">
+      <div class="card-body">
+        <span class="badge">已选方向 · 真实高程 + 天气</span>
+        <div class="name">A+ · 真实地形沙盘</div>
+        <div class="desc">
+          地形换成 <b>真实 DEM 高程</b>（480×478 离线高度图，海拔 10–4487 m），叠经纬网、真实走向的主要河流、
+          城市点位与海拔色带；五角星标起终点。<b>天气可切换</b>：晴 / 云 / 雨 / 雪 / 雾，
+          只影响地形与环境光，路线、节点、标注始终清晰。
+        </div>
+        <div class="specs">
+          <span>依赖 <b>Three.js 608KB</b></span>
+          <span>离线 <b>可以</b></span>
+          <span>天气 <b>5 种</b></span>
+        </div>
+        <a class="open" href="./a2-terrain.html">打开样例 A+</a>
+        <a class="open ghost" style="margin-top:8px" href="./a-terrain.html">对照：原版 A（合成地形）</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <img src="./preview-b.png" alt="样例 B CSS 立体沙盘">
+      <div class="card-body">
+        <span class="badge">零依赖 · 最轻</span>
+        <div class="name">B · CSS 立体桌面沙盘</div>
+        <div class="desc">
+          一张倾斜的纸面地图：层叠纸张做出厚度，节点用 CSS 3D 升起并投影，
+          鼠标移动带视差。没有任何 3D 引擎，全是 CSS transform。
+        </div>
+        <div class="specs">
+          <span>依赖 <b>无</b></span>
+          <span>离线 <b>可以</b></span>
+          <span>手机 <b>最好</b></span>
+        </div>
+        <a class="open" href="./b-css3d.html">打开样例 B</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <img src="./preview-c.png" alt="样例 C 真实地形地图">
+      <div class="card-body">
+        <span class="badge">真实地理 · 需外网</span>
+        <div class="name">C · 真实地形地图</div>
+        <div class="desc">
+          MapLibre GL 加载公网矢量底图 + 真实高程，倾斜 58° 看真实山脉起伏，
+          支持 2D/3D 切换。底图是用纸色滤镜压过的，但仍是"地图"而非"沙盘"。
+        </div>
+        <div class="specs">
+          <span>依赖 <b>MapLibre 762KB</b></span>
+          <span>离线 <b>不行</b></span>
+          <span>手机 <b>流畅</b></span>
+        </div>
+        <a class="open ghost" href="./c-maplibre.html">打开样例 C</a>
+      </div>
+    </div>
+  </div>
+
+  <table>
+    <tr>
+      <th>对比项</th><th>A · 立体地形</th><th>B · CSS 沙盘</th><th>C · 真实地形</th>
+    </tr>
+    <tr><td>视觉冲击</td><td>强（真 3D 起伏）</td><td>中（透视纸面）</td><td>强（真实经纬度）</td></tr>
+    <tr><td>风格契合</td><td>高（自绘配色）</td><td>最高（就是纸）</td><td>中（靠滤镜压色）</td></tr>
+    <tr><td>离线/内网</td><td>✅ 完全离线</td><td>✅ 完全离线</td><td>❌ 断网空白</td></tr>
+    <tr><td>额外体积</td><td>+608KB</td><td>+0</td><td>+826KB</td></tr>
+    <tr><td>手机性能</td><td>中（WebGL）</td><td>好（纯 CSS）</td><td>好（GL 瓦片）</td></tr>
+    <tr><td>地理准确</td><td>示意（合成地形）</td><td>示意（等距投影）</td><td>真实（真经纬度）</td></tr>
+    <tr><td>接入工作量</td><td>中（1～2 天）</td><td>小（半天）</td><td>中（1 天 + 备案/网络）</td></tr>
+    <tr><td>长期维护</td><td>自己画的，可控</td><td>最省事</td><td>瓦片服务/密钥/备案</td></tr>
+  </table>
+
+  <div class="note">
+    <b>建议</b>：主站是国内离线/内网场景，<b>C 不建议作为唯一方案</b>（断网即空白、且公网瓦片有备案与限流风险）。
+    如果只想要"立体感"，<b>B</b> 性价比最高；如果确实要"3D 地图"的技术质感，选 <b>A</b>，并可以把它做成地图页的
+    「3D 视角」开关，2D 原图保留为默认。
+    <br><br>
+    另外还可选的两条路（这次没做样例）：<b>D · Three.js 3D 地球</b>（球体 + 弧线飞行，视觉炫但和长征路线关系弱）、
+    <b>E · ECharts GL</b>（体积 1.6MB，图表面板风格，和当前设计语言冲突）。
+  </div>
+</div>
+</body>
+</html>

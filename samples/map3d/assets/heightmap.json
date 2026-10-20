@@ -1,0 +1,11 @@
+{
+  "lngMin": 92.0,
+  "lngMax": 130.0,
+  "latMin": 15.0,
+  "latMax": 48.0,
+  "width": 1000,
+  "height": 1045,
+  "elevMin": 0.0,
+  "elevMax": 6000.0,
+  "source": "AWS Terrain Tiles (terrarium), zoom 6"
+}

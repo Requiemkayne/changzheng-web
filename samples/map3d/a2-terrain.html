@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>样例 A+ · 真实地形 + 天气</title>
+<link rel="stylesheet" href="/fonts/noto-serif-sc.css">
+<style>
+  :root {
+    --red: #C8102E; --red-dark: #6E0918; --gold: #C6A343; --gold-light: #E8C86A;
+    --paper: #F7F0DF; --ink: #35291F; --muted: #8C8475;
+    --font-title: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(120% 90% at 50% 0%, #FDF7E8 0%, #F1E5CB 55%, #E3D4B4 100%);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink); overflow: hidden; transition: background .8s ease;
+  }
+  /* 天气影响天光（只改氛围，不挡内容） */
+  body.w-rain  { background: radial-gradient(120% 90% at 50% 0%, #E8E6DE 0%, #D6D5CC 55%, #C3C2B8 100%); }
+  body.w-snow  { background: radial-gradient(120% 90% at 50% 0%, #FBFBF7 0%, #ECEEE9 55%, #DEE1DA 100%); }
+  body.w-fog   { background: radial-gradient(120% 90% at 50% 0%, #F2EEE2 0%, #E3DFD2 60%, #D5D1C4 100%); }
+  body.w-cloud { background: radial-gradient(120% 90% at 50% 0%, #F6F1E1 0%, #E9E2CE 55%, #DCD4BE 100%); }
+
+  #stage { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 6;
+    display: flex; align-items: flex-start; justify-content: space-between;
+    padding: 14px 18px; pointer-events: none;
+  }
+  .title { font-family: var(--font-title); font-weight: 900; letter-spacing: 4px; color: var(--red-dark); font-size: 17px; }
+  .title small { display: block; font-size: 11px; letter-spacing: 2px; color: var(--muted); font-weight: 400; margin-top: 4px; }
+  .top-right { display: flex; gap: 8px; pointer-events: auto; }
+  .pill {
+    text-decoration: none; font-size: 12px; letter-spacing: 1px; cursor: pointer;
+    color: var(--red-dark); border: 1px solid rgba(110,9,24,.22); background: rgba(255,253,247,.86);
+    border-radius: 999px; padding: 6px 12px; font-family: inherit;
+  }
+
+  /* ---------- 天气工具条（右下，不与地图交互冲突） ---------- */
+  .weather {
+    position: fixed; right: 14px; bottom: 14px; z-index: 7;
+    display: flex; align-items: center; gap: 6px;
+    background: rgba(255,253,247,.9); border: 1px solid rgba(198,163,67,.45);
+    border-radius: 999px; padding: 5px 7px;
+    box-shadow: 0 10px 24px -14px rgba(90,62,20,.5);
+  }
+  .weather .lbl { font-size: 10px; letter-spacing: 2px; color: var(--muted); padding: 0 4px 0 6px; }
+  .wbtn {
+    font-family: inherit; font-size: 12px; letter-spacing: 1px; cursor: pointer;
+    border: 1px solid transparent; background: transparent; color: var(--red-dark);
+    border-radius: 999px; padding: 5px 11px;
+  }
+  .wbtn:hover { background: rgba(200,16,46,.07); }
+  .wbtn.on { background: var(--red); color: #FFF4DC; border-color: var(--red); }
+
+  /* ---------- 地图仪表：指北针 / 比例尺 / 海拔色带 ---------- */
+  .hud { position: fixed; left: 14px; top: 74px; z-index: 6; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+  .compass {
+    width: 54px; height: 54px; border-radius: 50%;
+    background: rgba(255,253,247,.88); border: 1px solid rgba(198,163,67,.5);
+    display: grid; place-items: center; position: relative;
+  }
+  .compass svg { width: 34px; height: 34px; transition: transform .1s linear; }
+  .scale {
+    background: rgba(255,253,247,.88); border: 1px solid rgba(198,163,67,.45);
+    border-radius: 8px; padding: 5px 8px; font-size: 10px; color: var(--muted);
+  }
+  .scale-bar { height: 5px; border: 1px solid var(--red-dark); border-top: none; margin-top: 3px; }
+  .elev {
+    background: rgba(255,253,247,.88); border: 1px solid rgba(198,163,67,.45);
+    border-radius: 8px; padding: 7px 9px; font-size: 10px; color: var(--muted);
+  }
+  .elev-bar { width: 12px; height: 74px; border-radius: 3px; margin: 5px 0 3px;
+    background: linear-gradient(180deg, #EFE7D5 0%, #7C6A4E 32%, #A89168 55%, #CDB98A 76%, #E7D9B4 100%); }
+  .elev-row { display: flex; gap: 7px; align-items: flex-start; }
+  .elev-ticks { display: flex; flex-direction: column; justify-content: space-between; height: 74px; font-size: 9px; }
+
+  .legend {
+    position: fixed; left: 14px; bottom: 14px; z-index: 6;
+    display: flex; flex-direction: column; gap: 6px;
+    background: rgba(255,253,247,.88); border: 1px solid rgba(198,163,67,.45);
+    border-radius: 12px; padding: 9px 12px; font-size: 11px;
+  }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+
+  .info {
+    position: fixed; right: 14px; bottom: 62px; z-index: 8; width: 234px;
+    background: rgba(255,252,245,.96); border: 1px solid rgba(198,163,67,.55);
+    border-radius: 14px; padding: 13px 14px; display: none;
+    box-shadow: 0 16px 36px rgba(90,62,20,.2);
+  }
+  .info.on { display: block; animation: pop .22s ease-out; }
+  @keyframes pop { from { opacity: 0; transform: translateY(8px); } }
+  .info-order { font-family: var(--font-title); font-size: 18px; font-weight: 900; color: var(--gold); margin-right: 8px; }
+  .info-name { font-family: var(--font-title); font-size: 15px; font-weight: 900; color: var(--red-dark); letter-spacing: 2px; }
+  .info-meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .info-extra { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .info-state { display: inline-block; margin-top: 9px; font-size: 10px; letter-spacing: 1px; border-radius: 999px; padding: 3px 10px; }
+
+  .hint {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; z-index: 6;
+    font-size: 11px; letter-spacing: 1px; color: var(--muted);
+    background: rgba(255,253,247,.82); border: 1px solid rgba(198,163,67,.35);
+    border-radius: 999px; padding: 6px 14px; white-space: nowrap;
+  }
+  .loading {
+    position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+    background: #F7F0DF; font-size: 13px; letter-spacing: 2px; color: var(--muted);
+    transition: opacity .5s;
+  }
+  .loading.off { opacity: 0; pointer-events: none; }
+
+  @media (max-width: 560px) {
+    .hud { top: 68px; }
+    .compass { width: 44px; height: 44px; }
+    .compass svg { width: 27px; height: 27px; }
+    .elev { display: none; }
+    .hint { display: none; }
+    .title { font-size: 15px; letter-spacing: 2px; }
+    .title small { display: none; }
+    .pill { font-size: 11px; padding: 5px 9px; }
+    .weather { right: 10px; bottom: 10px; gap: 2px; padding: 4px 5px; }
+    .weather .lbl { display: none; }
+    .wbtn { padding: 5px 8px; font-size: 11.5px; letter-spacing: 0; }
+    .legend { font-size: 10px; padding: 7px 9px; }
+    .info { width: 200px; right: 10px; bottom: 56px; }
+  }
+</style>
+</head>
+<body class="w-clear">
+
+<div id="stage"></div>
+<div class="loading" id="loading">正在加载地形数据…</div>
+
+<div class="topbar">
+  <div class="title">长征路线 · 真实地形<small>样例 A+ · 真实高程 + 天气系统</small></div>
+  <div class="top-right">
+    <a class="pill" href="./index.html">← 样例列表</a>
+  </div>
+</div>
+
+<div class="hud">
+  <div class="compass" title="指北针">
+    <svg viewBox="0 0 24 24" id="compassNeedle">
+      <path d="M12 2 L15 13 L12 11 L9 13 Z" fill="#C8102E"/>
+      <path d="M12 22 L15 13 L12 15 L9 13 Z" fill="#8C8475"/>
+      <text x="12" y="21" font-size="4.5" text-anchor="middle" fill="#6E0918" font-family="serif">N</text>
+    </svg>
+  </div>
+  <div class="scale" id="scaleBox">
+    <div id="scaleLabel">— km</div>
+    <div class="scale-bar" id="scaleBar" style="width:60px"></div>
+  </div>
+  <div class="elev">
+    <div class="elev-row">
+      <div class="elev-bar"></div>
+      <div class="elev-ticks">
+        <span>5000</span><span>3000</span><span>1500</span><span>0 m</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legend" id="legend"></div>
+<div class="info" id="info"></div>
+
+<div class="weather" id="weatherBar">
+  <span class="lbl">天气</span>
+  <button class="wbtn on" data-w="clear">晴</button>
+  <button class="wbtn" data-w="cloud">云</button>
+  <button class="wbtn" data-w="rain">雨</button>
+  <button class="wbtn" data-w="snow">雪</button>
+  <button class="wbtn" data-w="fog">雾</button>
+</div>
+
+<div class="hint">拖拽旋转 · 滚轮缩放 · 点击节点</div>
+
+<script src="./data.js"></script>
+<script src="./vendor/three.min.js"></script>
+<script>
+(function () {
+  const NODES = window.CZ3D.nodes
+  const STYLE = window.CZ3D.style
+  const STATE_TEXT = window.CZ3D.stateText
+
+  /* ================= 地理参数（与 assets/heightmap.json 一致） ================= */
+  const DEM = { lngMin: 100.5, lngMax: 117.5, latMin: 23.5, latMax: 38.0, elevMin: 10.5, elevMax: 4486.7, w: 480, h: 478 }
+  const K = 4.2                       // 每经度世界单位
+  const R2D = 180 / Math.PI
+  const mercY = lat => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360))
+  const invMerc = y => (2 * Math.atan(Math.exp(y)) - Math.PI / 2) * R2D
+  const Y_MIN = mercY(DEM.latMin), Y_MAX = mercY(DEM.latMax)
+  const LAT_C = invMerc((Y_MIN + Y_MAX) / 2)
+  const LNG_C = (DEM.lngMin + DEM.lngMax) / 2
+  const SIZE_X = (DEM.lngMax - DEM.lngMin) * K
+  const SIZE_Z = (Y_MAX - Y_MIN) * R2D * K
+  const ELEV_SCALE = 6.4 / 4500       // 米 → 世界单位（垂直夸张克制，避免遮住路线）
+
+  const worldX = lng => (lng - LNG_C) * K
+  const worldZ = lat => -(mercY(lat) - mercY(LAT_C)) * R2D * K
+
+  /* ================= 高程采样 ================= */
+  let H = null                        // Float32Array 0..1
+  function hAt(u, v) {
+    if (!H) return 0
+    const x = Math.min(DEM.w - 1.001, Math.max(0, u * (DEM.w - 1)))
+    const y = Math.min(DEM.h - 1.001, Math.max(0, v * (DEM.h - 1)))
+    const x0 = Math.floor(x), y0 = Math.floor(y)
+    const fx = x - x0, fy = y - y0
+    const i0 = y0 * DEM.w + x0, i1 = i0 + 1, i2 = i0 + DEM.w, i3 = i2 + 1
+    const a = H[i0] * (1 - fx) + H[i1] * fx
+    const b = H[i2] * (1 - fx) + H[i3] * fx
+    return (a * (1 - fy) + b * fy)
+  }
+  // 世界坐标 → 高程（世界单位）
+  const uvX = x => x / SIZE_X + 0.5
+  const uvZ = z => z / SIZE_Z + 0.5
+  function groundY(x, z) { return hAt(uvX(x), uvZ(z)) * 4500 * ELEV_SCALE }
+  function elevMeters(lng, lat) {
+    const u = (lng - DEM.lngMin) / (DEM.lngMax - DEM.lngMin)
+    const v = (Y_MAX - mercY(lat)) / (Y_MAX - Y_MIN)
+    return hAt(u, v) * (DEM.elevMax - DEM.elevMin) + DEM.elevMin
+  }
+
+  /* ================= 场景基础 ================= */
+  const scene = new THREE.Scene()
+  const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 900)
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+  renderer.setSize(innerWidth, innerHeight)
+  renderer.outputEncoding = THREE.sRGBEncoding   // 否则颜色整体发白
+  document.getElementById('stage').appendChild(renderer.domElement)
+
+  const hemi = new THREE.HemisphereLight(0xFFF6E2, 0x2E2418, 0.45)
+  scene.add(hemi)
+  const sun = new THREE.DirectionalLight(0xFFE9B8, 0.42)
+  sun.position.set(46, 78, 30)
+  scene.add(sun)
+  scene.add(new THREE.AmbientLight(0xFFF3DC, 0.12))
+  scene.fog = new THREE.Fog(0xF1E5CB, 150, 300)
+
+  /* ================= 材质与配色 ================= */
+  const COL = {
+    plain: new THREE.Color('#C7B389'),
+    hill: new THREE.Color('#A18A5C'),
+    mid: new THREE.Color('#76623F'),
+    high: new THREE.Color('#4F412C'),
+    snow: new THREE.Color('#E4DAC2')
+  }
+
+  function elevColor(t) {
+    const c = new THREE.Color()
+    if (t < 0.12) c.copy(COL.plain).lerp(COL.hill, t / 0.12)
+    else if (t < 0.38) c.copy(COL.hill).lerp(COL.mid, (t - 0.12) / 0.26)
+    else if (t < 0.7) c.copy(COL.mid).lerp(COL.high, (t - 0.38) / 0.32)
+    else c.copy(COL.high).lerp(COL.snow, Math.min(1, (t - 0.7) / 0.2))
+    return c
+  }
+
+  // sRGB 输出下，材质色与顶点色需要转线性，颜色才不偏白
+  function toLinearColors() {
+    scene.traverse(o => {
+      if (!o.material) return
+      const mats = Array.isArray(o.material) ? o.material : [o.material]
+      mats.forEach(m => { if (m.color) m.color.convertSRGBToLinear() })
+    })
+  }
+
+  /* ================= 地形网格 ================= */
+  let terrain = null
+  const SEG = 168
+  function buildTerrain() {
+    const geo = new THREE.PlaneGeometry(SIZE_X, SIZE_Z, SEG, SEG)
+    geo.rotateX(-Math.PI / 2)
+    const pos = geo.attributes.position
+    const colors = new Float32Array(pos.count * 3)
+    const tmp = new THREE.Color()
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i), z = pos.getZ(i)
+      const t = hAt(uvX(x), uvZ(z))          // 0..1
+      pos.setY(i, t * 4500 * ELEV_SCALE)
+      tmp.copy(elevColor(t)).convertSRGBToLinear()
+      colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    geo.computeVertexNormals()
+    terrain = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true }))
+    scene.add(terrain)
+
+    // 沙盘底座：盖住地形切边，像一张压在地图下的纸
+    const base = new THREE.Mesh(
+      new THREE.PlaneGeometry(SIZE_X * 1.02, SIZE_Z * 1.02),
+      new THREE.MeshLambertMaterial({ color: 0xE7DBBE })
+    )
+    base.rotation.x = -Math.PI / 2
+    base.position.y = -0.25
+    scene.add(base)
+  }
+
+  /* ================= 河流（真实走向的近似折线） ================= */
+  const RIVERS = [
+    { name: '金沙江', pts: [[100.6, 29.2], [101.2, 28.0], [101.9, 27.0], [102.6, 26.4], [103.6, 26.2], [104.4, 27.1]] },
+    { name: '长江', pts: [[104.4, 27.1], [105.2, 28.7], [105.9, 28.9], [106.6, 29.6], [107.4, 30.3], [108.4, 30.9]] },
+    { name: '岷江', pts: [[103.4, 32.2], [103.7, 31.2], [104.0, 30.3], [104.6, 29.4], [104.7, 28.8]] },
+    { name: '大渡河', pts: [[101.9, 32.0], [102.2, 31.1], [102.6, 30.2], [102.9, 29.4], [103.5, 28.9]] },
+    { name: '湘江', pts: [[110.6, 25.2], [111.6, 26.2], [112.5, 27.1], [113.0, 28.3]] },
+    { name: '乌江', pts: [[106.4, 26.5], [107.3, 27.2], [107.9, 28.1], [107.3, 29.1]] },
+    { name: '黄河', pts: [[100.8, 34.6], [102.3, 35.6], [103.7, 36.1], [105.0, 36.4]] }
+  ]
+
+  function riverTube(pts) {
+    const v = pts.map(([lng, lat]) => {
+      const x = worldX(lng), z = worldZ(lat)
+      return new THREE.Vector3(x, groundY(x, z) + 0.22, z)
+    })
+    const curve = new THREE.CatmullRomCurve3(v)
+    const g = new THREE.TubeGeometry(curve, v.length * 12, 0.16, 5, false)
+    return new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0x7FA3AE, transparent: true, opacity: 0.85 }))
+  }
+
+  /* ================= 经纬网 + 坐标标注 ================= */
+  function graticule() {
+    const group = new THREE.Group()
+    const mat = new THREE.LineBasicMaterial({ color: 0xB89B57, transparent: true, opacity: 0.32 })
+    for (let lng = 102; lng <= 116; lng += 2) {
+      const pts = []
+      for (let lat = DEM.latMin; lat <= DEM.latMax; lat += 0.25) {
+        const x = worldX(lng), z = worldZ(lat)
+        pts.push(new THREE.Vector3(x, groundY(x, z) + 0.14, z))
+      }
+      group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat))
+    }
+    for (let lat = 25; lat <= 37; lat += 2) {
+      const pts = []
+      for (let lng = DEM.lngMin; lng <= DEM.lngMax; lng += 0.25) {
+        const x = worldX(lng), z = worldZ(lat)
+        pts.push(new THREE.Vector3(x, groundY(x, z) + 0.14, z))
+      }
+      group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat))
+    }
+    scene.add(group)
+    return group
+  }
+
+  /* ================= 文字牌（canvas 贴图） ================= */
+  function textSprite(text, opt) {
+    opt = opt || {}
+    const font = opt.font || '700 30px "Noto Serif SC", serif'
+    const color = opt.color || '#6E0918'
+    const bg = opt.bg || 'rgba(255,252,244,0.9)'
+    const border = opt.border || 'rgba(198,163,67,0.8)'
+    const scale = opt.scale || 1
+    const cv = document.createElement('canvas')
+    const ctx = cv.getContext('2d')
+    ctx.font = font
+    const w = Math.ceil(ctx.measureText(text).width) + 34
+    cv.width = Math.ceil(w); cv.height = 64
+    const c2 = cv.getContext('2d')
+    c2.font = font
+    c2.textAlign = 'center'; c2.textBaseline = 'middle'
+    if (opt.solid !== false) {
+      c2.fillStyle = bg
+      c2.strokeStyle = border
+      c2.lineWidth = 2.5
+      c2.beginPath()
+      c2.roundRect(2, 10, cv.width - 4, 44, 22)
+      c2.fill(); c2.stroke()
+    }
+    c2.fillStyle = color
+    c2.fillText(text, cv.width / 2, 33)
+    const tex = new THREE.CanvasTexture(cv)
+    tex.encoding = THREE.sRGBEncoding
+    tex.anisotropy = 4
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false }))
+    sp.scale.set(cv.width / 64 * 2.6 * scale, 2.6 * scale, 1)
+    return sp
+  }
+
+  /* ================= 城市标注（弱化，不抢主体） ================= */
+  const CITIES = [
+    [104.07, 30.67, '成都'], [106.55, 29.56, '重庆'], [102.83, 24.88, '昆明'],
+    [106.63, 26.65, '贵阳'], [108.94, 34.34, '西安'], [103.83, 36.06, '兰州'],
+    [115.89, 28.68, '南昌'], [112.94, 28.23, '长沙']
+  ]
+
+  /* ================= 行军路线 ================= */
+  function buildRoute() {
+    const pts = NODES.map(n => {
+      const x = worldX(n.lng), z = worldZ(n.lat)
+      return new THREE.Vector3(x, 0, z)
+    })
+    const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35)
+    const sampled = curve.getPoints(260).map(p => {
+      const y = Math.max(groundY(p.x, p.z), 0) + 3.2
+      return new THREE.Vector3(p.x, y, p.z)
+    })
+    const rc = new THREE.CatmullRomCurve3(sampled)
+    const body = new THREE.Mesh(
+      new THREE.TubeGeometry(rc, 360, 0.46, 8, false),
+      new THREE.MeshBasicMaterial({ color: 0xC8102E, fog: false })   // 主题图层不吃雾，保证天气下依然可读
+    )
+    scene.add(body)
+    const goldMesh = new THREE.Mesh(
+      new THREE.TubeGeometry(rc, 360, 0.15, 6, false),
+      new THREE.MeshBasicMaterial({ color: 0xE8C86A, fog: false })
+    )
+    goldMesh.position.y = 0.15
+    scene.add(goldMesh)
+    return rc
+  }
+
+  /* ================= 节点 ================= */
+  const hitTargets = []
+  const nodeGroup = new THREE.Group()
+  scene.add(nodeGroup)
+
+  function buildNodes() {
+    NODES.forEach((n, i) => {
+      const st = STYLE[n.state]
+      const x = worldX(n.lng), z = worldZ(n.lat)
+      const g = groundY(x, z)
+      const pillarH = 3.0
+
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(1.1, 1.7, 32),
+        new THREE.MeshBasicMaterial({ color: st.fill, transparent: true, opacity: 0.5, side: THREE.DoubleSide, fog: false })
+      )
+      ring.rotation.x = -Math.PI / 2
+      ring.position.set(x, g + 0.16, z)
+      nodeGroup.add(ring)
+
+      const pillar = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.1, 0.1, pillarH, 6),
+        new THREE.MeshBasicMaterial({ color: 0x8C8475, transparent: true, opacity: 0.65, fog: false })
+      )
+      pillar.position.set(x, g + pillarH / 2, z)
+      nodeGroup.add(pillar)
+
+      const ball = new THREE.Mesh(
+        new THREE.SphereGeometry(0.85, 20, 16),
+        new THREE.MeshLambertMaterial({
+          color: new THREE.Color(st.fill),
+          emissive: new THREE.Color(st.fill).multiplyScalar(0.18),
+          fog: false
+        })
+      )
+      ball.position.set(x, g + pillarH + 0.15, z)
+      ball.userData = { index: i, node: n }
+      nodeGroup.add(ball)
+
+      // 不可见拾取球：小屏也好点（材质 visible:false 仍参与射线检测）
+      const pickBall = new THREE.Mesh(
+        new THREE.SphereGeometry(2.2, 8, 8),
+        new THREE.MeshBasicMaterial({ visible: false })
+      )
+      pickBall.position.copy(ball.position)
+      pickBall.userData = { index: i, node: n }
+      nodeGroup.add(pickBall)
+      hitTargets.push(pickBall)
+
+      const num = textSprite(String(n.order), { solid: false, font: '900 30px "Noto Serif SC", serif', color: st.label === '#FFF4DC' ? '#FFF4DC' : '#6E0918', scale: 0.62 })
+      num.position.set(x, g + pillarH + 0.16, z)
+      scene.add(num)
+
+      const label = textSprite(n.name, { scale: 0.82 })
+      label.position.set(x, g + pillarH + (i % 2 === 0 ? 2.3 : 3.7), z)
+      scene.add(label)
+    })
+  }
+
+  /* ================= 起终点五角星 ================= */
+  const stars = []
+  function starMesh(x, y, z) {
+    const shape = new THREE.Shape()
+    const R = 1.3, r = 0.56
+    for (let i = 0; i < 10; i++) {
+      const ang = -Math.PI / 2 + i * Math.PI / 5
+      const rad = i % 2 === 0 ? R : r
+      const px = Math.cos(ang) * rad, py = Math.sin(ang) * rad
+      i === 0 ? shape.moveTo(px, py) : shape.lineTo(px, py)
+    }
+    shape.closePath()
+    const m = new THREE.Mesh(
+      new THREE.ShapeGeometry(shape),
+      new THREE.MeshBasicMaterial({ color: 0xE8C86A, side: THREE.DoubleSide })
+    )
+    m.position.set(x, y, z)
+    scene.add(m)
+    return m
+  }
+
+  /* ================= 天气系统 ================= */
+  const WEATHER = { mode: 'clear' }
+  const weatherGroup = new THREE.Group()
+  scene.add(weatherGroup)
+
+  // 云
+  const clouds = []
+  function buildClouds() {
+    const cv = document.createElement('canvas')
+    cv.width = cv.height = 128
+    const ctx = cv.getContext('2d')
+    const g = ctx.createRadialGradient(64, 64, 6, 64, 64, 62)
+    g.addColorStop(0, 'rgba(255,255,255,0.95)')
+    g.addColorStop(0.45, 'rgba(255,253,246,0.55)')
+    g.addColorStop(1, 'rgba(255,253,246,0)')
+    ctx.fillStyle = g
+    ctx.beginPath(); ctx.arc(64, 64, 62, 0, Math.PI * 2); ctx.fill()
+    const tex = new THREE.CanvasTexture(cv)
+    tex.encoding = THREE.sRGBEncoding
+    for (let i = 0; i < 22; i++) {
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false }))
+      const s = 16 + Math.random() * 22
+      sp.scale.set(s, s * 0.55, 1)
+      sp.position.set((Math.random() - 0.5) * SIZE_X * 1.1, 34 + Math.random() * 22, (Math.random() - 0.5) * SIZE_Z * 1.1)
+      sp.userData.speed = 0.6 + Math.random() * 1.2
+      scene.add(sp)
+      clouds.push(sp)
+    }
+  }
+
+  // 雨（线段，短促下坠）
+  let rainMesh = null
+  const RAIN_N = 1200
+  function buildRain() {
+    const pos = new Float32Array(RAIN_N * 6)
+    for (let i = 0; i < RAIN_N; i++) {
+      const x = (Math.random() - 0.5) * SIZE_X, z = (Math.random() - 0.5) * SIZE_Z
+      const y = Math.random() * 48
+      pos[i * 6] = x; pos[i * 6 + 1] = y; pos[i * 6 + 2] = z
+      pos[i * 6 + 3] = x + 0.16; pos[i * 6 + 4] = y + 1.9; pos[i * 6 + 5] = z
+    }
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+    rainMesh = new THREE.LineSegments(g, new THREE.LineBasicMaterial({
+      color: 0x8FA9B8, transparent: true, opacity: 0, depthWrite: false
+    }))
+    rainMesh.visible = false
+    scene.add(rainMesh)
+  }
+
+  // 雪（点）
+  let snowMesh = null
+  const SNOW_N = 1000
+  function buildSnow() {
+    const pos = new Float32Array(SNOW_N * 3)
+    for (let i = 0; i < SNOW_N; i++) {
+      pos[i * 3] = (Math.random() - 0.5) * SIZE_X
+      pos[i * 3 + 1] = Math.random() * 46
+      pos[i * 3 + 2] = (Math.random() - 0.5) * SIZE_Z
+    }
+    const g = new THREE.BufferGeometry()
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+    snowMesh = new THREE.Points(g, new THREE.PointsMaterial({
+      color: 0xFFFFFF, size: 0.55, transparent: true, opacity: 0, depthWrite: false, sizeAttenuation: true
+    }))
+    snowMesh.visible = false
+    scene.add(snowMesh)
+  }
+
+  const MODE_CFG = {
+    clear: { sky: 0xF1E5CB, fogNear: 170, fogFar: 340, sun: 0.95, hemi: 1.0, cloud: 0, rain: 0, snow: 0, cls: 'w-clear' },
+    cloud: { sky: 0xE9E2CE, fogNear: 130, fogFar: 280, sun: 0.6, hemi: 0.9, cloud: 0.42, rain: 0, snow: 0, cls: 'w-cloud' },
+    rain:  { sky: 0xD2D1C7, fogNear: 120, fogFar: 250, sun: 0.34, hemi: 0.7, cloud: 0.5, rain: 0.42, snow: 0, cls: 'w-rain' },
+    snow:  { sky: 0xECEEE9, fogNear: 130, fogFar: 260, sun: 0.5, hemi: 0.85, cloud: 0.36, rain: 0, snow: 0.9, cls: 'w-snow' },
+    fog:   { sky: 0xE3DFD2, fogNear: 84, fogFar: 200, sun: 0.42, hemi: 0.8, cloud: 0.18, rain: 0, snow: 0, cls: 'w-fog' }
+  }
+  let target = { fogNear: 170, fogFar: 340, sun: 0.95, hemi: 1.0, cloud: 0, rain: 0, snow: 0 }
+
+  function setWeather(mode) {
+    WEATHER.mode = mode
+    const cfg = MODE_CFG[mode] || MODE_CFG.clear
+    target = { fogNear: cfg.fogNear, fogFar: cfg.fogFar, sun: cfg.sun, hemi: cfg.hemi, cloud: cfg.cloud, rain: cfg.rain, snow: cfg.snow }
+    scene.fog.color.setHex(cfg.sky)
+    document.body.className = cfg.cls
+    document.querySelectorAll('.wbtn').forEach(b => b.classList.toggle('on', b.dataset.w === mode))
+  }
+
+  function updateWeather(dt, t) {
+    // 平滑过渡，避免切换时突兀
+    const k = Math.min(1, dt * 2.2)
+    scene.fog.near += (target.fogNear - scene.fog.near) * k
+    scene.fog.far += (target.fogFar - scene.fog.far) * k
+    sun.intensity += (target.sun - sun.intensity) * k
+    hemi.intensity += (target.hemi - hemi.intensity) * k
+
+    // 云
+    clouds.forEach(c => {
+      const want = target.cloud
+      const cur = c.material.opacity
+      c.material.opacity = cur + (want - cur) * k
+      c.position.x += c.userData.speed * dt * 1.6
+      if (c.position.x > SIZE_X * 0.6) c.position.x = -SIZE_X * 0.6
+      c.visible = c.material.opacity > 0.01
+    })
+
+    // 雨：落到地面附近就回到高空
+    if (rainMesh) {
+      const cur = rainMesh.material.opacity
+      rainMesh.material.opacity = cur + (target.rain - cur) * k
+      rainMesh.visible = rainMesh.material.opacity > 0.01
+      if (rainMesh.visible) {
+        const p = rainMesh.geometry.attributes.position.array
+        for (let i = 0; i < RAIN_N; i++) {
+          const o = i * 6
+          const drop = 46 * dt
+          p[o + 1] -= drop
+          p[o + 4] -= drop
+          const x = p[o], z = p[o + 2]
+          const floor = groundY(x, z) + 0.5
+          if (p[o + 1] < floor) {
+            const y = 44 + Math.random() * 8
+            p[o + 1] = y; p[o + 4] = y + 1.9
+            p[o] = (Math.random() - 0.5) * SIZE_X
+            p[o + 3] = p[o] + 0.16
+            p[o + 2] = (Math.random() - 0.5) * SIZE_Z
+            p[o + 5] = p[o + 2]
+          }
+        }
+        rainMesh.geometry.attributes.position.needsUpdate = true
+      }
+    }
+
+    // 雪：慢速飘落 + 横向摆动
+    if (snowMesh) {
+      const cur = snowMesh.material.opacity
+      snowMesh.material.opacity = cur + (target.snow - cur) * k
+      snowMesh.visible = snowMesh.material.opacity > 0.01
+      if (snowMesh.visible) {
+        const p = snowMesh.geometry.attributes.position.array
+        for (let i = 0; i < SNOW_N; i++) {
+          const o = i * 3
+          p[o + 1] -= 4.2 * dt
+          p[o] += Math.sin(t * 1.3 + i) * 0.9 * dt
+          const floor = groundY(p[o], p[o + 2]) + 0.4
+          if (p[o + 1] < floor) {
+            p[o + 1] = 42 + Math.random() * 8
+            p[o] = (Math.random() - 0.5) * SIZE_X
+            p[o + 2] = (Math.random() - 0.5) * SIZE_Z
+          }
+        }
+        snowMesh.geometry.attributes.position.needsUpdate = true
+      }
+    }
+  }
+
+  /* ================= 相机 ================= */
+  let yaw = 0.42, pitch = 0.55, userZoom = 1
+  function baseDist() {
+    const aspect = innerWidth / innerHeight
+    const vFov = camera.fov * Math.PI / 180
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect)
+    const portrait = (innerWidth / innerHeight) < 0.85
+    const need = portrait ? 46 : 40
+    return Math.min(320, Math.max(110, need / Math.tan(hFov / 2)))
+  }
+  function updateCamera() {
+    const dist = baseDist() * userZoom
+    const cy = Math.sin(pitch) * dist
+    const cr = Math.cos(pitch) * dist
+    camera.position.set(Math.sin(yaw) * cr, cy, Math.cos(yaw) * cr)
+    camera.lookAt(0, 6, 0)
+    updateHud(dist)
+  }
+
+  function updateHud(dist) {
+    const needle = document.getElementById('compassNeedle')
+    if (needle) needle.style.transform = 'rotate(' + (-yaw * 180 / Math.PI) + 'deg)'
+    // 比例尺：目标平面上每像素对应的公里数
+    const vFov = camera.fov * Math.PI / 180
+    const unitsPerPx = (2 * dist * Math.tan(vFov / 2)) / innerHeight
+    const kmPerUnit = 111 / K
+    const pxPerKm = (1 / kmPerUnit) / unitsPerPx
+    const nice = [10, 20, 50, 100, 200, 300, 500].find(km => km * pxPerKm > 52) || 800
+    const bar = document.getElementById('scaleBar')
+    if (bar) {
+      bar.style.width = Math.round(nice * pxPerKm) + 'px'
+      document.getElementById('scaleLabel').textContent = nice + ' km'
+    }
+  }
+
+  const dom = renderer.domElement
+  let dragging = false, moved = 0, lastX = 0, lastY = 0, autoRotate = false
+  dom.addEventListener('pointerdown', e => {
+    dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY
+    try { dom.setPointerCapture(e.pointerId) } catch (_) { /* 合成事件无有效 pointerId */ }
+  })
+  dom.addEventListener('pointermove', e => {
+    if (!dragging) return
+    const dx = e.clientX - lastX, dy = e.clientY - lastY
+    moved += Math.abs(dx) + Math.abs(dy)
+    lastX = e.clientX; lastY = e.clientY
+    yaw -= dx * 0.005
+    pitch = Math.max(0.22, Math.min(1.15, pitch + dy * 0.004))
+    updateCamera()
+  })
+  dom.addEventListener('pointerup', e => {
+    dragging = false
+    if (moved < 6) pick(e)
+  })
+  dom.addEventListener('wheel', e => {
+    e.preventDefault()
+    userZoom = Math.max(0.5, Math.min(2.0, userZoom * (1 + e.deltaY * 0.0012)))
+    updateCamera()
+  }, { passive: false })
+
+  /* ================= 拾取 ================= */
+  const ray = new THREE.Raycaster()
+  const ndc = new THREE.Vector2()
+  const info = document.getElementById('info')
+
+  function pick(e) {
+    ndc.x = (e.clientX / innerWidth) * 2 - 1
+    ndc.y = -(e.clientY / innerHeight) * 2 + 1
+    ray.setFromCamera(ndc, camera)
+    const hit = ray.intersectObjects(hitTargets, false)[0]
+    if (!hit) { info.classList.remove('on'); return }
+    const n = hit.object.userData.node
+    const st = STYLE[n.state]
+    const elev = elevMeters(n.lng, n.lat)
+    info.innerHTML =
+      '<div><span class="info-order">' + n.order + '</span><span class="info-name">' + n.name + '</span></div>' +
+      '<div class="info-meta">' + n.date + ' · ' + n.place + '</div>' +
+      '<div class="info-extra">海拔约 ' + Math.round(elev / 10) * 10 + ' m</div>' +
+      '<span class="info-state" style="background:' + (n.state === 'open' ? '#6E0918' : st.fill) + ';color:' + st.label + '">' + STATE_TEXT[n.state] + '</span>'
+    info.classList.add('on')
+  }
+
+  /* ================= 启动 ================= */
+  function loadDem(cb) {
+    const img = new Image()
+    img.onload = () => {
+      const cv = document.createElement('canvas')
+      cv.width = img.width; cv.height = img.height
+      const ctx = cv.getContext('2d')
+      ctx.drawImage(img, 0, 0)
+      const data = ctx.getImageData(0, 0, cv.width, cv.height).data
+      H = new Float32Array(cv.width * cv.height)
+      for (let i = 0; i < H.length; i++) H[i] = data[i * 4] / 255
+      DEM.w = cv.width; DEM.h = cv.height
+      cb()
+    }
+    img.onerror = () => {
+      console.error('heightmap 加载失败，退回合成地形')
+      H = new Float32Array(64 * 64)
+      for (let i = 0; i < H.length; i++) H[i] = 0.25 + 0.2 * Math.sin(i * 0.3)
+      cb()
+    }
+    img.src = './assets/heightmap.png'
+  }
+
+  loadDem(function () {
+    buildTerrain()
+    graticule()
+    RIVERS.forEach(r => scene.add(riverTube(r.pts)))
+    buildClouds()
+    buildRain()
+    buildSnow()
+    buildRoute()
+    buildNodes()
+
+    CITIES.forEach(([lng, lat, name]) => {
+      const x = worldX(lng), z = worldZ(lat)
+      const g = groundY(x, z)
+      const dot = new THREE.Mesh(
+        new THREE.SphereGeometry(0.28, 8, 8),
+        new THREE.MeshBasicMaterial({ color: 0x8C8475 })
+      )
+      dot.position.set(x, g + 0.3, z)
+      scene.add(dot)
+      const label = textSprite(name, { solid: false, font: '400 26px "Noto Serif SC", serif', color: '#6B5B45', scale: 0.72 })
+      label.position.set(x, g + 1.5, z)
+      label.material.opacity = 0.85
+      scene.add(label)
+    })
+
+    const f = NODES[0], l = NODES[NODES.length - 1]
+    stars.push(starMesh(worldX(f.lng), groundY(worldX(f.lng), worldZ(f.lat)) + 7.4, worldZ(f.lat)))
+    stars.push(starMesh(worldX(l.lng), groundY(worldX(l.lng), worldZ(l.lat)) + 7.4, worldZ(l.lat)))
+
+    document.getElementById('legend').innerHTML =
+      ['quizPassed', 'checkedIn', 'open', 'locked'].map(k =>
+        '<span><i style="background:' + STYLE[k].fill + ';box-shadow:0 0 0 1.5px ' + STYLE[k].stroke + ' inset"></i>' + STATE_TEXT[k] + '</span>'
+      ).join('') +
+      '<span style="color:#7FA3AE"><i style="background:#7FA3AE"></i>主要河流</span>'
+
+    document.getElementById('loading').classList.add('off')
+    toLinearColors()
+    updateCamera()
+
+    const clock = new THREE.Clock()
+    function animate() {
+      requestAnimationFrame(animate)
+      const dt = Math.min(0.05, clock.getDelta())
+      const t = clock.elapsedTime
+      if (autoRotate) { yaw += 0.0008; updateCamera() }
+      stars.forEach((s, i) => {
+        s.lookAt(camera.position)
+        s.rotation.z += Math.sin(t * 0.8 + i) * 0.0004
+      })
+      updateWeather(dt, t)
+      renderer.render(scene, camera)
+    }
+    animate()
+  })
+
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight
+    camera.updateProjectionMatrix()
+    renderer.setSize(innerWidth, innerHeight)
+    updateCamera()
+  })
+
+  document.getElementById('weatherBar').addEventListener('click', e => {
+    const btn = e.target.closest('.wbtn')
+    if (btn) setWeather(btn.dataset.w)
+  })
+  setWeather('clear')
+})()
+</script>
+</body>
+</html>

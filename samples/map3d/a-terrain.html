@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>样例 A · 立体地形沙盘</title>
+<link rel="stylesheet" href="/fonts/noto-serif-sc.css">
+<style>
+  :root {
+    --red: #C8102E; --red-dark: #6E0918; --gold: #C6A343; --gold-light: #E8C86A;
+    --paper: #F7F0DF; --ink: #35291F; --muted: #8C8475;
+    --font-title: "Noto Serif SC", "Songti SC", "SimSun", serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: radial-gradient(120% 90% at 50% 0%, #FDF7E8 0%, #F3E9D2 55%, #E8DCC0 100%);
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink); overflow: hidden;
+  }
+  #stage { position: fixed; inset: 0; }
+  canvas { display: block; }
+
+  .topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 5;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 18px; pointer-events: none;
+  }
+  .title { font-family: var(--font-title); font-weight: 900; letter-spacing: 4px; color: var(--red-dark); font-size: 17px; }
+  .title small { display: block; font-family: inherit; font-size: 11px; letter-spacing: 2px; color: var(--muted); font-weight: 400; margin-top: 4px; }
+  .back {
+    pointer-events: auto; text-decoration: none; color: var(--red-dark);
+    font-size: 12px; letter-spacing: 1px; border: 1px solid rgba(110,9,24,.25);
+    background: rgba(255,253,247,.8); border-radius: 999px; padding: 6px 12px;
+  }
+
+  .hint {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; z-index: 5;
+    font-size: 11px; letter-spacing: 1px; color: var(--muted);
+    background: rgba(255,253,247,.82); border: 1px solid rgba(198,163,67,.4);
+    border-radius: 999px; padding: 6px 14px; white-space: nowrap;
+  }
+
+  .legend {
+    position: fixed; left: 14px; bottom: 56px; z-index: 5;
+    display: flex; flex-direction: column; gap: 7px;
+    background: rgba(255,253,247,.86); border: 1px solid rgba(198,163,67,.4);
+    border-radius: 12px; padding: 10px 12px; font-size: 11px; color: var(--ink);
+  }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; }
+
+  .info {
+    position: fixed; right: 14px; bottom: 56px; z-index: 6; width: 232px;
+    background: rgba(255,252,245,.95); border: 1px solid rgba(198,163,67,.55);
+    border-radius: 14px; padding: 14px; display: none;
+    box-shadow: 0 14px 34px rgba(90, 62, 20, .18);
+  }
+  .info.on { display: block; animation: pop .22s ease-out; }
+  @keyframes pop { from { opacity: 0; transform: translateY(8px); } }
+  .info-head { display: flex; align-items: baseline; gap: 8px; }
+  .info-order {
+    font-family: var(--font-title); font-size: 19px; font-weight: 900; color: var(--gold);
+    border-bottom: 2px solid var(--gold); padding: 0 2px 1px;
+  }
+  .info-name { font-family: var(--font-title); font-size: 16px; font-weight: 900; letter-spacing: 2px; color: var(--red-dark); }
+  .info-meta { font-size: 11px; color: var(--muted); margin-top: 6px; letter-spacing: .5px; }
+  .info-state {
+    display: inline-block; margin-top: 10px; font-size: 10px; letter-spacing: 1px;
+    border-radius: 999px; padding: 3px 10px; color: #FFF4DC; background: var(--red);
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+
+<div class="topbar">
+  <div class="title">长征路线 · 3D 沙盘<small>样例 A · 立体地形（Three.js）</small></div>
+  <a class="back" href="./index.html">← 返回样例列表</a>
+</div>
+
+<div class="legend" id="legend"></div>
+<div class="info" id="info"></div>
+<div class="hint">拖拽旋转 · 滚轮缩放 · 点击节点查看</div>
+
+<script src="./data.js"></script>
+<script src="./vendor/three.min.js"></script>
+<script>
+(function () {
+  const nodes = window.CZ3D.nodes
+  const STYLE = window.CZ3D.style
+  const STATE_TEXT = window.CZ3D.stateText
+
+  /* ---------- 经纬度 → 世界坐标 ---------- */
+  const K = 4.2                 // 每经/纬度对应的世界单位
+  const LNG0 = 109.13, LAT0 = 30.6
+  const toX = lng => (lng - LNG0) * K
+  const toZ = lat => -(lat - LAT0) * K     // 北 = -Z
+
+  /* ---------- 合成地形高度（示意，不是真实 DEM） ---------- */
+  function height(x, z) {
+    const ridgeSnow = 13.5 * Math.exp(-Math.pow((x + 12) / 8, 2)) * Math.exp(-Math.pow((z + 1) / 11, 2))  // 夹金山—岷山
+    const ridgeYunnan = 5.0 * Math.exp(-Math.pow((x + 10) / 13, 2)) * Math.exp(-Math.pow((z - 13) / 9, 2))  // 云贵高原
+    const ridgeLoess = 8.0 * Math.exp(-Math.pow((x + 5) / 14, 2)) * Math.exp(-Math.pow((z + 25) / 8, 2))    // 黄土高原
+    const ridgeWest = 6.0 * Math.exp(-Math.pow((x + 30) / 8, 2)) * Math.exp(-Math.pow((z - 4) / 14, 2))     // 横断山余脉
+    const noise = 2.2 * Math.sin(x * 0.42) * Math.cos(z * 0.37) + 1.1 * Math.sin(x * 1.05 + z * 0.8)
+    return Math.max(0.4, ridgeSnow + ridgeYunnan + ridgeLoess + ridgeWest + noise + 1.6)
+  }
+
+  /* ---------- 场景 ---------- */
+  const stage = document.getElementById('stage')
+  const scene = new THREE.Scene()
+  scene.fog = new THREE.Fog(0xF3E9D2, 88, 165)
+
+  const camera = new THREE.PerspectiveCamera(42, innerWidth / innerHeight, 0.1, 600)
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+  renderer.setSize(innerWidth, innerHeight)
+  stage.appendChild(renderer.domElement)
+
+  scene.add(new THREE.HemisphereLight(0xFFF6E2, 0x4A3B2A, 1.05))
+  const sun = new THREE.DirectionalLight(0xFFE9B8, 0.95)
+  sun.position.set(46, 74, 26)
+  scene.add(sun)
+
+  /* ---------- 地形网格 ---------- */
+  const SEG_X = 132, SEG_Z = 104
+  const SIZE_X = 84, SIZE_Z = 62
+  const geo = new THREE.PlaneGeometry(SIZE_X, SIZE_Z, SEG_X, SEG_Z)
+  geo.rotateX(-Math.PI / 2)
+
+  const pos = geo.attributes.position
+  const colors = []
+  const cLow = new THREE.Color('#4B3B29')
+  const cMid = new THREE.Color('#7E6844')
+  const cHigh = new THREE.Color('#B39C72')
+  const cSnow = new THREE.Color('#EFE6D2')
+  const tmp = new THREE.Color()
+
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i), z = pos.getZ(i)
+    const h = height(x, z)
+    pos.setY(i, h)
+    const t = Math.min(1, h / 15)
+    if (t < 0.38) tmp.copy(cLow).lerp(cMid, t / 0.38)
+    else if (t < 0.68) tmp.copy(cMid).lerp(cHigh, (t - 0.38) / 0.30)
+    else tmp.copy(cHigh).lerp(cSnow, (t - 0.68) / 0.32)
+    colors.push(tmp.r, tmp.g, tmp.b)
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+  geo.computeVertexNormals()
+
+  const terrain = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+    vertexColors: true, flatShading: true
+  }))
+  scene.add(terrain)
+
+  // 地形底下的投影（替代厚底座，避免出现明显白边）
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(1, 64),
+    new THREE.MeshBasicMaterial({ color: 0x8A7350, transparent: true, opacity: 0.16 })
+  )
+  shadow.rotation.x = -Math.PI / 2
+  shadow.position.y = -1.2
+  shadow.scale.set(SIZE_X * 0.56, SIZE_Z * 0.62, 1)
+  scene.add(shadow)
+
+  /* ---------- 行军路线（贴地形起伏的管道） ---------- */
+  const pts = nodes.map(n => new THREE.Vector3(toX(n.lng), 0, toZ(n.lat)))
+  const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35)
+  const samples = curve.getPoints(220)
+  const routePts = samples.map(p => {
+    const y = height(p.x, p.z) + 2.4
+    return new THREE.Vector3(p.x, y, p.z)
+  })
+  const routeCurve = new THREE.CatmullRomCurve3(routePts)
+  const routeGeo = new THREE.TubeGeometry(routeCurve, 320, 0.42, 8, false)
+  scene.add(new THREE.Mesh(routeGeo, new THREE.MeshBasicMaterial({ color: 0xC8102E })))
+
+  // 金色描边（稍细、稍微抬高，形成双线质感）
+  const routeGeo2 = new THREE.TubeGeometry(routeCurve, 320, 0.18, 6, false)
+  const gold = new THREE.Mesh(routeGeo2, new THREE.MeshBasicMaterial({ color: 0xE8C86A }))
+  gold.position.y = 0.16
+  scene.add(gold)
+
+  /* ---------- 节点：地面投影 + 立柱 + 球体 + 文字牌 ---------- */
+  const hitTargets = []
+
+  function labelSprite(text, sub) {
+    const pad = 16, W = 256, H = 96
+    const cv = document.createElement('canvas')
+    cv.width = W; cv.height = H
+    const ctx = cv.getContext('2d')
+    ctx.clearRect(0, 0, W, H)
+    ctx.font = '700 34px "Noto Serif SC", serif'
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+    ctx.fillStyle = 'rgba(255,252,244,0.92)'
+    ctx.strokeStyle = 'rgba(198,163,67,0.85)'
+    ctx.lineWidth = 3
+    const w = Math.min(W - 8, ctx.measureText(text).width + pad * 2)
+    ctx.beginPath()
+    ctx.roundRect((W - w) / 2, 16, w, 44, 22)
+    ctx.fill(); ctx.stroke()
+    ctx.fillStyle = '#6E0918'
+    ctx.fillText(text, W / 2, 39)
+    if (sub) {
+      ctx.font = '400 20px "Noto Serif SC", serif'
+      ctx.fillStyle = 'rgba(90,74,54,0.78)'
+      ctx.fillText(sub, W / 2, 74)
+    }
+    const tex = new THREE.CanvasTexture(cv)
+    tex.anisotropy = 4
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }))
+    sp.scale.set(9, 3.4, 1)
+    return sp
+  }
+
+  nodes.forEach((n, i) => {
+    const st = STYLE[n.state]
+    const x = toX(n.lng), z = toZ(n.lat)
+    const h = height(x, z)
+
+    // 地面光圈
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(1.15, 1.75, 32),
+      new THREE.MeshBasicMaterial({ color: st.fill, transparent: true, opacity: 0.55, side: THREE.DoubleSide })
+    )
+    ring.rotation.x = -Math.PI / 2
+    ring.position.set(x, h + 0.12, z)
+    scene.add(ring)
+
+    // 立柱
+    const pillarH = 3.2
+    const pillar = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.12, 0.12, pillarH, 6),
+      new THREE.MeshBasicMaterial({ color: st.stroke === '#FFFFFF' ? '#8C8475' : st.stroke, transparent: true, opacity: 0.7 })
+    )
+    pillar.position.set(x, h + pillarH / 2, z)
+    scene.add(pillar)
+
+    // 球体
+    const ball = new THREE.Mesh(
+      new THREE.SphereGeometry(0.92, 20, 16),
+      new THREE.MeshLambertMaterial({ color: new THREE.Color(st.fill) })
+    )
+    ball.position.set(x, h + pillarH + 0.2, z)
+    ball.userData = { index: i, node: n }
+    scene.add(ball)
+    hitTargets.push(ball)
+
+    // 序号（球体上的数字用 sprite 叠加，避免额外字体几何）
+    const num = labelSprite(String(n.order), null)
+    num.scale.set(2.4, 0.9, 1)
+    num.position.set(x, h + pillarH + 0.2, z)
+    num.center.set(0.5, 0.5)
+    scene.add(num)
+
+    // 名称牌（悬在球体上方，奇偶错开高度避免互相压字）
+    const name = labelSprite(n.name, null)
+    name.position.set(x, h + pillarH + (i % 2 === 0 ? 2.4 : 4.0), z)
+    scene.add(name)
+  })
+
+  // 起终点五角星（顶部漂浮）
+  function star(x, y, z) {
+    const shape = new THREE.Shape()
+    const R = 1.35, r = 0.58
+    for (let i = 0; i < 10; i++) {
+      const ang = -Math.PI / 2 + i * Math.PI / 5
+      const rad = i % 2 === 0 ? R : r
+      const px = Math.cos(ang) * rad, py = Math.sin(ang) * rad
+      i === 0 ? shape.moveTo(px, py) : shape.lineTo(px, py)
+    }
+    shape.closePath()
+    const g = new THREE.ShapeGeometry(shape)
+    const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xE8C86A, side: THREE.DoubleSide }))
+    m.position.set(x, y, z)
+    m.userData.billboard = true
+    scene.add(m)
+    return m
+  }
+  const first = nodes[0], last = nodes[nodes.length - 1]
+  const stars = [
+    star(toX(first.lng), height(toX(first.lng), toZ(first.lat)) + 7.6, toZ(first.lat)),
+    star(toX(last.lng), height(toX(last.lng), toZ(last.lat)) + 7.6, toZ(last.lat))
+  ]
+
+  /* ---------- 相机轨道（手写，免 OrbitControls 依赖） ---------- */
+  let yaw = 0.55, pitch = 0.52, userZoom = 1
+  // 按视口宽高比自动取景：窄屏时拉远，保证横向路线不出画
+  function baseDist() {
+    const aspect = innerWidth / innerHeight
+    const vFov = camera.fov * Math.PI / 180
+    const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect)
+    const needH = 42 / Math.tan(hFov / 2)          // 横向留出标签空间
+    return Math.min(260, Math.max(104, needH))
+  }
+  function updateCamera() {
+    const dist = baseDist() * userZoom
+    const cy = Math.sin(pitch) * dist
+    const cr = Math.cos(pitch) * dist
+    camera.position.set(Math.sin(yaw) * cr, cy, Math.cos(yaw) * cr)
+    camera.lookAt(0, 5, 0)
+    // 雾随视距自适应，避免拉远后整片发白
+    scene.fog.near = dist * 0.95
+    scene.fog.far = dist * 2.6
+  }
+  updateCamera()
+
+  let dragging = false, moved = 0, lastX = 0, lastY = 0, autoRotate = true
+  const dom = renderer.domElement
+  dom.addEventListener('pointerdown', e => {
+    dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY
+    dom.setPointerCapture(e.pointerId)
+  })
+  dom.addEventListener('pointermove', e => {
+    if (!dragging) return
+    const dx = e.clientX - lastX, dy = e.clientY - lastY
+    moved += Math.abs(dx) + Math.abs(dy)
+    lastX = e.clientX; lastY = e.clientY
+    yaw -= dx * 0.005
+    pitch = Math.max(0.22, Math.min(1.18, pitch + dy * 0.004))
+    autoRotate = false
+    updateCamera()
+  })
+  dom.addEventListener('pointerup', e => {
+    dragging = false
+    if (moved < 6) pick(e)
+  })
+  dom.addEventListener('wheel', e => {
+    e.preventDefault()
+    userZoom = Math.max(0.55, Math.min(1.9, userZoom * (1 + e.deltaY * 0.0012)))
+    updateCamera()
+  }, { passive: false })
+
+  /* ---------- 点击拾取 ---------- */
+  const ray = new THREE.Raycaster()
+  const ndc = new THREE.Vector2()
+  const info = document.getElementById('info')
+
+  function pick(e) {
+    ndc.x = (e.clientX / innerWidth) * 2 - 1
+    ndc.y = -(e.clientY / innerHeight) * 2 + 1
+    ray.setFromCamera(ndc, camera)
+    const hit = ray.intersectObjects(hitTargets, false)[0]
+    if (!hit) { info.classList.remove('on'); return }
+    showInfo(hit.object.userData)
+  }
+
+  function showInfo(data) {
+    const n = data.node
+    const st = STYLE[n.state]
+    info.innerHTML =
+      '<div class="info-head"><span class="info-order">' + n.order + '</span>' +
+        '<span class="info-name">' + n.name + '</span></div>' +
+      '<div class="info-meta">' + n.date + ' · ' + n.place + '</div>' +
+      '<span class="info-state" style="background:' + (n.state === 'open' ? '#6E0918' : st.fill) + ';color:' + (n.state === 'open' ? '#FFF4DC' : st.label) + '">' +
+        STATE_TEXT[n.state] + '</span>'
+    info.classList.add('on')
+  }
+
+  /* ---------- 图例 ---------- */
+  document.getElementById('legend').innerHTML = ['quizPassed', 'checkedIn', 'open', 'locked'].map(k =>
+    '<span><i style="background:' + STYLE[k].fill + ';box-shadow:0 0 0 1.5px ' + STYLE[k].stroke + ' inset"></i>' + STATE_TEXT[k] + '</span>'
+  ).join('') + '<span style="color:#C8102E"><i style="background:#C8102E"></i>行军路线</span>'
+
+  /* ---------- 渲染循环 ---------- */
+  addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight
+    camera.updateProjectionMatrix()
+    renderer.setSize(innerWidth, innerHeight)
+    updateCamera()
+  })
+
+  const clock = new THREE.Clock()
+  function animate() {
+    requestAnimationFrame(animate)
+    const t = clock.getElapsedTime()
+    if (autoRotate) {
+      yaw += 0.0009
+      updateCamera()
+    }
+    // 星标始终面向相机 + 轻微浮动
+    stars.forEach((s, i) => {
+      s.lookAt(camera.position)
+      s.position.y += Math.sin(t * 1.2 + i) * 0.004
+    })
+    renderer.render(scene, camera)
+  }
+  animate()
+})()
+</script>
+</body>
+</html>
