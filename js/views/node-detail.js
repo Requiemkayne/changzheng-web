@@ -97,12 +97,26 @@
         '<div class="cover-hairline"></div>' +
         '<div class="cover-meta">' + F.escapeHtml(node.stage) + ' · ' + F.escapeHtml(node.date) + ' · ' + F.escapeHtml(node.location.name) + '</div>' +
       '</div>' +
+      weatherHTML(node) +
       renderBlocks(node.detail.blocks) +
       '<div class="checkin-area">' + checkinHTML(node, st, requireRead) + '</div>' +
       '</div>'
 
     rootEl.innerHTML = html
     bind(rootEl, node, st, config)
+  }
+
+  // 天气条：每个节点都有（数据在 js/mock/weather.js），无特效的节点也照常展示
+  function weatherHTML(node) {
+    const wx = (root.CZ_MOCK_WEATHER || {})[node.code]
+    if (!wx) return ''
+    return '<div class="node-wx">' +
+      '<div class="node-wx-row">' +
+        '<span class="node-wx-label">天气</span>' +
+        '<span class="node-wx-name">' + F.escapeHtml(wx.label) + '</span>' +
+      '</div>' +
+      '<div class="node-wx-desc">' + F.escapeHtml(wx.desc) + '</div>' +
+      '</div>'
   }
 
   function checkinHTML(node, st, requireRead) {
