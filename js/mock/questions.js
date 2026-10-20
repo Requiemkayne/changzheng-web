@@ -97,27 +97,27 @@
     // ===== 4 四渡赤水 =====
     {
       _id: 'q-sidu-1', nodeCode: 'sidu-chishui', type: 'single',
-      question: '（占位题）红军四渡赤水发生在哪条河？',
-      options: ['金沙江', '赤水河', '大渡河', '乌江'],
-      answer: [1],
-      explanation: '（占位解析）四渡赤水战役围绕赤水河展开。',
-      difficulty: 1, status: 'published'
+      question: '四渡赤水经历大小战役数量（　）',
+      options: ['20余次', '30余次', '40余次', '50余次'],
+      answer: [2],
+      explanation: '四渡赤水战役期间，中央红军在川黔滇边连续机动作战，经历大小战役战斗40余次。',
+      difficulty: 2, status: 'published'
     },
     {
       _id: 'q-sidu-2', nodeCode: 'sidu-chishui', type: 'single',
-      question: '（占位题）四渡赤水被誉为什么？',
-      options: ['毛泽东军事指挥艺术的得意之笔', '长征第一仗', '最惨烈的一战', '最后的战役'],
-      answer: [0],
-      explanation: '（占位解析）四渡赤水是毛泽东军事指挥艺术的得意之笔。',
-      difficulty: 1, status: 'published'
+      question: '四渡赤水战役的指挥核心是（　）',
+      options: ['博古、李德', '毛泽东、周恩来、朱德等', '张国焘、徐向前'],
+      answer: [1],
+      explanation: '遵义会议后重新确立毛泽东在党中央和红军的领导地位，四渡赤水由毛泽东、周恩来、朱德等共同指挥。',
+      difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-sidu-3', nodeCode: 'sidu-chishui', type: 'judge',
-      question: '（占位题）四渡赤水发生在1935年1月至3月。',
-      options: ['正确', '错误'],
-      answer: [0],
-      explanation: '（占位解析）四渡赤水发生于1935年1月至3月。',
-      difficulty: 1, status: 'published'
+      _id: 'q-sidu-3', nodeCode: 'sidu-chishui', type: 'single',
+      question: '四渡赤水战役最主要的历史成果是（　）',
+      options: ['彻底消灭国民党全部军队', '摆脱国民党重兵围追堵截，掌握战场主动权', '红军从此不再进行长征'],
+      answer: [1],
+      explanation: '四渡赤水以机动灵活的运动战摆脱了国民党重兵的围追堵截，使红军由被动转为主动，是长征中的关键转折。',
+      difficulty: 2, status: 'published'
     },
 
     // ===== 5 巧渡金沙江 =====
