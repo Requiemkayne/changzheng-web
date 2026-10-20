@@ -114,6 +114,26 @@
     renderer.domElement.style.height = '100%'
     renderer.domElement.style.touchAction = 'pan-y'
 
+    // 无障碍语义：canvas 里的节点靠射线拾取，键盘无法完成，所以整块沙盘只作
+    // 一张图叙述（role=img）+ 说明可用手势；不给 canvas 加 tabindex，免得出现
+    // 「能聚焦却什么都做不了」的空焦点。加载失败/上下文中断改走 announceFallback。
+    container.setAttribute('role', 'img')
+    container.setAttribute('aria-label', '三维长征路线沙盘：地形起伏与红军行军路线示意，可用手势左右滑动转向、双指上下俯仰、双击复位视角')
+
+    // 兜底文案要让读屏播报：先摘掉 role=img（它的子树对读屏是隐藏的），
+    // 插入空的状态节点、正文等下一拍再写——live region 必须先存在才播报得出来
+    function announceFallback(msg) {
+      container.removeAttribute('role')
+      container.removeAttribute('aria-label')
+      container.innerHTML = ''
+      const box = document.createElement('div')
+      box.className = 'map3d-fallback'
+      box.setAttribute('role', 'status')
+      box.setAttribute('aria-live', 'polite')
+      container.appendChild(box)
+      later(() => { box.textContent = msg }, 0)
+    }
+
     // 手势提示：进场显示，几秒后自动淡出（pointer-events: none，不拦截手势）
     const hintEl = document.createElement('div')
     hintEl.className = 'map3d-hint'
@@ -523,7 +543,8 @@
     }
 
     // 自动天气：无人干预，按权重随机切换；晴天占比最高，避免长时间压住画面
-    // 尊重系统「减少动态效果」：这类用户不自动切换天气
+    // 尊重系统「减少动态效果」：这类用户不自动切换天气；同一条判定还用于松手惯性、
+    // 星点微光、雨雪粒子位移。渲染循环本身不停——那是出画面的，停了 3D 会黑屏
     const REDUCED = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
     const AUTO = opts.autoWeather !== false && !REDUCED
     const W_MIN = (opts.weatherInterval && opts.weatherInterval[0]) || 40000
@@ -605,7 +626,7 @@
       if (rain) {
         rain.material.opacity += (target.rain - rain.material.opacity) * k
         rain.visible = rain.material.opacity > 0.01
-        if (rain.visible) {
+        if (rain.visible && !REDUCED) {   // 减少动态效果：雨丝冻结，只留天气色与雾
           const p = rain.geometry.attributes.position.array
           for (let i = 0; i < RAIN_N; i++) {
             const o = i * 6, drop = 40 * dt
@@ -623,7 +644,7 @@
       if (snow) {
         snow.material.opacity += (target.snow - snow.material.opacity) * k
         snow.visible = snow.material.opacity > 0.01
-        if (snow.visible) {
+        if (snow.visible && !REDUCED) {   // 减少动态效果：雪片冻结
           const p = snow.geometry.attributes.position.array
           for (let i = 0; i < SNOW_N; i++) {
             const o = i * 3
@@ -743,8 +764,8 @@
       // 水平：自由旋转，但灵敏度调低，滑动更稳
       const k = e.pointerType === 'touch' ? 0.0058 : 0.0038
       yaw -= dx * k
-      // 惯性很轻：只在明确甩动时给一点点余量，随即停下
-      yawVel = Math.abs(dx) > 5 ? -dx * k * 0.68 : 0
+      // 惯性很轻：只在明确甩动时给一点点余量，随即停下；减少动态效果下直接不甩
+      yawVel = !REDUCED && Math.abs(dx) > 5 ? -dx * k * 0.68 : 0
       // 鼠标还可以用纵向拖拽调俯仰；触摸的纵向留给页面滚动
       if (e.pointerType !== 'touch') {
         pitch = Math.max(0.72, Math.min(1.10, pitch + dy * 0.0026))
@@ -802,7 +823,7 @@
       if (disposed || lost) return
       dem = d
       if (!dem) {
-        container.innerHTML = '<div class="map3d-fallback">地形数据加载失败</div>'
+        announceFallback('地形数据加载失败')
         return
       }
       try {
@@ -815,7 +836,7 @@
         if (AUTO) scheduleWeather()          // 后台自动随机切换
       } catch (err) {
         console.error('[map3d] 构建失败', err)
-        container.innerHTML = '<div class="map3d-fallback">3D 沙盘构建失败：' + (err && err.message ? err.message : '未知错误') + '</div>'
+        announceFallback('3D 沙盘构建失败：' + (err && err.message ? err.message : '未知错误'))
         return
       }
 
@@ -835,9 +856,10 @@
           yawVel = 0
         }
 
+        // 星点微光是常驻装饰动画：减少动态效果下只保留朝向，不再抖
         stars.forEach((s, i) => {
           s.lookAt(camera.position)
-          s.rotation.z += Math.sin(t + i) * 0.0006
+          if (!REDUCED) s.rotation.z += Math.sin(t + i) * 0.0006
         })
         stepWeather(dt, t)
         renderer.render(scene, camera)
@@ -878,6 +900,8 @@
         try { renderer.forceContextLoss() } catch (err) {}
         renderer.dispose()
         container.innerHTML = ''
+        container.removeAttribute('role')
+        container.removeAttribute('aria-label')
       }
     }
   }

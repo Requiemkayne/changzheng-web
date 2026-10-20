@@ -64,12 +64,12 @@
     rootEl.innerHTML =
       '<div class="page">' +
         '<div class="map-title">' +
-          '<div class="map-title-cn">竞赛排行榜</div>' +
+          '<h1 class="map-title-cn">竞赛排行榜</h1>' +
           '<div class="map-title-sub">知识竞赛 · 争当先锋</div>' +
         '</div>' +
         '<div class="lb-tabs">' +
-          '<button class="lb-tab' + (r.type === 'total' ? ' lb-tab-active' : '') + '" data-t="total" type="button">累计总分</button>' +
-          '<button class="lb-tab' + (r.type === 'best' ? ' lb-tab-active' : '') + '" data-t="best" type="button">单场最佳</button>' +
+          '<button class="lb-tab' + (r.type === 'total' ? ' lb-tab-active' : '') + '" data-t="total" type="button" aria-pressed="' + (r.type === 'total') + '">累计总分</button>' +
+          '<button class="lb-tab' + (r.type === 'best' ? ' lb-tab-active' : '') + '" data-t="best" type="button" aria-pressed="' + (r.type === 'best') + '">单场最佳</button>' +
         '</div>' +
         '<div class="lb-list card">' +
           rows +

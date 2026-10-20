@@ -498,6 +498,37 @@ async function main() {
       '实际 收到信号日志 @ ' + atIdx('server/server.js', srvSrc, shHead + iRecv) +
       ' 早于 clearInterval 吗=' + (iRecv >= 0 && iRecv < iClear) + ' @ server/server.js:364')
 
+    /* ---------- 12. 批次⑥：favicon 收尾 ---------- */
+    console.log('\n[12] 批次⑥：favicon / 静态资源收尾')
+    const favRes = await fetch(BASE + '/favicon.svg')
+    const favType = favRes.headers.get('content-type') || ''
+    const favText = await favRes.text()
+    ok('GET /favicon.svg → 200 且 content-type 含 image/svg+xml（不再落到 404 / 空图标）',
+      favRes.status === 200 && favType.indexOf('image/svg+xml') >= 0,
+      '实际 ' + favRes.status + ' / content-type=' + JSON.stringify(favType))
+
+    const favDisk = fs.readFileSync(path.join(__dirname, '..', 'favicon.svg'), 'utf8')
+    const favN = favText.replace(/\r\n/g, '\n')
+    const favSame = favN === favDisk.replace(/\r\n/g, '\n')
+    ok('favicon.svg 下发正文与磁盘文件逐字节一致，且是带 viewBox 的 <svg>（真资源，不是占位）',
+      favDisk.length > 0 && favSame &&
+      favN.trimStart().indexOf('<svg') === 0 && favN.indexOf('viewBox="') > 0,
+      '实际 字节数=' + Buffer.byteLength(favText) + ' 起始<svg=' + (favN.trimStart().indexOf('<svg') === 0) +
+      ' 含viewBox=' + (favN.indexOf('viewBox="') > 0) + ' 与磁盘一致=' + favSame)
+
+    const idxSrc = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
+    const idxN = idxSrc.replace(/\r\n/g, '\n')
+    const iIcon = idxN.indexOf('<link rel="icon" type="image/svg+xml" href="favicon.svg">')
+    const iHeadEnd = idxN.indexOf('</head>')
+    const iMime = srvSrc.indexOf("'.svg': 'image/svg+xml'")
+    const iAllow = srvSrc.indexOf('favicon.svg')
+    ok('源码契约：index.html <head> 内声明 svg favicon，server.js 的 MIME 表与静态白名单都放行 favicon.svg',
+      iIcon >= 0 && iHeadEnd > 0 && iIcon < iHeadEnd && iMime >= 0 && iAllow >= 0,
+      '实际 link @ ' + (iIcon < 0 ? 'index.html:(未找到该代码)' : atIdx('index.html', idxN, iIcon)) +
+      ' 在 </head> 前吗=' + (iIcon >= 0 && iIcon < iHeadEnd) +
+      ' / .svg MIME @ ' + (iMime < 0 ? 'server/server.js:(未找到该代码)' : atIdx('server/server.js', srvSrc, iMime)) +
+      ' / 白名单 @ ' + (iAllow < 0 ? 'server/server.js:(未找到该代码)' : atIdx('server/server.js', srvSrc, iAllow)))
+
   } finally {
     for (const s of extraServers) {
       try { s.close() } catch (e) { /* 已关闭 */ }

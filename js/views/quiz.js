@@ -149,8 +149,8 @@
             '<div class="certificate card">' +
               '<div class="cert-inner">' +
                 '<div class="cert-star">' + UI.icon('star') + '</div>' +
-                '<div class="cert-title">结业证书</div>' +
-                '<div class="cert-line"></div>' +
+                '<h2 class="cert-title">结业证书</h2>' +
+                '<div class="cert-line" aria-hidden="true"></div>' +
                 '<div class="cert-text">重走长征路 · 传承长征魂</div>' +
                 '<div class="cert-text">已走完全部 11 个节点并完成总结答题</div>' +
                 '<div class="cert-score">毕业得分 ' + r.score + ' 分</div>' +
@@ -172,13 +172,13 @@
           '<a class="back-link" href="javascript:history.back()">‹ 返回</a>' +
           '<div class="result-hero ' + (r.passed ? 'hero-passed' : 'hero-failed') + '">' +
             stamp +
-            '<div class="result-title">' + (r.passed ? '恭喜通关' : '差一点，再试一次') + '</div>' +
-            '<div class="result-score"><span class="score-num">' + r.score + '</span><span class="score-unit">分</span></div>' +
+            '<h1 class="result-title">' + (r.passed ? '恭喜通关' : '差一点，再试一次') + '</h1>' +
+            '<div class="result-score" role="img" aria-label="本场得分 ' + r.score + ' 分"><span class="score-num">' + r.score + '</span><span class="score-unit">分</span></div>' +
             '<div class="result-detail">答对 ' + r.correctCount + ' / ' + r.total + ' 题 · 历史最佳 ' + r.best + ' 分 · 第 ' + r.attempts + ' 次挑战</div>' +
           '</div>' +
           cert +
           '<div class="card review">' +
-            '<div class="review-title">答题解析</div>' +
+            '<h2 class="review-title">答题解析</h2>' +
             review +
           '</div>' +
           '<div class="quiz-actions">' +
@@ -209,7 +209,7 @@
       NODE_NOT_FOUND: { title: '节点不存在', content: '内容已调整，请返回路线重新进入。', ok: '返回' }
     }
     const d = map[error] || { title: '取题失败', content: '请稍后重试。', ok: '返回' }
-    rootEl.innerHTML = '<div class="page-center">' + UI.icon('lock', 'page-center-icon') + '<div>' + F.escapeHtml(d.title) + '</div></div>'
+    rootEl.innerHTML = '<div class="page-center">' + UI.icon('lock', 'page-center-icon') + '<h1 class="page-center-title" style="font:inherit;margin:0">' + F.escapeHtml(d.title) + '</h1></div>'
     UI.dialog(d.title, d.content, [{ text: d.ok, primary: true, onClick: () => {
       if (error === 'NOT_CHECKED_IN') location.hash = '#/node/' + code
       else location.hash = '#/'

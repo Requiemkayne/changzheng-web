@@ -16,7 +16,7 @@
   --red-bg: #FAEEEF;
   --gold: #C6A343;       /* 纪念金（设计稿） */
   --gold-light: #E8C86A;
-  --gold-deep: #8F6E0B;
+  --gold-deep: #7C5D09;  /* 深金文字/描边：对宣纸底与金纸底 ≥4.9:1（原 #8F6E0B 为 3.84–4.36:1） */
   --gold-pale: #F5E9C8;
   --gold-bg: #FAF4E2;
   --paper: #F7F0DF;      /* 纸张米白（设计稿） */
@@ -64,9 +64,23 @@ body {
 ::selection { background: var(--red-dark); color: #FFF4DC; }
 
 :focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--red-dark);
   outline-offset: 2px;
   border-radius: 2px;
+}
+/* 深红表面上的焦点环：--red-dark 对深红底只有 ≈1.7:1，故 tabBar 内改用金环（对 #4A0510 ≈6.6:1、对 #7A0C1C ≈4.6:1、对 #5E0713 ≈5.8:1）；
+   深红外晕让金环的四邻都落在深红上，避免环上沿探出到宣纸/卡片底（金 vs 纸仅 ≈2.1:1）。 */
+#tabbar .tab:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 6px var(--red-deep);
+}
+/* 键盘焦点：以下两处输入框自带 outline:none（会盖掉上面的通用环），故单独补回显式环。
+   深红环对浅纸底 ≈10.8–12.2:1（金环仅 ≈2.1–2.4:1），且与 :focus 的金边+柔光形成"键焦/鼠焦"区分；鼠标点击走 :focus，不出环。 */
+.form-input:focus-visible,
+.name-input:focus-visible {
+  outline: 2px solid var(--red-dark);
+  outline-offset: 2px;
 }
 
 /* 桌面滚动条主题化（移动端不可见，无副作用） */
@@ -101,6 +115,7 @@ body {
   max-width: 480px;
   margin: 0 auto;
   min-height: 100vh;
+  min-height: 100dvh;
   padding-bottom: 80px;
   padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
@@ -665,7 +680,7 @@ a { color: var(--red-mid); text-decoration: none; }
   align-items: center;
   justify-content: center;
   width: 62px; height: 62px;
-  border: 2.5px solid var(--red-dark);
+  border: 2.5px solid rgba(110, 9, 24, 0.88);
   border-radius: 6px;
   color: var(--red-dark);
   font-family: var(--font-title);
@@ -675,30 +690,32 @@ a { color: var(--red-mid); text-decoration: none; }
   line-height: 1.25;
   text-align: center;
   transform: rotate(-3deg);
-  opacity: 0.88;
+  opacity: 1;
   position: relative;
   /* 印章边缘斑驳：径向噪点叠层 */
   background:
-    radial-gradient(circle at 20% 30%, rgba(74,5,16,0.10) 0 1px, transparent 2px),
-    radial-gradient(circle at 70% 65%, rgba(74,5,16,0.08) 0 1px, transparent 2px),
-    radial-gradient(circle at 45% 15%, rgba(74,5,16,0.06) 0 1.5px, transparent 2.5px);
+    radial-gradient(circle at 20% 30%, rgba(74,5,16,0.088) 0 1px, transparent 2px),
+    radial-gradient(circle at 70% 65%, rgba(74,5,16,0.0704) 0 1px, transparent 2px),
+    radial-gradient(circle at 45% 15%, rgba(74,5,16,0.0528) 0 1.5px, transparent 2.5px);
   background-size: 9px 9px, 11px 11px, 7px 7px;
   margin: 14px auto 2px;
   user-select: none;
 }
 .stamp-gold {
-  border-color: var(--gold-deep);
+  border-color: rgba(124, 93, 9, 0.88);
   color: var(--gold-deep);
   background:
-    radial-gradient(circle at 20% 30%, rgba(143,110,11,0.10) 0 1px, transparent 2px),
-    radial-gradient(circle at 70% 65%, rgba(143,110,11,0.08) 0 1px, transparent 2px);
+    radial-gradient(circle at 20% 30%, rgba(143,110,11,0.088) 0 1px, transparent 2px),
+    radial-gradient(circle at 70% 65%, rgba(143,110,11,0.0704) 0 1px, transparent 2px);
   background-size: 9px 9px, 11px 11px;
 }
+/* 金底（hero-passed）上的红章：墨色须深于 --red-deep，才能在金色渐变上稳稳 ≥4.5:1 */
+.hero-passed .stamp { color: #3A030C; }
 @keyframes stampIn {
   0%   { transform: scale(1.9) rotate(-14deg); opacity: 0; filter: blur(3px); }
   55%  { transform: scale(0.94) rotate(-2deg); opacity: 1; filter: blur(0); }
   75%  { transform: scale(1.05) rotate(-4deg); }
-  100% { transform: scale(1) rotate(-3deg); opacity: 0.88; }
+  100% { transform: scale(1) rotate(-3deg); opacity: 1; }
 }
 .stamp-in { animation: stampIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
@@ -769,7 +786,7 @@ a { color: var(--red-mid); text-decoration: none; }
 }
 .option:hover { border-color: var(--gold); }
 .option:active { transform: scale(0.985); }
-.option:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.option:focus-visible { outline: 2px solid var(--red-dark); outline-offset: 2px; }
 .option-selected {
   border-color: var(--gold);
   background: linear-gradient(var(--grad-angle), #FDF3E0, #F8E9C6);
@@ -833,7 +850,7 @@ a { color: var(--red-mid); text-decoration: none; }
 }
 .result-score { margin-top: 12px; }
 .score-num { font-family: var(--font-title); font-size: 56px; font-weight: 900; font-variant-numeric: tabular-nums; }
-.score-unit { font-size: 16px; opacity: 0.85; margin-left: 4px; letter-spacing: 2px; }
+.score-unit { font-size: 16px; color: #FFFFFF; margin-left: 4px; letter-spacing: 2px; }
 .result-detail { font-size: 12px; opacity: 0.9; margin-top: 10px; letter-spacing: 1px; font-variant-numeric: tabular-nums; }
 
 /* 毕业证书（世界材料：证书 + 加印，保留双层金框本义） */
@@ -967,9 +984,9 @@ a { color: var(--red-mid); text-decoration: none; }
 .map-node:active circle { filter: brightness(0.9); }
 .map-node-hl circle { stroke-width: 4.5; }
 /* 键盘可达：Tab 聚焦节点。SVG <g> 的 outline 在部分内核上不绘制，
-   故再给顶面圆盘一圈金环做等价可见焦点 */
-.map-node:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.map-node:focus-visible .map-node-face { stroke: var(--gold); stroke-width: 4; }
+   故再给顶面圆盘一圈深红环做等价可见焦点（金环对浅色图板仅 ≈2.1:1，达 3:1 的是深红环） */
+.map-node:focus-visible { outline: 2px solid var(--red-dark); outline-offset: 2px; }
+.map-node:focus-visible .map-node-face { stroke: var(--red-dark); stroke-width: 4; }
 
 .map-num {
   font-size: 11px;
@@ -1023,7 +1040,12 @@ a { color: var(--red-mid); text-decoration: none; }
   display: flex;
   overflow-x: auto;
   gap: 9px;
-  padding: 12px 2px;
+  /* 水平内边距 2px 会把首/末 chip 的 2px 焦点环（offset 2px + width 2px）裁掉；
+     改为 6px 内边距 + -4px 负外边距：边框盒左右各外扩 4px、内容盒与每个 chip 的
+     位置和宽度完全不变（实测首 chip left 20px、末 chip left 1078px 均不变），
+     只是留出了环的绘制空间，版式零位移 */
+  padding: 12px 6px;
+  margin: 0 -4px;
   -webkit-overflow-scrolling: touch;
 }
 .map-strip::-webkit-scrollbar { display: none; }
@@ -1047,7 +1069,7 @@ a { color: var(--red-mid); text-decoration: none; }
   cursor: pointer;
 }
 :where(button.map-chip):focus-visible {
-  outline: 2px solid var(--gold); outline-offset: 2px;
+  outline: 2px solid var(--red-dark); outline-offset: 2px;
 }
 .map-chip.chip-active {
   border-color: var(--gold);
@@ -1354,6 +1376,7 @@ a { color: var(--red-mid); text-decoration: none; }
 .login-page {
   position: relative;
   min-height: 100vh;
+  min-height: 100dvh;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -1513,6 +1536,7 @@ a { color: var(--red-mid); text-decoration: none; }
 
 .journey.welcome {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1626,11 +1650,20 @@ a { color: var(--red-mid); text-decoration: none; }
 
 /* ---------- 动效收束：唯一签名动作 = 盖章，其余只做状态过渡 ---------- */
 
+/* 动效降级（prefers-reduced-motion）总则：不丢信息、不丢可达性 —— 只去掉位移/缩放/持续呼吸。
+   1) 全局时长压到 0.01ms 且只跑一次：凡带 fill-mode（both/forwards）的动画立即落到 100% 终态，
+      元素不会停在 from 关键帧的 opacity:0 上（盖章 stampIn / 证书 certSealIn / 纸卡 cardIn 均如此）；
+   2) 平滑滚动归 auto，长页面不会自己"滑"；
+   3) 纯装饰（星火 .map-spark、行军重播按钮 .map-replay-wrap）直接不渲染。 */
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
   }
   .map-spark, .map-replay-wrap { display: none; }
 }
@@ -1649,6 +1682,15 @@ a { color: var(--red-mid); text-decoration: none; }
 @keyframes nodePop {
   from { opacity: 0; transform: scale(1.7); }
   to { opacity: 1; transform: scale(1); }
+}
+
+/* 降级兜底（prefers-reduced-motion）：行军推进、节点依次点亮、印章脉冲一律 animation:none。
+   nodePop 用 both 填充且节点静态样式里没有 opacity:0/transform，故 animation:none 后
+   节点回到 opacity:1 / transform:none —— 一定看得见、一定可点（不会重蹈"降级后永久不可见"）。 */
+@media (prefers-reduced-motion: reduce) {
+  .map-svg.map-anim .map-route-gold { animation: none !important; stroke-dashoffset: 0; }
+  .map-svg.map-anim .map-node { animation: none !important; }
+  .tl-dot-current { animation: none !important; }
 }
 
 .map-replay-wrap { text-align: center; margin-top: 12px; }
@@ -2160,4 +2202,13 @@ a { color: var(--red-mid); text-decoration: none; }
   background: rgba(46, 160, 67, 0.9); color: #fff;
   font: 700 9px/1.4 -apple-system, "Segoe UI", sans-serif; letter-spacing: 1px;
   pointer-events: none; opacity: 0.75;
+}
+
+/* 装饰动效降级（prefers-reduced-motion）：星光两层与金星漂浮静态化。
+   只停"闪"与"飘"，不删任何可见元素；两层星光保留原有明暗层次（1 / 0.6）。 */
+@media (prefers-reduced-motion: reduce) {
+  .login-stars::before, .login-stars::after { animation: none !important; }
+  .login-stars::before { opacity: 1; }
+  .login-stars::after { opacity: 0.6; animation-delay: 0s; }
+  .login-star { animation: none !important; transform: none; }
 }

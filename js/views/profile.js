@@ -55,7 +55,7 @@
     nodes.forEach(node => {
       const st = states.byCode[node.code]
       scoreRows +=
-        '<div class="score-row" data-code="' + node.code + '">' +
+        '<div class="score-row" data-code="' + node.code + '" role="button" tabindex="0">' +
           '<div>' +
             '<div class="score-name">' + F.escapeHtml(node.name) + '</div>' +
             '<div class="score-sub">' + F.escapeHtml(node.date) + '</div>' +
@@ -103,63 +103,75 @@
       '<div class="card user-card" id="user-card">' +
         '<div class="avatar">' + UI.icon('star') + '</div>' +
         '<div style="flex:1">' +
-          '<div class="user-name" id="user-name">' + F.escapeHtml(nickname) + '</div>' +
-          '<div class="user-edit-hint">' + editHint + '</div>' +
+          '<h1 class="user-name" id="user-name">' + F.escapeHtml(nickname) + '</h1>' +
+          '<div class="user-edit-hint" id="user-card-action" role="button" tabindex="0">' + editHint + '</div>' +
           logoutBtn +
         '</div>' +
       '</div>' +
 
-      '<div class="card"><div class="stats-grid">' +
+      '<div class="card"><div class="stats-grid" role="group" aria-label="打卡节点、答题通关、毕业得分三项统计">' +
         '<div class="stat"><div class="stat-num">' + states.checkedCount + '/' + states.total + '</div><div class="stat-label">打卡节点</div></div>' +
         '<div class="stat"><div class="stat-num">' + states.passedCount + '/' + states.total + '</div><div class="stat-label">答题通关</div></div>' +
         '<div class="stat"><div class="stat-num">' + (graduated ? states.finalBest : '—') + '</div><div class="stat-label">毕业得分</div></div>' +
       '</div></div>' +
 
       '<div class="card learn-card">' +
-        '<div class="learn-head">' + UI.icon('cap', 'learn-head-ic') + '<span class="learn-title">学习统计</span></div>' +
-        '<div class="learn-grid">' +
+        '<div class="learn-head">' + UI.icon('cap', 'learn-head-ic') + '<h2 class="learn-title">学习统计</h2></div>' +
+        '<div class="learn-grid" role="group" aria-label="累计答题数、正确率、答题次数三项统计">' +
           '<div class="learn-item"><div class="learn-num">' + stats.totalCount + '</div><div class="learn-label">累计答题（题）</div></div>' +
           '<div class="learn-item"><div class="learn-num">' + rate + '%</div><div class="learn-label">正确率</div></div>' +
           '<div class="learn-item"><div class="learn-num">' + attemptsTotal + '</div><div class="learn-label">答题次数（次）</div></div>' +
         '</div>' +
       '</div>' +
 
-      '<div class="card cert-entry" id="cert-entry">' +
+      '<div class="card cert-entry" id="cert-entry" role="button" tabindex="0">' +
         '<div class="final-icon">' + UI.icon('cap') + '</div>' +
         '<div style="flex:1">' +
-          '<div class="final-title">结业证书</div>' +
+          '<h2 class="final-title">结业证书</h2>' +
           '<div class="final-sub">' + F.escapeHtml(certSub) + '</div>' +
         '</div>' +
         UI.icon('chevron', 'tl-arrow') +
       '</div>' +
 
       '<div class="entry-grid">' +
-        '<div class="card entry-card" id="contest-entry">' +
+        '<div class="card entry-card" id="contest-entry" role="button" tabindex="0">' +
           '<div class="entry-ic">' + UI.icon('trophy') + '</div>' +
-          '<div class="entry-name">知识竞赛</div>' +
+          '<h2 class="entry-name">知识竞赛</h2>' +
           '<div class="entry-sub">' + (graduated ? '来赛一场' : '毕业解锁') + '</div>' +
         '</div>' +
-        '<div class="card entry-card" id="lb-entry">' +
+        '<div class="card entry-card" id="lb-entry" role="button" tabindex="0">' +
           '<div class="entry-ic">' + UI.icon('medal') + '</div>' +
-          '<div class="entry-name">排行榜</div>' +
+          '<h2 class="entry-name">排行榜</h2>' +
           '<div class="entry-sub">谁是先锋</div>' +
         '</div>' +
       '</div>' +
 
-      '<div class="section-title">节点成绩</div>' +
+      '<h2 class="section-title">节点成绩</h2>' +
       '<div class="card">' + scoreRows + '</div>' +
 
-      '<div class="section-title">我的足迹</div>' +
+      '<h2 class="section-title">我的足迹</h2>' +
       '<div class="card">' + foot + '</div>' +
       '</div>'
 
     bind(rootEl, cfg, nodes, progress, checkins, states, user)
   }
 
+  // role=button + tabindex 元素的键盘激活：Enter / Space；e.target 必须是自己，避免子按钮连带触发
+  function onActivate(el, fn) {
+    if (!el) return
+    el.addEventListener('keydown', e => {
+      if (e.target !== el) return
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault()
+        fn(e)
+      }
+    })
+  }
+
   function bind(rootEl, cfg, nodes, progress, checkins, states, user) {
-    // 昵称编辑
+    // 昵称编辑（卡片本身接收鼠标点击；键盘走 user-card-action）
     const userCard = rootEl.querySelector('#user-card')
-    userCard.addEventListener('click', () => {
+    const openNameEditor = () => {
       const current = user ? (user.nickname || user.username) : (progress.nickname || '长征战士')
       const nameBox = rootEl.querySelector('#user-name')
       nameBox.innerHTML =
@@ -183,7 +195,9 @@
         e.stopPropagation()
         render(rootEl, cfg, nodes, progress, checkins, user)
       })
-    })
+    }
+    userCard.addEventListener('click', openNameEditor)
+    onActivate(rootEl.querySelector('#user-card-action'), openNameEditor)
 
     // 退出登录（仅 http 模式）
     const logoutBtn = rootEl.querySelector('#btn-logout')
@@ -227,21 +241,32 @@
     }
 
     // 毕业证书入口
-    rootEl.querySelector('#cert-entry').addEventListener('click', () => {
+    const certEntry = rootEl.querySelector('#cert-entry')
+    const goCert = () => {
       if (states.finalState === 'locked') {
         UI.toast('打卡全部节点后解锁')
         return
       }
       location.hash = '#/quiz/final'
-    })
+    }
+    certEntry.addEventListener('click', goCert)
+    onActivate(certEntry, goCert)
 
     // 竞赛 / 排行榜入口
-    rootEl.querySelector('#contest-entry').addEventListener('click', () => { location.hash = '#/contest' })
-    rootEl.querySelector('#lb-entry').addEventListener('click', () => { location.hash = '#/leaderboard' })
+    const contestEntry = rootEl.querySelector('#contest-entry')
+    const lbEntry = rootEl.querySelector('#lb-entry')
+    const goContest = () => { location.hash = '#/contest' }
+    const goLb = () => { location.hash = '#/leaderboard' }
+    contestEntry.addEventListener('click', goContest)
+    onActivate(contestEntry, goContest)
+    lbEntry.addEventListener('click', goLb)
+    onActivate(lbEntry, goLb)
 
     // 成绩清单 → 详情
     rootEl.querySelectorAll('.score-row').forEach(row => {
-      row.addEventListener('click', () => { location.hash = '#/node/' + row.dataset.code })
+      const goNode = () => { location.hash = '#/node/' + row.dataset.code }
+      row.addEventListener('click', goNode)
+      onActivate(row, goNode)
     })
   }
 })(typeof self !== 'undefined' ? self : this)

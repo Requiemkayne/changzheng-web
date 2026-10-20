@@ -37,7 +37,7 @@
       '<div class="page">' +
         '<div class="contest-locked card">' +
           '<div class="contest-locked-ic">' + UI.icon('trophy') + '</div>' +
-          '<div class="contest-locked-title">竞赛尚未解锁</div>' +
+          '<h1 class="contest-locked-title">竞赛尚未解锁</h1>' +
           '<div class="contest-locked-sub">走完 11 个节点并完成毕业考试后，即可参加知识竞赛</div>' +
           '<button class="btn btn-primary" id="contest-back">回到长征路线</button>' +
         '</div>' +
@@ -62,16 +62,16 @@
             ? '<div class="contest-hero-badge">' + F.escapeHtml(root.CZ_SPIRIT.anniversary.badge) + '</div>'
             : '') +
           '<div class="contest-hero-ic">' + UI.icon('trophy') + '</div>' +
-          '<div class="contest-hero-title">' + F.escapeHtml(s.rules.title) + '</div>' +
+          '<h1 class="contest-hero-title">' + F.escapeHtml(s.rules.title) + '</h1>' +
           '<div class="contest-hero-sub">红军不怕远征难 · 万水千山只等闲</div>' +
         '</div>' +
-        '<div class="contest-stats">' +
+        '<div class="contest-stats" role="group" aria-label="我的竞赛成绩：已赛场次、累计总分、单场最佳">' +
           '<div class="contest-stat"><div class="contest-stat-num">' + st.plays + '</div><div class="contest-stat-label">已赛场次</div></div>' +
           '<div class="contest-stat"><div class="contest-stat-num">' + st.totalScore + '</div><div class="contest-stat-label">累计总分</div></div>' +
           '<div class="contest-stat"><div class="contest-stat-num">' + st.bestScore + '</div><div class="contest-stat-label">单场最佳</div></div>' +
         '</div>' +
         '<div class="card contest-rule">' +
-          '<div class="contest-rule-title">竞赛规则</div>' +
+          '<h2 class="contest-rule-title">竞赛规则</h2>' +
           rows +
         '</div>' +
         '<div class="quiz-actions">' +
@@ -134,14 +134,14 @@
       rootEl.innerHTML =
         '<div class="page">' +
         '<div class="quiz-head">' +
-          '<div class="quiz-title">' + F.escapeHtml(r.meta.title) + '</div>' +
+          '<h1 class="quiz-title">' + F.escapeHtml(r.meta.title) + '</h1>' +
           '<div class="quiz-sub">' + F.escapeHtml(r.meta.subtitle) + '</div>' +
-          '<div class="progress-track"><div class="progress-inner" style="width:' + percent + '%"></div></div>' +
+          '<div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + percent + '" aria-label="答题进度：第 ' + (step + 1) + ' 题，共 ' + questions.length + ' 题"><div class="progress-inner" aria-hidden="true" style="width:' + percent + '%"></div></div>' +
           '<div class="progress-num">' + (step + 1) + ' / ' + questions.length + '</div>' +
         '</div>' +
         '<div class="card">' +
           '<span class="q-type-tag">第 ' + (step + 1) + ' 题</span>' +
-          '<div class="q-text">' + F.escapeHtml(q.question) + '</div>' +
+          '<h2 class="q-text">' + F.escapeHtml(q.question) + '</h2>' +
           options +
         '</div>' +
         '<div class="quiz-actions">' +
@@ -220,12 +220,12 @@
       '<div class="page">' +
         '<div class="result-hero hero-passed">' +
           '<div class="contest-trophy">' + UI.icon('trophy') + '</div>' +
-          '<div class="result-title">竞赛完成</div>' +
-          '<div class="result-score"><span class="score-num">' + r.score + '</span><span class="score-unit">分</span></div>' +
+          '<h1 class="result-title">竞赛完成</h1>' +
+          '<div class="result-score" role="img" aria-label="本场得分 ' + r.score + ' 分"><span class="score-num">' + r.score + '</span><span class="score-unit">分</span></div>' +
           '<div class="result-detail">答对 ' + r.correctCount + ' / ' + r.total + ' 题 · 累计 ' + st.totalScore + ' 分 · 单场最佳 ' + st.bestScore + ' 分</div>' +
         '</div>' +
         '<div class="card review">' +
-          '<div class="review-title">答题解析</div>' +
+          '<h2 class="review-title">答题解析</h2>' +
           review +
         '</div>' +
         '<div class="quiz-actions">' +
