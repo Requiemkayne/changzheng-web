@@ -46,10 +46,10 @@
         q.options.forEach((opt, i) => {
           const sel = selected.indexOf(i) > -1
           options +=
-            '<div class="option' + (sel ? ' option-selected' : '') + '" data-opt="' + i + '">' +
+            '<button type="button" class="option' + (sel ? ' option-selected' : '') + '" data-opt="' + i + '" aria-pressed="' + (sel ? 'true' : 'false') + '">' +
               '<div class="option-marker' + (sel ? ' marker-selected' : '') + '">' + (sel ? UI.icon('check') : '') + '</div>' +
               '<div class="option-text">' + F.escapeHtml(opt) + '</div>' +
-            '</div>'
+            '</button>'
         })
 
         rootEl.innerHTML =

@@ -56,6 +56,16 @@
     return html
   }
 
+  // 最近的「确实可滚动」的祖先容器；跳过 body/html（那等于滚整个窗口），
+  // 没有这样的容器或容器高度为 0 → 返回 null，调用方什么都不做
+  function scrollableAncestor(el) {
+    for (let p = el.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement) {
+      const oy = getComputedStyle(p).overflowY
+      if ((oy === 'auto' || oy === 'scroll') && p.clientHeight > 0 && p.scrollHeight > p.clientHeight) return p
+    }
+    return null
+  }
+
   function render(rootEl, config, nodes, progress, states) {
     const graduated = states.finalState === 'passed'
     const finalCardCls = 'card final-card' + (states.finalState === 'locked' ? ' final-locked' : '')
@@ -145,10 +155,17 @@
     rootEl.innerHTML = html
     bind(rootEl, nodes, states)
 
-    // 锚定到当前应到达节点（路由重置滚动后执行）
+    // 锚定到当前应到达节点：只滚动节点所在的可滚动容器，绝不滚整个窗口
+    // （路由已把窗口重置到顶部，首屏 hero 必须留在原位）
     setTimeout(() => {
       const el = document.getElementById('node-' + states.currentCode)
-      if (el) el.scrollIntoView({ block: 'center', behavior: 'auto' })
+      if (!el) return
+      const box = scrollableAncestor(el)
+      if (!box) return
+      const r = el.getBoundingClientRect()
+      const br = box.getBoundingClientRect()
+      if (r.top >= br.top && r.bottom <= br.bottom) return
+      box.scrollTop += (r.top - br.top) - (box.clientHeight - el.offsetHeight) / 2
     }, 60)
   }
 

@@ -22,7 +22,7 @@
   --paper: #F7F0DF;      /* 纸张米白（设计稿） */
   --card: #FFFDF7;
   --ink: #35291F;        /* 正文深棕（设计稿） */
-  --muted: #8C8475;      /* 辅助灰棕（设计稿） */
+  --muted: #6E6350;      /* 辅助深棕：对宣纸米白/卡片底对比度 ≥4.5:1（WCAG AA） */
   --line: #E3D6B8;
   --green: #3E7C44;
   --green-bg: #EDF4EC;
@@ -99,6 +99,7 @@ body {
   margin: 0 auto;
   min-height: 100vh;
   padding-bottom: 80px;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
 }
 
 .page { padding: 18px 18px 28px; }
@@ -748,6 +749,13 @@ a { color: var(--red-mid); text-decoration: none; }
 .option {
   display: flex;
   align-items: center;
+  /* 兼容 <button>：中和浏览器按钮默认样式，视觉与 <div> 版本一致 */
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
   border: 1.5px solid var(--line);
   border-radius: var(--r-md);
   padding: 13px 14px;
@@ -758,6 +766,7 @@ a { color: var(--red-mid); text-decoration: none; }
 }
 .option:hover { border-color: var(--gold); }
 .option:active { transform: scale(0.985); }
+.option:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 .option-selected {
   border-color: var(--gold);
   background: linear-gradient(135deg, #FDF3E0, #F8E9C6);
