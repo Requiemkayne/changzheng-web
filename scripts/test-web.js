@@ -414,6 +414,167 @@ async function chain() {
     '期望 css/style.css 有 .map-node:focus-visible 焦点环（键盘用户必须看得见落点），实际 @ ' +
     at('css/style.css', cssSrc, '.map-node {'))
   ok('style.css 契约：[hidden] 隐藏 / :where(button.map-chip) 零特异性 / .map-node:focus-visible')
+
+  /* ================= 5. 批次⑤：演示登录 / mock 覆盖 / 对话框与 toast 语义 / 转义 ================= */
+  console.log('\n[5] 批次⑤：演示登录 / mock 覆盖 / 对话框与 toast 语义 / 转义（回归锁）')
+
+  const cfgSrc = fs.readFileSync(path.join(webRoot, 'js', 'config.js'), 'utf8')
+  const uiSrc = fs.readFileSync(path.join(webRoot, 'js', 'ui.js'), 'utf8')
+  const quizSrc = fs.readFileSync(path.join(webRoot, 'js', 'views', 'quiz.js'), 'utf8')
+  const fmtSrc = fs.readFileSync(path.join(webRoot, 'js', 'format.js'), 'utf8')
+  const cfgAt = needle => at('js/config.js', cfgSrc, needle)
+
+  // 用 stub 的 location 真跑 js/config.js（vm 沙箱里没有 URLSearchParams，须显式注入）
+  function runConfig(loc) {
+    const ctx = { location: loc, URLSearchParams: URLSearchParams }
+    ctx.self = ctx
+    vm.createContext(ctx)
+    vm.runInContext(cfgSrc, ctx)
+    return ctx.CZ_CONFIG
+  }
+  const TUNNEL = { hostname: 'abc-def.trycloudflare.com', protocol: 'https:' }
+
+  // ①【行为】隧道域名不再无条件自动登录，必须显式 ?demo=1
+  const tunnelBare = runConfig({ search: '', hostname: TUNNEL.hostname, protocol: TUNNEL.protocol })
+  assert.strictEqual(tunnelBare.DEV_AUTO_LOGIN, null,
+    '期望 隧道域名（trycloudflare）不带任何参数时 DEV_AUTO_LOGIN=null（凭据硬编码在前端，域名像隧道不等于可放行），实际 ' +
+    JSON.stringify(tunnelBare.DEV_AUTO_LOGIN) + ' @ ' + cfgAt('const wantDemo'))
+  const tunnelDemo = runConfig({ search: '?demo=1', hostname: TUNNEL.hostname, protocol: TUNNEL.protocol })
+  assert(tunnelDemo.DEV_AUTO_LOGIN && tunnelDemo.DEV_AUTO_LOGIN.username === 'demo',
+    '期望 隧道域名 + ?demo=1 → DEV_AUTO_LOGIN 非空（username=demo），实际 ' +
+    JSON.stringify(tunnelDemo.DEV_AUTO_LOGIN) + ' @ ' + cfgAt('const wantDemo'))
+  assert.strictEqual(runConfig({ search: '?demo=1&login=1', hostname: TUNNEL.hostname, protocol: TUNNEL.protocol }).DEV_AUTO_LOGIN, null,
+    '期望 ?demo=1&login=1 → DEV_AUTO_LOGIN=null（?login=1 优先关掉演示登录），实际仍自动登录 @ ' +
+    cfgAt('if (wantDemo && !forceLogin)'))
+  assert.strictEqual(runConfig({ search: '?demo=1', hostname: 'changzheng.example.com', protocol: 'https:' }).DEV_AUTO_LOGIN, null,
+    '期望 自有公网域名 + ?demo=1 → DEV_AUTO_LOGIN=null（不把演示账号暴露到正式站点），实际仍自动登录 @ ' +
+    cfgAt('const IS_TUNNEL_HOST'))
+  ok('config.js 行为：隧道域名不再无条件自动登录（裸访问 null / ?demo=1 生效 / ?login=1 优先关闭 / 公网域名不生效）')
+
+  // ②【行为】本地与局域网同样只认显式 ?demo=1
+  const localDemo = runConfig({ search: '?demo=1', hostname: '192.168.1.7', protocol: 'http:' })
+  assert(localDemo.DEV_AUTO_LOGIN && localDemo.DEV_AUTO_LOGIN.username === 'demo',
+    '期望 局域网 192.168.1.7 + ?demo=1 → DEV_AUTO_LOGIN 非空，实际 ' + JSON.stringify(localDemo.DEV_AUTO_LOGIN) +
+    ' @ ' + cfgAt('const IS_LOCAL_HOST'))
+  assert.strictEqual(runConfig({ search: '', hostname: 'localhost', protocol: 'http:' }).DEV_AUTO_LOGIN, null,
+    '期望 本地 localhost 不带 ?demo=1 → DEV_AUTO_LOGIN=null，实际 ' +
+    JSON.stringify(runConfig({ search: '', hostname: 'localhost', protocol: 'http:' }).DEV_AUTO_LOGIN) + ' @ ' + cfgAt('const wantDemo'))
+  ok('config.js 行为：本地 / 局域网同样只认显式 ?demo=1')
+
+  // ③【行为】?mock=1 / ?mock=0 强制覆盖 file:// 与 *.github.io 自动判定
+  const mockCases = [
+    { loc: { search: '', hostname: '', protocol: 'file:' }, want: true, why: 'file:// 双击打开应走 mock' },
+    { loc: { search: '?mock=0', hostname: '', protocol: 'file:' }, want: false, why: '?mock=0 必须在 file:// 下强制后端' },
+    { loc: { search: '?mock=1', hostname: 'u.github.io', protocol: 'https:' }, want: true, why: '?mock=1 必须强制 mock' },
+    { loc: { search: '?mock=0', hostname: 'u.github.io', protocol: 'https:' }, want: false, why: '?mock=0 必须压过 *.github.io 自动判定' },
+    { loc: { search: '', hostname: '127.0.0.1', protocol: 'http:' }, want: false, why: 'http 静态服务默认走后端' }
+  ]
+  for (const c of mockCases) {
+    const got = runConfig(c.loc).USE_MOCK
+    assert.strictEqual(got, c.want,
+      '期望 ' + c.why + '：' + JSON.stringify(c.loc) + ' → USE_MOCK=' + c.want + '，实际 ' + got +
+      ' @ ' + cfgAt("const mockParam = q.get('mock')"))
+  }
+  ok('config.js 行为：?mock=1 / ?mock=0 强制覆盖 file:// 与 *.github.io 自动判定（5 组合）')
+
+  // ④【行为】ui.js dialog 的可访问语义（真跑，桩 DOM 只负责收集 innerHTML）
+  function runUi() {
+    const made = []
+    let byId = {}
+    function mkEl(tag) {
+      const el = {
+        tag, className: '', id: '', innerHTML: '', textContent: '', attrs: {},
+        classList: { add(c) { el.shownWith = c }, remove(c) { el.hiddenWith = c } },
+        setAttribute(k, v) { el.attrs[k] = v },
+        addEventListener() {}, removeEventListener() {},
+        querySelector: () => null, querySelectorAll: () => [],
+        appendChild() {}, focus() {}, parentNode: null
+      }
+      made.push(el)
+      return el
+    }
+    const body = mkEl('body')
+    const sandbox = {
+      document: {
+        activeElement: null,
+        body,
+        createElement: mkEl,
+        getElementById: id => byId[id] || null,
+        addEventListener() {}, removeEventListener() {},
+        contains: () => true
+      },
+      setTimeout: () => 0,
+      clearTimeout() {},
+      console
+    }
+    sandbox.self = sandbox
+    vm.createContext(sandbox)
+    vm.runInContext(fmtSrc, sandbox)   // 真 escapeHtml
+    vm.runInContext(uiSrc, sandbox)
+    return { ui: sandbox.CZ_UI, made, body, setById(map) { byId = map } }
+  }
+  const uiRun = runUi()
+  uiRun.ui.dialog('确认重置', '将清除本地进度', [{ text: '取消' }, { text: '确定', primary: true }])
+  const maskWithTitle = uiRun.made.filter(e => e.className === 'dlg-mask')[0]
+  assert(maskWithTitle, '期望 ui.dialog() 往 document.body 追加 .dlg-mask 节点，实际一个都没创建 @ ' +
+    at('js/ui.js', uiSrc, 'function dialog'))
+  const dlgHtml = maskWithTitle.innerHTML
+  assert(/role="dialog"/.test(dlgHtml) && /aria-modal="true"/.test(dlgHtml),
+    '期望 对话框根节点同时带 role="dialog" 与 aria-modal="true"，实际 ' + JSON.stringify(dlgHtml.slice(0, 120)) +
+    ' @ ' + at('js/ui.js', uiSrc, 'role="dialog"'))
+  const labelledBy = (dlgHtml.match(/aria-labelledby="([^"]+)"/) || [])[1]
+  assert(labelledBy && dlgHtml.indexOf('id="' + labelledBy + '"') >= 0,
+    '期望 有标题时 aria-labelledby 指向标题节点 id（读屏才会念标题），实际 aria-labelledby=' +
+    JSON.stringify(labelledBy) + ' / 标题节点 ' + JSON.stringify((dlgHtml.match(/class="dlg-title"[^>]*/) || [])[0]) +
+    ' @ ' + at('js/ui.js', uiSrc, 'aria-labelledby='))
+  uiRun.ui.dialog('', '<b>提示</b>', [{ text: '好' }])
+  const maskNoTitle = uiRun.made.filter(e => e.className === 'dlg-mask')[1]
+  assert(maskNoTitle, '期望 第二次 dialog() 也创建 .dlg-mask 节点，实际没有 @ ' + at('js/ui.js', uiSrc, 'function dialog'))
+  const dlgHtml2 = maskNoTitle.innerHTML
+  assert(!/aria-labelledby/.test(dlgHtml2),
+    '期望 无标题时不再输出 aria-labelledby（指向不存在的节点等于没有名字），实际 ' + JSON.stringify(dlgHtml2.slice(0, 120)) +
+    ' @ ' + at('js/ui.js', uiSrc, "aria-label="))
+  assert(dlgHtml2.indexOf('aria-label="&lt;b&gt;提示&lt;/b&gt;"') >= 0,
+    '期望 无标题时退回 aria-label 且内容经 escapeHtml（不得出现裸 <b>），实际 ' + JSON.stringify(dlgHtml2.slice(0, 120)) +
+    ' @ ' + at('js/ui.js', uiSrc, "aria-label="))
+  ok('ui.js 行为：dialog 带 role=dialog / aria-modal=true，有标题走 aria-labelledby、无标题退 aria-label（内容已转义）')
+
+  // ⑤【行为】toast 新建与复用两条路径都必须补上 role/aria-live/aria-atomic
+  const WANT_TOAST_ARIA = { role: 'status', 'aria-live': 'polite', 'aria-atomic': 'true' }
+  const uiToast = runUi()
+  uiToast.ui.toast('已保存')
+  const toastEl = uiToast.made.filter(e => e.id === 'toast')[0]
+  assert(toastEl, '期望 toast() 首次调用创建 #toast 容器，实际没有创建 @ ' + at('js/ui.js', uiSrc, 'function toast'))
+  assert.deepStrictEqual(toastEl.attrs, WANT_TOAST_ARIA,
+    '期望 新建的 #toast 带 role=status / aria-live=polite / aria-atomic=true，实际 ' + JSON.stringify(toastEl.attrs) +
+    ' @ ' + at('js/ui.js', uiSrc, "setAttribute('role', 'status')"))
+  assert.strictEqual(toastEl.textContent, '已保存',
+    '期望 toast() 把文案写进 #toast，实际 ' + JSON.stringify(toastEl.textContent) + ' @ ' + at('js/ui.js', uiSrc, 'el.textContent = msg'))
+  const staleToast = {
+    id: 'toast', attrs: {}, textContent: '', classList: { add() {}, remove() {} },
+    setAttribute(k, v) { this.attrs[k] = v }
+  }
+  uiToast.setById({ toast: staleToast })
+  uiToast.ui.toast('已删除')
+  assert.deepStrictEqual(staleToast.attrs, WANT_TOAST_ARIA,
+    '期望 复用已存在的 #toast 时也补齐 role=status / aria-live=polite / aria-atomic=true（否则读屏不会播报「已存在 → 文本变化」），实际 ' +
+    JSON.stringify(staleToast.attrs) + ' @ ' + at('js/ui.js', uiSrc, '已存在的容器也补齐语义'))
+  assert.strictEqual(staleToast.textContent, '已删除',
+    '期望 复用路径也更新文案，实际 ' + JSON.stringify(staleToast.textContent) + ' @ ' + at('js/ui.js', uiSrc, 'el.textContent = msg'))
+  ok('ui.js 行为：toast 新建与复用两条路径都设 role=status / aria-live=polite / aria-atomic=true')
+
+  // ⑥【契约】证书引言必须过 escapeHtml（每处都紧跟 F.escapeHtml(，不许裸拼接）
+  assert(/F\.escapeHtml\(root\.CZ_SPIRIT\.quote\)/.test(quizSrc),
+    '期望 证书引言渲染为 F.escapeHtml(root.CZ_SPIRIT.quote)（文案里的 < & " 必须转义），实际未找到该形式 @ ' +
+    at('js/views/quiz.js', quizSrc, 'cert-quote'))
+  // 反例：不许出现「+ root.CZ_SPIRIT.quote」这种绕过 escapeHtml 的裸拼接
+  // （root.CZ_SPIRIT && root.CZ_SPIRIT.quote 只是存在性判定，不是拼接，不在此列）
+  const bareQuote = /\+\s*root\.CZ_SPIRIT\.quote\b/.exec(quizSrc)
+  assert(!bareQuote,
+    '期望 js/views/quiz.js 不存在 " + root.CZ_SPIRIT.quote" 裸拼接（绕过 escapeHtml 会把 < & " 直接拼进证书 HTML），实际 @ ' +
+    atIdx('js/views/quiz.js', quizSrc, bareQuote ? bareQuote.index : -1) +
+    ' 片段 ' + JSON.stringify(bareQuote ? quizSrc.slice(bareQuote.index, bareQuote.index + 40) : ''))
+  ok('views/quiz.js 契约：证书引言一律 F.escapeHtml(root.CZ_SPIRIT.quote)，无裸拼接')
 }
 
 chain().then(() => {

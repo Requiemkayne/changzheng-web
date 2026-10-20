@@ -1,9 +1,10 @@
 /**
  * 网页版配置（与 miniprogram/config.js 同构）
  *
- * USE_MOCK 运行时自动判定：
- *   mock 模式  → file:// 双击打开 / GitHub Pages / ?mock=1 强制
- *   http 模式  → 通过 node server/server.js 访问（http://localhost:8088），?http=1 强制
+ * USE_MOCK 运行时判定（显式参数优先于自动判定）：
+ *   ?mock=1 强制 mock / ?mock=0 强制后端（本地静态服务端口也适用，如 http://127.0.0.1:5500）
+ *   自动判定：mock 模式 → file:// 双击打开 / GitHub Pages
+ *             http 模式 → 通过 node server/server.js 访问（http://localhost:8088）
  */
 ;(function (root, factory) {
   if (typeof module === 'object' && module.exports) {
@@ -17,8 +18,11 @@
   // 仅浏览器环境探测；Node（server / test）按 false 处理
   if (typeof location !== 'undefined') {
     const q = new URLSearchParams(location.search)
-    if (q.get('mock') === '1') {
-      USE_MOCK = true
+    const mockParam = q.get('mock')
+    if (mockParam === '1') {
+      USE_MOCK = true          // 显式强制 mock（优先于下面所有自动判定）
+    } else if (mockParam === '0') {
+      USE_MOCK = false         // 显式强制后端模式
     } else if (q.get('http') === '1') {
       USE_MOCK = false
     } else {
@@ -28,11 +32,13 @@
   }
 
   /* ================= 演示免登录（自动登录 demo 账号） =================
-   * 生效范围：
-   *   - 内网穿透域名（trycloudflare / ngrok / loca.lt）→ 默认开启，链接点开直接进
-   *   - 本地 / 局域网 → 需要显式带 ?demo=1
+   * 【演示登录必须显式开启】无论本地 / 局域网还是内网穿透域名，
+   * 都必须在 URL 上显式带 ?demo=1 才会自动登录；凭据仍硬编码在前端，
+   * 所以绝不能因为「域名像隧道」就默认放行 —— 否则任何拿到隧道链接的人都等于拿到 demo 账号。
+   *   - 本地 / 局域网（localhost / 127. / 10. / 192.168. / 172.16-31.）→ 需 ?demo=1
+   *   - 内网穿透域名（trycloudflare / ngrok / loca.lt）→ 同样需 ?demo=1
    *   - 自有公网域名 → 不生效（避免把演示账号暴露到正式站点）
-   * 想强制看登录页：任何地址加 ?login=1
+   * 想强制看登录页：任何地址加 ?login=1（优先级高于 ?demo=1）
    */
   let DEV_AUTO_LOGIN = null
   const HOST = (typeof location !== 'undefined' && location.hostname) || ''
@@ -44,7 +50,7 @@
   if (typeof location !== 'undefined') {
     const q = new URLSearchParams(location.search)
     const forceLogin = q.get('login') === '1'
-    const wantDemo = IS_TUNNEL_HOST || (IS_LOCAL_HOST && q.get('demo') === '1')
+    const wantDemo = (IS_LOCAL_HOST || IS_TUNNEL_HOST) && q.get('demo') === '1'
     if (wantDemo && !forceLogin) {
       DEV_AUTO_LOGIN = { username: 'demo', password: 'demo1234', nickname: '演示用户' }
     }

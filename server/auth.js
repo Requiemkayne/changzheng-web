@@ -1,9 +1,12 @@
 /**
  * 账号体系 —— 注册 / 登录 / 会话
  *
- * 密码：scrypt（N=16384）+ 每用户 16 字节随机盐，库里只存哈希
+ * 密码：scrypt（N=16384）+ 每用户 16 字节随机盐，库里只存哈希；
+ *       走异步 crypto.scrypt（Promise 化），N=16384 的计算不再阻塞事件循环
  * 会话：32 字节随机 token + HMAC-SHA256 签名；服务端只存 sha256(token)，7 天过期
- * 限速：同一用户名 5 次失败锁 10 分钟（内存计数，重启清零）
+ * 锁定：按「客户端 IP + 用户名」5 次失败锁 10 分钟（内存计数，重启清零）；
+ *       只锁该 IP 对该用户名的尝试，别人输错不会把账号锁给别人；
+ *       15 分钟无失败即过期，另有 sweepFails() 定时清理，Map 不会无界增长
  */
 'use strict'
 
@@ -14,14 +17,25 @@ const KEY_LEN = 32
 const TOKEN_TTL = 7 * 24 * 3600 * 1000
 const MAX_FAILS = 5
 const LOCK_MS = 10 * 60 * 1000
+const FAIL_TTL = 15 * 60 * 1000
+const SWEEP_MS = 60 * 1000
 
 const USERNAME_RE = /^[\w一-龥]{2,16}$/
 
-/* ---------- 密码 ---------- */
+/* ---------- 密码（异步 scrypt，不阻塞事件循环） ---------- */
 
-function hashPassword(password, saltHex) {
-  const salt = Buffer.from(saltHex, 'hex')
-  const hash = crypto.scryptSync(password, salt, KEY_LEN, SCRYPT)
+/** Promise 化的 crypto.scrypt：派生布局与 scryptSync 完全一致，老库可继续用 */
+function scryptAsync(password, salt, keylen) {
+  return new Promise((resolve, reject) => {
+    crypto.scrypt(password, salt, keylen, SCRYPT, (err, key) => {
+      if (err) reject(err)
+      else resolve(key)
+    })
+  })
+}
+
+async function hashPassword(password, saltHex) {
+  const hash = await scryptAsync(password, Buffer.from(saltHex, 'hex'), KEY_LEN)
   return hash.toString('hex')
 }
 
@@ -29,10 +43,11 @@ function newSalt() {
   return crypto.randomBytes(16).toString('hex')
 }
 
-function verifyPassword(password, saltHex, hashHex) {
-  const actual = Buffer.from(hashPassword(password, saltHex), 'hex')
+async function verifyPassword(password, saltHex, hashHex) {
   const expected = Buffer.from(hashHex, 'hex')
-  return actual.length === expected.length && crypto.timingSafeEqual(actual, expected)
+  if (expected.length !== KEY_LEN) return false
+  const actual = await scryptAsync(password, Buffer.from(saltHex, 'hex'), KEY_LEN)
+  return crypto.timingSafeEqual(actual, expected)
 }
 
 /* ---------- 令牌签名密钥（存 meta 表，重启不失效） ---------- */
@@ -55,35 +70,66 @@ function tokenHash(token) {
   return crypto.createHash('sha256').update(token).digest('hex')
 }
 
-/* ---------- 登录限速（内存） ---------- */
+/* ---------- 登录失败计数（内存，按 IP + 用户名） ---------- */
 
-const fails = new Map()
+/** key = '客户端IP|用户名'：锁定语义只覆盖「该 IP 对该用户名」 */
+function failKey(ip, username) {
+  return String(ip || 'unknown') + '|' + String(username || '')
+}
 
-function checkLocked(username) {
-  const rec = fails.get(username)
+const fails = new Map()      // key -> { count, lockUntil, lastAt }
+let lastSweep = 0
+
+function expired(rec, now) {
+  // lockUntil=0 表示仅累计失败、未锁定：靠 FAIL_TTL 过期；锁定中的按 lockUntil 过期
+  return rec.lockUntil > 0 ? now > rec.lockUntil : now - rec.lastAt > FAIL_TTL
+}
+
+/** 立即清理已过期条目（server 的定时器也会调） */
+function sweepFails(now) {
+  now = now || Date.now()
+  for (const [key, rec] of fails) {
+    if (expired(rec, now)) fails.delete(key)
+  }
+  lastSweep = now
+}
+
+function isLocked(ip, username) {
+  const key = failKey(ip, username)
+  const rec = fails.get(key)
   if (!rec) return false
-  // lockUntil=0 表示未触发锁定（仅累计失败次数），不算锁定
-  if (rec.lockUntil > 0 && Date.now() > rec.lockUntil) {
-    fails.delete(username)
+  const now = Date.now()
+  if (expired(rec, now)) {
+    fails.delete(key)
     return false
   }
   return rec.lockUntil > 0
 }
 
-function noteFail(username) {
-  const rec = fails.get(username) || { count: 0, lockUntil: 0 }
+function recordFail(ip, username) {
+  const now = Date.now()
+  // 惰性清理：最多每分钟扫一次，避免高频失败时反复遍历
+  if (now - lastSweep > SWEEP_MS) sweepFails(now)
+  const key = failKey(ip, username)
+  const rec = fails.get(key) || { count: 0, lockUntil: 0, lastAt: now }
   rec.count++
-  if (rec.count >= MAX_FAILS) rec.lockUntil = Date.now() + LOCK_MS
-  fails.set(username, rec)
+  rec.lastAt = now
+  if (rec.count >= MAX_FAILS) rec.lockUntil = now + LOCK_MS
+  fails.set(key, rec)
+  return rec
 }
 
-function clearFails(username) {
-  fails.delete(username)
+function clearFails(ip, username) {
+  fails.delete(failKey(ip, username))
+}
+
+function failsSize() {
+  return fails.size
 }
 
 /* ---------- 注册 / 登录 ---------- */
 
-function register(db, username, password, nickname) {
+async function register(db, username, password, nickname) {
   username = String(username || '').trim()
   nickname = String(nickname || '').trim().slice(0, 20) || username
   if (!USERNAME_RE.test(username)) {
@@ -97,24 +143,29 @@ function register(db, username, password, nickname) {
     return { ok: false, status: 409, error: 'USERNAME_TAKEN', message: '用户名已被注册' }
   }
   const salt = newSalt()
+  const hash = await hashPassword(password, salt)
   const info = db.prepare(
     'INSERT INTO users (username, salt, hash, nickname, created_at) VALUES (?, ?, ?, ?, ?)'
-  ).run(username, salt, hashPassword(password, salt), nickname, Date.now())
+  ).run(username, salt, hash, nickname, Date.now())
   const userId = Number(info.lastInsertRowid)
   return { ok: true, userId, username, nickname, token: createSession(db, userId) }
 }
 
-function login(db, username, password) {
+async function login(db, username, password, ip) {
   username = String(username || '').trim()
-  if (checkLocked(username)) {
+  if (isLocked(ip, username)) {
     return { ok: false, status: 429, error: 'RATE_LIMITED', message: '失败次数过多，请 10 分钟后再试' }
   }
   const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username)
-  if (!user || !verifyPassword(String(password || ''), user.salt, user.hash)) {
-    noteFail(username)
+  // 用户名不存在也走一次等价的 scrypt，避免「响应时间差」暴露账号是否注册
+  const passOk = user
+    ? await verifyPassword(String(password || ''), user.salt, user.hash)
+    : false
+  if (!passOk) {
+    recordFail(ip, username)
     return { ok: false, status: 401, error: 'BAD_CREDENTIALS', message: '用户名或密码错误' }
   }
-  clearFails(username)
+  clearFails(ip, username)
   return {
     ok: true,
     userId: Number(user.id),
@@ -158,4 +209,9 @@ function sweepSessions(db) {
   db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now())
 }
 
-module.exports = { register, login, createSession, getUserByToken, logout, sweepSessions, hashPassword, verifyPassword }
+module.exports = {
+  register, login, createSession, getUserByToken, logout, sweepSessions,
+  hashPassword, verifyPassword,
+  // 失败计数（导出供单测 / server 定时清理）
+  failKey, isLocked, recordFail, clearFails, sweepFails, failsSize
+}

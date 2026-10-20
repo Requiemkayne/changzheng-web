@@ -1,8 +1,10 @@
-﻿/**
+/**
  * 长征网页版后端入口 —— 零依赖（Node 22 内置 http/sqlite/crypto）
  *
  * 启动：node server/server.js          → http://0.0.0.0:8088（局域网手机可访问）
  * 端口：PORT 环境变量；数据库：DB_PATH 环境变量（迁移服务器时指定）
+ * 跨域：CORS_ORIGIN=http://a,http://b（逗号分隔白名单；留空=不回 ACAO，默认关闭）
+ * 限速：默认按客户端 IP 限制 /api/login 与 /api/register；RATE_LIMIT=off 关闭（仅供测试）
  *
  * 职责：静态文件服务（web/ 根目录）+ /api/* 账号与业务接口
  */
@@ -62,6 +64,74 @@ function fail(res, status, error, message) {
   json(res, status, { ok: false, error, message })
 }
 
+/* ---------- 客户端标识 / 应用层限速 ---------- */
+
+/* 不信任任何代理头：X-Forwarded-For 谁都能伪造，只有直连地址可信。
+ * 监听 0.0.0.0 时 IPv4 连接以 ::ffff:a.b.c.d 出现，去掉映射前缀统一口径。 */
+function clientIp(req) {
+  const raw = (req.socket && req.socket.remoteAddress) || 'unknown'
+  return raw.startsWith('::ffff:') ? raw.slice(7) : raw
+}
+
+const RATE_OFF = /^(0|off|false|no)$/i.test(String(process.env.RATE_LIMIT || '').trim())
+const RATE_WINDOW_MS = 60 * 1000
+// 取值依据：scripts/test-api.js 一轮跑完共打 8 次 /api/login 与 8 次 /api/register（同一 127.0.0.1），
+// 取 10 留出余量，测试不必改；确需更严/更松用 RATE_LIMIT_LOGIN / RATE_LIMIT_REGISTER 或 RATE_LIMIT=off。
+const RATE_LIMITS = {
+  login: { max: Number(process.env.RATE_LIMIT_LOGIN) || 10 },
+  register: { max: Number(process.env.RATE_LIMIT_REGISTER) || 10 }
+}
+
+const rateHits = new Map()   // 'route|ip' -> [命中时间戳…]（滑动窗口）
+let rateSweptAt = 0
+
+/** 逐出窗口外的时间戳，整桶为空就删 key —— 保证 Map 不无界增长 */
+function sweepRate(now) {
+  for (const [key, hits] of rateHits) {
+    const keep = hits.filter(t => now - t < RATE_WINDOW_MS)
+    if (keep.length) rateHits.set(key, keep)
+    else rateHits.delete(key)
+  }
+  rateSweptAt = now
+}
+
+/** 超限返回 true（本次请求回 429）；未超限则记一次 */
+function rateLimited(route, ip) {
+  const lim = RATE_LIMITS[route]
+  if (RATE_OFF || !lim) return false
+  const now = Date.now()
+  if (now - rateSweptAt > RATE_WINDOW_MS) sweepRate(now)
+  const key = route + '|' + ip
+  const hits = (rateHits.get(key) || []).filter(t => now - t < RATE_WINDOW_MS)
+  if (hits.length >= lim.max) {
+    rateHits.set(key, hits)
+    return true
+  }
+  hits.push(now)
+  rateHits.set(key, hits)
+  return false
+}
+
+/* ---------- CORS（默认关闭：CORS_ORIGIN 为空时不回任何 ACAO 头） ---------- */
+
+const CORS_ORIGINS = String(process.env.CORS_ORIGIN || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(s => s && s !== '*')   // 禁止 *：凭据走 Authorization 头，* 等于把接口开放给任意站点
+
+/** 命中白名单返回要回的头；否则 null（与改造前完全一致，一个头都不加） */
+function corsHeadersFor(req) {
+  if (!CORS_ORIGINS.length) return null
+  const origin = req.headers.origin
+  if (!origin || CORS_ORIGINS.indexOf(origin) === -1) return null
+  return {
+    'Access-Control-Allow-Origin': origin,
+    Vary: 'Origin',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+  }
+}
+
 /* ---------- 请求体 ---------- */
 
 function readBody(req) {
@@ -92,16 +162,23 @@ function getToken(req) {
 /* ---------- API 路由 ---------- */
 
 async function handleApi(db, req, res, pathname, query) {
+  // 口令入口限速：按客户端 IP + 路由做滑动窗口，超限直接 429
+  if (req.method === 'POST' && (pathname === '/api/register' || pathname === '/api/login')) {
+    const route = pathname === '/api/register' ? 'register' : 'login'
+    if (rateLimited(route, clientIp(req))) {
+      return fail(res, 429, 'TOO_MANY_REQUESTS', '请求过于频繁，请稍后再试')
+    }
+  }
   // 公开接口
   if (req.method === 'POST' && pathname === '/api/register') {
     const b = await readBody(req)
-    const r = auth.register(db, b.username, b.password, b.nickname)
+    const r = await auth.register(db, b.username, b.password, b.nickname)
     if (!r.ok) return fail(res, r.status, r.error, r.message)
     return json(res, 200, { ok: true, token: r.token, user: { username: r.username, nickname: r.nickname } })
   }
   if (req.method === 'POST' && pathname === '/api/login') {
     const b = await readBody(req)
-    const r = auth.login(db, b.username, b.password)
+    const r = await auth.login(db, b.username, b.password, clientIp(req))
     if (!r.ok) return fail(res, r.status, r.error, r.message)
     return json(res, 200, { ok: true, token: r.token, user: { username: r.username, nickname: r.nickname } })
   }
@@ -276,6 +353,39 @@ function serveStatic(res, pathname) {
 
 /* ---------- 启动 ---------- */
 
+/* ---------- 优雅关闭（SIGTERM / SIGINT） ---------- */
+
+let shuttingDown = false
+
+function installShutdown(server, db, timer) {
+  const shutdown = signal => {
+    if (shuttingDown) return
+    shuttingDown = true
+    console.log('收到 ' + signal + '，开始优雅关闭…')
+    // 兜底：5 秒还没关完就强制走，避免卡在残留连接上
+    const force = setTimeout(() => {
+      console.log('优雅关闭超时（5s），强制退出')
+      process.exit(0)
+    }, 5000)
+    force.unref()
+    if (timer) clearInterval(timer)
+    server.close(() => {
+      try {
+        if (db && typeof db.close === 'function') db.close()
+      } catch (e) {
+        console.error('关闭数据库失败:', e.message)
+      }
+      clearTimeout(force)
+      console.log('已优雅退出')
+      process.exit(0)
+    })
+    // 断掉空闲 keep-alive 连接，否则 server.close 会一直等它们
+    if (typeof server.closeIdleConnections === 'function') server.closeIdleConnections()
+  }
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
+}
+
 function startServer(port) {
   const db = openDb()
   // 大题库导入：question-bank.json → bank_questions（幂等）
@@ -286,7 +396,12 @@ function startServer(port) {
     console.error('题库导入失败（继续启动，竞赛接口将报错）:', e.message)
   }
   auth.sweepSessions(db)
-  setInterval(() => auth.sweepSessions(db), 60 * 60 * 1000).unref()
+  // 顺手兜底清理失败计数（auth 内部另有惰性过期 + 自节流 sweep）
+  const sweepTimer = setInterval(() => {
+    auth.sweepSessions(db)
+    auth.sweepFails()
+  }, 60 * 60 * 1000)
+  sweepTimer.unref()
 
   const server = http.createServer(async (req, res) => {
     const u = url.parse(req.url, true)
@@ -296,6 +411,15 @@ function startServer(port) {
       console.log('[' + new Date().toISOString() + '] ' + req.method + ' ' + u.pathname +
         ' -> ' + res.statusCode + ' ' + (Date.now() - t0) + 'ms')
     })
+    const cors = corsHeadersFor(req)
+    if (cors) {
+      for (const k of Object.keys(cors)) res.setHeader(k, cors[k])
+      // 预检：命中白名单回 204 + 上述头；未命中保持既有语义（继续往下走）
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204)
+        return res.end()
+      }
+    }
     try {
       if (u.pathname === '/__version') {
         // 供 ?live=1 的自动刷新使用：返回当前版本戳
@@ -319,8 +443,15 @@ function startServer(port) {
     }
   })
 
-  return new Promise(resolve => {
-    server.listen(port, BIND_HOST, () => resolve(server))
+  installShutdown(server, db, sweepTimer)
+
+  return new Promise((resolve, reject) => {
+    const onError = e => reject(e)
+    server.once('error', onError)
+    server.listen(port, BIND_HOST, () => {
+      server.removeListener('error', onError)
+      resolve(server)
+    })
   })
 }
 
@@ -333,7 +464,13 @@ if (require.main === module) {
     console.log('局域网访问: http://<本机IP>:' + addr.port + ' （手机同一 WiFi）')
     console.log('数据库: ' + (process.env.DB_PATH || 'server/data.db'))
   }).catch(e => {
-    console.error('启动失败:', e)
+    if (e && e.code === 'EADDRINUSE') {
+      console.error('启动失败：端口 ' + port + ' 已被占用（EADDRINUSE）')
+      console.error('  · 可能已有一个长征后端在跑；换个端口：PORT=' + (port === 8088 ? 8089 : port + 1) + ' node server/server.js')
+      console.error('  · 或腾出该端口：netstat -ano | findstr :' + port + ' 查 PID，再 taskkill /PID <pid> /F')
+      return process.exit(1)
+    }
+    console.error('启动失败:', (e && e.message) || e)
     process.exit(1)
   })
 }

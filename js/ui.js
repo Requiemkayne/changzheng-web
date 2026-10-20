@@ -81,12 +81,20 @@
   /**
    * dialog('确认重置', '将清除本地进度…', [{text:'取消'},{text:'确定', primary:true, onClick}])
    */
+  let dlgSeq = 0
   function dialog(title, content, buttons) {
+    const opener = document.activeElement      // 触发元素，关闭时归还焦点
     const mask = document.createElement('div')
     mask.className = 'dlg-mask'
+    const titleId = 'dlg-title-' + (++dlgSeq)
+    const hasTitle = title !== undefined && title !== null && title !== ''
     let html =
-      '<div class="dlg">' +
-      '<div class="dlg-title">' + F.escapeHtml(title) + '</div>' +
+      // role/aria-modal + 有标题则 aria-labelledby 指向标题节点，无标题退回 aria-label
+      '<div class="dlg" role="dialog" aria-modal="true" ' +
+      (hasTitle
+        ? 'aria-labelledby="' + titleId + '"'
+        : 'aria-label="' + F.escapeHtml(String(content || '提示')) + '"') + '>' +
+      '<div class="dlg-title"' + (hasTitle ? ' id="' + titleId + '"' : '') + '>' + F.escapeHtml(title) + '</div>' +
       '<div class="dlg-content">' + F.escapeHtml(content) + '</div>' +
       '<div class="dlg-btns">'
     buttons.forEach((b, i) => {
@@ -104,8 +112,24 @@
         if (b.onClick) b.onClick()
       })
     })
-    function close() { document.body.removeChild(mask) }
+    let closed = false
+    function close() {
+      if (closed) return
+      closed = true
+      document.removeEventListener('keydown', onKeyDown, true)
+      if (mask.parentNode) mask.parentNode.removeChild(mask)
+      if (opener && typeof opener.focus === 'function' && document.contains(opener)) opener.focus()
+    }
+    function onKeyDown(e) {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        e.preventDefault()
+        close()
+      }
+    }
     document.body.appendChild(mask)
+    document.addEventListener('keydown', onKeyDown, true)
+    const first = mask.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+    if (first) first.focus()
   }
 
   /* ---------- toast（wx.showToast 等价物） ---------- */
@@ -116,8 +140,15 @@
     if (!el) {
       el = document.createElement('div')
       el.id = 'toast'
+      el.setAttribute('role', 'status')
+      el.setAttribute('aria-live', 'polite')
+      el.setAttribute('aria-atomic', 'true')
       document.body.appendChild(el)
     }
+    // 已存在的容器也补齐语义（读屏只在「已存在 → 文本变化」时播报）
+    el.setAttribute('role', 'status')
+    el.setAttribute('aria-live', 'polite')
+    el.setAttribute('aria-atomic', 'true')
     el.textContent = msg
     el.classList.add('toast-show')
     clearTimeout(toastTimer)

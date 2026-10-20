@@ -8,6 +8,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
 const assert = require('node:assert')
+const { spawnSync } = require('node:child_process')
 
 const DB_FILE = path.join(os.tmpdir(), 'cz_test_' + process.pid + '.db')
 process.env.DB_PATH = DB_FILE
@@ -20,22 +21,66 @@ let BASE = ''
 let passed = 0
 let failed = 0
 
+// 限速 / CORS 各需要一套不同的环境变量配置，只能各起一个实例；
+// 每个实例都会注册 SIGTERM/SIGINT 处理函数，放开监听器上限避免假告警
+process.setMaxListeners(0)
+
 function ok(name, cond, extra) {
   if (cond) { passed++; console.log('  ✓ ' + name) }
   else { failed++; console.log('  ✗ ' + name + (extra ? ' —— ' + extra : '')) }
 }
 
-async function req(method, p, body, token) {
-  const opts = { method, headers: {} }
+/** 低层请求：可指定实例 base，并保留响应头（CORS 断言要看头） */
+async function reqRaw(base, method, p, body, token, headers) {
+  const opts = { method, headers: Object.assign({}, headers) }
   if (body !== undefined) {
     opts.headers['Content-Type'] = 'application/json'
     opts.body = JSON.stringify(body)
   }
   if (token) opts.headers['Authorization'] = 'Bearer ' + token
-  const res = await fetch(BASE + p, opts)
+  const res = await fetch(base + p, opts)
   let json = null
   try { json = await res.json() } catch (e) { /* 非 JSON 响应 */ }
-  return { status: res.status, body: json }
+  return { status: res.status, body: json, headers: res.headers }
+}
+
+function req(method, p, body, token) {
+  return reqRaw(BASE, method, p, body, token)
+}
+
+/* ---------- 多配置实例（RATE_LIMITS / CORS_ORIGINS / RATE_OFF 都是 server.js 模块级常量，
+ * 只在 require 时读环境变量，所以必须清缓存重新加载才能换一套配置） ---------- */
+
+const SERVER_ENTRY = require.resolve('../server/server.js')
+const extraServers = []
+
+/** env 里值为 null 表示「删掉该变量」，其余为覆盖值；只在 require 那一刻生效 */
+async function startInstance(env) {
+  const keys = Object.keys(env || {})
+  const saved = {}
+  for (const k of keys) {
+    saved[k] = process.env[k]
+    if (env[k] === null) delete process.env[k]
+    else process.env[k] = env[k]
+  }
+  let mod
+  try {
+    delete require.cache[SERVER_ENTRY]
+    mod = require(SERVER_ENTRY)
+  } finally {
+    for (const k of keys) {
+      if (saved[k] === undefined) delete process.env[k]
+      else process.env[k] = saved[k]
+    }
+  }
+  const server = await mod.startServer(0)
+  extraServers.push(server)
+  return { server, base: 'http://127.0.0.1:' + server.address().port }
+}
+
+/** 断言失败信息里的「文件:行号」—— 源码契约类断言定位用 */
+function atIdx(file, src, idx) {
+  return idx < 0 ? file + ':(未找到该代码)' : file + ':' + (src.slice(0, idx).split('\n').length)
 }
 
 /** 从题目库取某 node 的正确答案 */
@@ -294,7 +339,169 @@ async function main() {
     const row2 = db.prepare("SELECT salt FROM users WHERE username = '测试员1'").get()
     ok('不同用户盐不同', row2 && row2.salt !== row.salt)
     db.close()
+    /* ---------- 11. 批次⑤：限速 / 锁定粒度 / CORS / 优雅关闭 / 端口占用 ---------- */
+    console.log('\n[11] 批次⑤：限速 / 锁定粒度 / CORS / 优雅关闭 / 端口占用')
+
+    // 11.1 口令入口限速：用环境变量把阈值压到 3，绝不连打 10 次以上，也不 sleep
+    const rl = await startInstance({ RATE_LIMIT_LOGIN: '3', RATE_LIMIT_REGISTER: '3', CORS_ORIGIN: null })
+    const regStatus = []
+    for (let i = 0; i < 4; i++) {
+      regStatus.push((await reqRaw(rl.base, 'POST', '/api/register', { username: '限速员' + i, password: 'rl123456' })).status)
+    }
+    ok('RATE_LIMIT_REGISTER=3 生效（阈值来自环境变量）：前 3 次注册 200、第 4 次 429',
+      regStatus.join(',') === '200,200,200,429', '实际 ' + regStatus.join(','))
+
+    const loginRes = []
+    for (let i = 0; i < 3; i++) {
+      loginRes.push(await reqRaw(rl.base, 'POST', '/api/login', { username: '限速员0', password: 'bad' + i }))
+    }
+    const rateBlocked = await reqRaw(rl.base, 'POST', '/api/login', { username: '限速员0', password: 'rl123456' })
+    ok('RATE_LIMIT_LOGIN=3 生效且按路由独立计数：3 次错密码 401 后第 4 次即使密码正确也 429（注册桶不串到登录桶）',
+      loginRes.map(x => x.status).join(',') === '401,401,401' && rateBlocked.status === 429,
+      '实际 ' + loginRes.map(x => x.status).join(',') + ' / 第 4 次 ' + rateBlocked.status +
+      ' @ server/server.js:166-171')
+    ok('限速 429 报文：ok:false / TOO_MANY_REQUESTS / 请求过于频繁，请稍后再试',
+      rateBlocked.status === 429 && rateBlocked.body && rateBlocked.body.ok === false &&
+      rateBlocked.body.error === 'TOO_MANY_REQUESTS' && rateBlocked.body.message === '请求过于频繁，请稍后再试',
+      '实际 ' + rateBlocked.status + ' ' + JSON.stringify(rateBlocked.body) + ' @ server/server.js:169')
+
+    // 11.2 RATE_LIMIT=off 整体关闭 + 失败计数按「IP + 用户名」
+    const unlocked = await startInstance({ RATE_LIMIT: 'off', RATE_LIMIT_LOGIN: '2', CORS_ORIGIN: null })
+    await reqRaw(unlocked.base, 'POST', '/api/register', { username: '锁定员', password: 'ok123456' })
+    await reqRaw(unlocked.base, 'POST', '/api/register', { username: '旁观员', password: 'ok123456' })
+    const wrongRes = []
+    for (let i = 0; i < 5; i++) {
+      wrongRes.push(await reqRaw(unlocked.base, 'POST', '/api/login', { username: '锁定员', password: 'bad' + i }))
+    }
+    const lockedRes = await reqRaw(unlocked.base, 'POST', '/api/login', { username: '锁定员', password: 'ok123456' })
+    const otherUserRes = await reqRaw(unlocked.base, 'POST', '/api/login', { username: '旁观员', password: 'ok123456' })
+    const allRes = wrongRes.concat([lockedRes, otherUserRes])
+    ok('RATE_LIMIT=off 整体关闭：RATE_LIMIT_LOGIN=2 下连打 7 次口令接口也不出现 TOO_MANY_REQUESTS',
+      allRes.every(x => !x.body || x.body.error !== 'TOO_MANY_REQUESTS'),
+      '实际 ' + allRes.map(x => x.status + '/' + (x.body && x.body.error)).join(',') + ' @ server/server.js:76')
+    ok('失败计数达 5 次后锁定：第 6 次即使密码正确也 429 / RATE_LIMITED / 失败次数过多，请 10 分钟后再试',
+      wrongRes.map(x => x.status).join(',') === '401,401,401,401,401' &&
+      lockedRes.status === 429 && lockedRes.body && lockedRes.body.error === 'RATE_LIMITED' &&
+      lockedRes.body.message === '失败次数过多，请 10 分钟后再试',
+      '实际 前5次 ' + wrongRes.map(x => x.status).join(',') + ' / 第6次 ' + lockedRes.status + ' ' +
+      JSON.stringify(lockedRes.body) + ' @ server/auth.js:156-166')
+    ok('锁定按「IP + 用户名」隔离：同一 IP 换个用户名密码正确仍 200（狂输别人用户名锁不死他人账号）',
+      otherUserRes.status === 200 && !!(otherUserRes.body && otherUserRes.body.token),
+      '实际 ' + otherUserRes.status + ' ' + JSON.stringify(otherUserRes.body && otherUserRes.body.error) +
+      ' @ server/auth.js:76-78')
+
+    // 11.3 CORS 默认关闭（未设 CORS_ORIGIN，行为与改造前一致）
+    const corsOff = await startInstance({ CORS_ORIGIN: null })
+    const offGet = await reqRaw(corsOff.base, 'GET', '/api/health', undefined, undefined, { Origin: 'http://a.example' })
+    const offPre = await reqRaw(corsOff.base, 'OPTIONS', '/api/health', undefined, undefined, { Origin: 'http://a.example' })
+    ok('未设 CORS_ORIGIN：带 Origin 的 200 响应一个 CORS 头都不加（含 Vary）',
+      offGet.status === 200 && !offGet.headers.get('access-control-allow-origin') &&
+      !offGet.headers.get('access-control-allow-headers') && !offGet.headers.get('access-control-allow-methods') &&
+      !offGet.headers.get('vary'),
+      '实际 status=' + offGet.status + ' acao=' + offGet.headers.get('access-control-allow-origin') +
+      ' vary=' + offGet.headers.get('vary') + ' @ server/server.js:117-126')
+    ok('未设 CORS_ORIGIN：OPTIONS 不被 204 短路，继续走正常路由',
+      offPre.status !== 204, '实际 ' + offPre.status + ' @ server/server.js:414-421')
+
+    // 11.4 CORS 白名单（含被过滤的 *）
+    const corsOn = await startInstance({ CORS_ORIGIN: 'http://a.example, http://b.example, *' })
+    const hit = await reqRaw(corsOn.base, 'GET', '/api/health', undefined, undefined, { Origin: 'http://a.example' })
+    ok('CORS 命中白名单：回 ACAO=该 Origin / Vary: Origin / 允许 Content-Type, Authorization / GET, POST, OPTIONS（绝不回 *）',
+      hit.headers.get('access-control-allow-origin') === 'http://a.example' &&
+      /(^|,\s*)Origin$/i.test(hit.headers.get('vary') || '') &&
+      (hit.headers.get('access-control-allow-headers') || '').replace(/\s/g, '') === 'Content-Type,Authorization' &&
+      (hit.headers.get('access-control-allow-methods') || '').replace(/\s/g, '') === 'GET,POST,OPTIONS',
+      '实际 acao=' + hit.headers.get('access-control-allow-origin') + ' vary=' + hit.headers.get('vary') +
+      ' allow-headers=' + hit.headers.get('access-control-allow-headers') +
+      ' allow-methods=' + hit.headers.get('access-control-allow-methods') + ' @ server/server.js:127-132')
+    const pre = await reqRaw(corsOn.base, 'OPTIONS', '/api/health', undefined, undefined, { Origin: 'http://b.example' })
+    ok('CORS 预检：OPTIONS 直接回 204 且带 ACAO（不再落到鉴权分支）',
+      pre.status === 204 && pre.headers.get('access-control-allow-origin') === 'http://b.example',
+      '实际 ' + pre.status + ' acao=' + pre.headers.get('access-control-allow-origin') + ' @ server/server.js:418-421')
+    const miss = await reqRaw(corsOn.base, 'GET', '/api/health', undefined, undefined, { Origin: 'http://evil.example' })
+    const noOrigin = await reqRaw(corsOn.base, 'GET', '/api/health')
+    ok('CORS 白名单外 Origin / 完全没有 Origin：都不回 ACAO（不放通任意站点）',
+      !miss.headers.get('access-control-allow-origin') && !noOrigin.headers.get('access-control-allow-origin'),
+      '实际 白名单外 acao=' + miss.headers.get('access-control-allow-origin') +
+      ' / 无 Origin acao=' + noOrigin.headers.get('access-control-allow-origin') + ' @ server/server.js:126')
+
+    // 11.5 CORS_ORIGIN=* 必须被过滤（凭据走 Authorization，通配符等于全站开放）
+    const corsStar = await startInstance({ CORS_ORIGIN: '*' })
+    const starGet = await reqRaw(corsStar.base, 'GET', '/api/health', undefined, undefined, { Origin: 'http://a.example' })
+    const starPre = await reqRaw(corsStar.base, 'OPTIONS', '/api/health', undefined, undefined, { Origin: 'http://a.example' })
+    ok('CORS_ORIGIN=* 被 filter 掉：不回 ACAO（更不会回 *），预检也不短路',
+      !starGet.headers.get('access-control-allow-origin') && !starPre.headers.get('access-control-allow-origin') &&
+      starPre.status !== 204,
+      '实际 GET acao=' + starGet.headers.get('access-control-allow-origin') + ' / OPTIONS ' + starPre.status +
+      ' acao=' + starPre.headers.get('access-control-allow-origin') + ' @ server/server.js:117-120')
+
+    // 11.6 端口被占用：真起子进程验证退出码与文案（不打印原始栈）
+    const mainPort = server.address().port
+    const childDb = path.join(os.tmpdir(), 'cz_test_child_' + process.pid + '.db')
+    const cp = spawnSync(process.execPath, [path.join(__dirname, '..', 'server', 'server.js')], {
+      cwd: path.join(__dirname, '..'),
+      timeout: 30000,
+      encoding: 'utf8',
+      env: Object.assign({}, process.env, { PORT: String(mainPort), DB_PATH: childDb })
+    })
+    const childErr = String(cp.stderr || '')
+    ok('端口被占用：node server/server.js 以退出码 1 结束（子进程真启动验证）',
+      cp.status === 1, '实际退出码 ' + cp.status + ' / stderr 末段 ' + JSON.stringify(childErr.slice(-300)) +
+      ' @ server/server.js:467-471')
+    ok('EADDRINUSE 文案：启动失败：端口 <port> 已被占用（EADDRINUSE）+ 换端口 / netstat 提示行',
+      childErr.indexOf('启动失败：端口 ' + mainPort + ' 已被占用（EADDRINUSE）') >= 0 &&
+      childErr.indexOf('换个端口：PORT=') >= 0 &&
+      childErr.indexOf('netstat -ano | findstr :' + mainPort) >= 0,
+      '实际 stderr=' + JSON.stringify(childErr) + ' @ server/server.js:468-470')
+    ok('EADDRINUSE 不打原始栈（stderr 里没有任何 "at …" 栈帧行）',
+      !/^\s+at\s/m.test(childErr), '实际 stderr=' + JSON.stringify(childErr) + ' @ server/server.js:471-473')
+    for (const suffix of ['', '-wal', '-shm']) {
+      try { fs.unlinkSync(childDb + suffix) } catch (e) { /* 忽略 */ }
+    }
+
+    // 11.7 优雅关闭契约（Windows 投递不了 POSIX 信号，只能锁顺序与兜底）
+    const srvSrc = fs.readFileSync(path.join(__dirname, '..', 'server', 'server.js'), 'utf8')
+    const shHead = srvSrc.indexOf('function installShutdown(')
+    const shTail = srvSrc.indexOf('function startServer(', shHead)
+    const shSrc = shHead < 0 || shTail < 0 ? '' : srvSrc.slice(shHead, shTail)
+    const iClear = shSrc.indexOf('clearInterval(timer)')
+    const iServerClose = shSrc.indexOf('server.close(')
+    const closeCallback = iServerClose < 0 ? '' : shSrc.slice(iServerClose)
+    const jDbClose = closeCallback.indexOf('db.close()')
+    const jDoneLog = closeCallback.indexOf('已优雅退出')
+    const jExit = closeCallback.indexOf('process.exit(0)')
+    ok('installShutdown 顺序：clearInterval(定时器) → server.close() → db.close() → 已优雅退出 → process.exit(0)',
+      shSrc.length > 0 && iClear >= 0 && iServerClose >= 0 &&
+      iClear < iServerClose && jDbClose >= 0 && jDoneLog >= 0 && jExit >= 0 &&
+      jDbClose < jDoneLog && jDoneLog < jExit,
+      '实际 clearInterval @ ' + atIdx('server/server.js', srvSrc, shHead + iClear) +
+      ' / server.close @ ' + atIdx('server/server.js', srvSrc, shHead + iServerClose) +
+      ' / db.close @ ' + atIdx('server/server.js', srvSrc, shHead + iServerClose + jDbClose) +
+      ' / 已优雅退出 @ ' + atIdx('server/server.js', srvSrc, shHead + iServerClose + jDoneLog) +
+      ' / exit(0) @ ' + atIdx('server/server.js', srvSrc, shHead + iServerClose + jExit))
+    ok('installShutdown 契约：SIGTERM 与 SIGINT 都注册 / 5s 强制退出兜底且 unref / 断开 keep-alive / 重入保护',
+      shSrc.indexOf("process.on('SIGTERM'") >= 0 && shSrc.indexOf("process.on('SIGINT'") >= 0 &&
+      /setTimeout\(\(\) => \{[\s\S]{0,160}?\}, 5000\)/.test(shSrc) &&
+      shSrc.indexOf('force.unref()') >= 0 &&
+      shSrc.indexOf('server.closeIdleConnections()') >= 0 &&
+      shSrc.indexOf('if (shuttingDown) return') >= 0,
+      '实际 缺项排查 SIGTERM=' + (shSrc.indexOf("process.on('SIGTERM'") >= 0) +
+      ' SIGINT=' + (shSrc.indexOf("process.on('SIGINT'") >= 0) +
+      ' 5000兜底=' + /setTimeout\(\(\) => \{[\s\S]{0,160}?\}, 5000\)/.test(shSrc) +
+      ' unref=' + (shSrc.indexOf('force.unref()') >= 0) +
+      ' closeIdle=' + (shSrc.indexOf('server.closeIdleConnections()') >= 0) +
+      ' 重入保护=' + (shSrc.indexOf('if (shuttingDown) return') >= 0) +
+      ' @ ' + atIdx('server/server.js', srvSrc, shHead))
+    const iRecv = shSrc.indexOf('开始优雅关闭')
+    ok('优雅关闭日志：先打「收到 <signal>，开始优雅关闭…」再动手，退出前打「已优雅退出」',
+      iRecv >= 0 && iRecv < iClear && shSrc.indexOf("'已优雅退出'") >= 0,
+      '实际 收到信号日志 @ ' + atIdx('server/server.js', srvSrc, shHead + iRecv) +
+      ' 早于 clearInterval 吗=' + (iRecv >= 0 && iRecv < iClear) + ' @ server/server.js:364')
+
   } finally {
+    for (const s of extraServers) {
+      try { s.close() } catch (e) { /* 已关闭 */ }
+    }
     server.close()
     // 清理测试数据库
     for (const suffix of ['', '-wal', '-shm']) {
