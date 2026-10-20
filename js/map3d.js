@@ -1,0 +1,834 @@
+﻿/**
+ * 3D 长征沙盘（手机优先 · 简版）
+ *
+ * 设计取舍：只保留"地形起伏 + 行军路线 + 十一个节点"，其余地图要素一律去掉
+ * （无经纬网、无城市名、无河流、无比例尺、无海拔色带），配色回到站点宣纸红金。
+ * 天气只作用于地形与环境光，路线/节点不吃雾，保证任何天气下都能看清和点击。
+ *
+ * 用法：
+ *   const view = CZ_MAP3D.mount(el, { nodes, states, onPick })
+ *   view.setWeather('rain'); view.destroy()
+ *
+ * 依赖：window.THREE 需先加载（由 map.js 按需注入 script）
+ */
+;(function (root) {
+  const DEM_PATH = 'assets/map3d/heightmap.png'
+  const DEM = {
+    lngMin: 80.0, lngMax: 140.0, latMin: 0.0, latMax: 60.0,
+    elevMin: 0, elevMax: 6000
+  }
+
+  const K = 3.4                      // 每经度世界单位（比桌面版更紧凑）
+  const R2D = 180 / Math.PI
+  const mercY = lat => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360))
+  const invMerc = y => (2 * Math.atan(Math.exp(y)) - Math.PI / 2) * R2D
+  const Y_MIN = mercY(DEM.latMin), Y_MAX = mercY(DEM.latMax)
+  const LAT_C = invMerc((Y_MIN + Y_MAX) / 2)
+  const LNG_C = (DEM.lngMin + DEM.lngMax) / 2
+  const SIZE_X = (DEM.lngMax - DEM.lngMin) * K
+  const SIZE_Z = (Y_MAX - Y_MIN) * R2D * K
+  const ELEV_SCALE = 7.0 / 4500   // 世界单位 / 米（垂直夸张克制）
+
+  const STYLE = {
+    quizPassed: { fill: '#C6A343', label: '#FFF4DC' },
+    checkedIn: { fill: '#C8102E', label: '#FFF4DC' },
+    open: { fill: '#FFF6E2', label: '#821626' },
+    locked: { fill: '#C9C0AC', label: '#F7F2E7' }
+  }
+
+  let lastWeather = 'clear'   // 跨挂载记忆：重新进入地图页时延续上次天气
+
+  /* ---------------- 高程图：全局只加载一次 ---------------- */
+  let demPromise = null
+  function loadDem() {
+    if (demPromise) return demPromise
+    demPromise = new Promise(resolve => {
+      const img = new Image()
+      img.onload = () => {
+        const cv = document.createElement('canvas')
+        cv.width = img.width; cv.height = img.height
+        const ctx = cv.getContext('2d')
+        ctx.drawImage(img, 0, 0)
+        const data = ctx.getImageData(0, 0, cv.width, cv.height).data
+        const arr = new Float32Array(cv.width * cv.height)
+        for (let i = 0; i < arr.length; i++) arr[i] = data[i * 4] / 255
+        resolve({ arr, w: cv.width, h: cv.height })
+      }
+      img.onerror = () => resolve(null)
+      img.src = DEM_PATH
+    })
+    return demPromise
+  }
+
+  function mount(container, opts) {
+    opts = opts || {}
+    const nodes = opts.nodes || []
+    const states = opts.states || {}
+    const onPick = opts.onPick || function () {}
+    const onWeatherChange = typeof opts.onWeather === 'function' ? opts.onWeather : null
+
+    // 坐标兼容：mock/样例用 lng/lat，接口返回用 location.longitude/latitude
+    const lngOf = n => (n.lng != null ? n.lng : (n.location ? n.location.longitude : 0))
+    const latOf = n => (n.lat != null ? n.lat : (n.location ? n.location.latitude : 0))
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
+    renderer.outputEncoding = THREE.sRGBEncoding
+    container.innerHTML = ''
+    container.appendChild(renderer.domElement)
+    renderer.domElement.style.display = 'block'
+    renderer.domElement.style.width = '100%'
+    renderer.domElement.style.height = '100%'
+    renderer.domElement.style.touchAction = 'pan-y'
+
+    // 手势提示：进场显示，几秒后自动淡出（pointer-events: none，不拦截手势）
+    const hintEl = document.createElement('div')
+    hintEl.className = 'map3d-hint'
+    hintEl.textContent = '左右滑动转向 · 双指上下俯仰 · 双击复位'
+    container.appendChild(hintEl)
+    setTimeout(() => {
+      hintEl.classList.add('off')
+      setTimeout(() => { if (hintEl.parentNode) hintEl.parentNode.removeChild(hintEl) }, 900)
+    }, 5200)
+
+    // 观感层：暖光 + 暗角 + 金色内框（纯装饰，不吃事件）
+    const veil = document.createElement('div')
+    veil.className = 'map3d-veil'
+    container.appendChild(veil)
+    const plate = document.createElement('div')
+    plate.className = 'map3d-plate'
+    container.appendChild(plate)
+
+    const scene = new THREE.Scene()
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 600)
+    scene.fog = new THREE.Fog(0xF7F0DF, 92, 210)
+
+    const hemi = new THREE.HemisphereLight(0xFFFBF0, 0x3A2E20, 0.34)
+    scene.add(hemi)
+    const sun = new THREE.DirectionalLight(0xFFF3DC, 1.05)
+    sun.position.set(-56, 38, 52)
+    scene.add(sun)
+    // 冷色补光：与暖色主光对打，山体转折处更透气
+    const fill = new THREE.DirectionalLight(0xBFD4E8, 0.30)
+    fill.position.set(64, 26, -48)
+    scene.add(fill)
+
+    let dem = null
+    let raf = 0
+    let disposed = false
+    const HOME = { yaw: 0.14, pitch: 0.86, zoom: 1 }
+    let yaw = HOME.yaw, pitch = HOME.pitch, zoom = HOME.zoom
+    let dragging = false, moved = 0, lastX = 0, lastY = 0
+    let yawVel = 0, lastTapAt = 0, twoPrev = null
+    const pickables = []
+    const stars = []
+
+    /* ---------- 采样 ---------- */
+    function hAt(u, v) {
+      if (!dem) return 0
+      const { arr, w, h } = dem
+      const x = Math.min(w - 1.001, Math.max(0, u * (w - 1)))
+      const y = Math.min(h - 1.001, Math.max(0, v * (h - 1)))
+      const x0 = Math.floor(x), y0 = Math.floor(y)
+      const fx = x - x0, fy = y - y0
+      const i0 = y0 * w + x0, i1 = i0 + 1, i2 = i0 + w, i3 = i2 + 1
+      const a = arr[i0] * (1 - fx) + arr[i1] * fx
+      const b = arr[i2] * (1 - fx) + arr[i3] * fx
+      return a * (1 - fy) + b * fy
+    }
+    const uvX = x => x / SIZE_X + 0.5
+    const uvZ = z => z / SIZE_Z + 0.5
+    const groundY = (x, z) => hAt(uvX(x), uvZ(z)) * 6000 * ELEV_SCALE
+    const worldX = lng => (lng - LNG_C) * K
+    const worldZ = lat => -(mercY(lat) - mercY(LAT_C)) * R2D * K
+
+    /* ---------- 地形：按海拔上地貌色（草地→林地→岩山→雪线） ---------- */
+    // 色带：低海拔草绿 → 丘陵黄绿 → 山地褐 → 高山灰岩 → 雪白
+    // 地貌色带：按「真实海拔（米）」分级，13 级过渡
+    const BIOME = [
+      [0, '#7C9260'],      // 低地草地
+      [250, '#8A9F69'],
+      [600, '#9AAC73'],
+      [1000, '#A9B67C'],   // 丘陵黄绿
+      [1500, '#B4AC7E'],   // 干草原 / 黄土
+      [2000, '#AC9870'],
+      [2500, '#9C8764'],   // 山地褐
+      [3000, '#8E7C63'],
+      [3500, '#8A8076'],   // 高山裸岩
+      [4000, '#A9A093'],   // 碎石坡
+      [4400, '#DCD6C9'],   // 雪线
+      [5000, '#F2EEE4'],   // 积雪
+      [5800, '#FFFFFF']    // 峰顶
+    ].map(([m, hex]) => [m, new THREE.Color(hex)])
+
+    function biomeColor(meters) {
+      for (let i = 1; i < BIOME.length; i++) {
+        if (meters <= BIOME[i][0]) {
+          const [m0, c0] = BIOME[i - 1], [m1, c1] = BIOME[i]
+          const k = m1 === m0 ? 0 : (meters - m0) / (m1 - m0)
+          return new THREE.Color().copy(c0).lerp(c1, Math.max(0, Math.min(1, k)))
+        }
+      }
+      return BIOME[BIOME.length - 1][1].clone()
+    }
+
+    // 干湿变化：低频噪声在中低海拔混入土黄，让大范围不至于一片均匀绿
+    const DRY = new THREE.Color('#C0A87C')
+    function tintByClimate(col, meters, x, z) {
+      if (meters > 3200) return col
+      const n = 0.5 + 0.5 * Math.sin(x * 0.045 + 1.3) * Math.cos(z * 0.038 - 0.7)
+      const strength = Math.min(1, Math.max(0, (1 - Math.abs(meters - 1100) / 2100))) * 0.32
+      return col.lerp(DRY, n * strength)
+    }
+
+    function buildTerrain() {
+      const seg = 380
+      const PAD = 0.16                       // 四周留白纸边
+      const smooth = x => x * x * (3 - 2 * x)
+
+      // ① 底板：整幅纸面（含留白），压在地形下面
+      const padGeo = new THREE.PlaneGeometry(SIZE_X * (1 + PAD * 2), SIZE_Z * (1 + PAD * 2))
+      padGeo.rotateX(-Math.PI / 2)
+      const pad = new THREE.Mesh(padGeo, new THREE.MeshLambertMaterial({
+        color: new THREE.Color('#EFE3C9').convertSRGBToLinear()
+      }))
+      pad.position.y = -0.08
+      scene.add(pad)
+
+      // ② 地形：范围精确等于 DEM 矩形，边界就是一条干净直线（不再有锯齿毛边）
+      const geo = new THREE.PlaneGeometry(SIZE_X, SIZE_Z, seg, seg)
+      geo.rotateX(-Math.PI / 2)
+      const pos = geo.attributes.position
+      const colors = new Float32Array(pos.count * 3)
+      const tmp = new THREE.Color()
+      const EDGE = 0.0001                     // 不压平：边缘保留真实高度，由侧壁补厚度
+      const SEA_BED = new THREE.Color('#5F7C99')   // 海床（沉到水面以下）
+      const BEACH = new THREE.Color('#D9C79B')     // 海岸沙滩过渡
+      const SEA_FLOOR = -1.0                      // 海床压到水面以下的深度（世界单位）
+      for (let i = 0; i < pos.count; i++) {
+        const x = pos.getX(i), z = pos.getZ(i)
+        const u = uvX(x), v = uvZ(z)
+        const t = hAt(u, v)
+        const elev = t * 6000                    // 米
+        const d = Math.min(u, 1 - u, v, 1 - v)
+        const lift = smooth(Math.min(1, Math.max(0, d / EDGE)))
+        pos.setY(i, elev * ELEV_SCALE * lift)
+        // 轻微噪声打散色带，避免等高线式硬边
+        const jitter = (Math.sin(x * 0.7) + Math.cos(z * 0.9)) * 60
+        if (elev < 3) {
+          tmp.copy(SEA_BED)                    // 海床沉到水面以下
+          pos.setY(i, SEA_FLOOR)
+        } else {
+          tmp.copy(tintByClimate(biomeColor(elev + jitter), elev, x, z))
+          // 近岸浅滩染沙色，强化陆地与水的分界
+          if (elev < 220) tmp.lerp(BEACH, (1 - elev / 220) * 0.62)
+          // 坡度 + 曲率明暗：陡坡压暗；山脊提亮、沟谷加深，立体感更明确
+          const st = 0.0032
+          const hL = hAt(u - st, v), hR = hAt(u + st, v)
+          const hD = hAt(u, v - st), hU = hAt(u, v + st)
+          const grad = Math.hypot(hR - hL, hU - hD) * 6000
+          const lap = ((hL + hR + hD + hU) * 0.25 - hAt(u, v)) * 6000
+          let shade = 1 - Math.min(0.2, grad * 0.0016)
+          shade += Math.max(-0.13, Math.min(0.13, -lap * 0.02))
+          tmp.multiplyScalar(Math.max(0.55, shade))
+        }
+        tmp.convertSRGBToLinear()
+        colors[i * 3] = tmp.r; colors[i * 3 + 1] = tmp.g; colors[i * 3 + 2] = tmp.b
+      }
+      geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+      geo.computeVertexNormals()
+      scene.add(new THREE.Mesh(geo, new THREE.MeshLambertMaterial({
+        vertexColors: true, flatShading: false      // 平滑着色，避免 DEM 碎成砂砾
+      })))
+
+      // 水面：独立一层，略高于海床、略低于陆地 —— 海岸因此有清晰高差
+      const water = new THREE.Mesh(
+        new THREE.PlaneGeometry(SIZE_X, SIZE_Z),
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color('#A2BCD4').convertSRGBToLinear(),
+          transparent: true, opacity: 0.86
+        })
+      )
+      water.rotation.x = -Math.PI / 2
+      water.position.y = -0.02
+      scene.add(water)
+
+      // 海岸线：相邻顶点跨越海平面处补一段亮线，边界一眼可辨
+      const W = seg + 1
+      const segs = []
+      const isSea = idx => pos.getY(idx) < -0.5
+      for (let r = 0; r < W; r++) {
+        for (let c = 0; c < W; c++) {
+          const i0 = r * W + c
+          if (c + 1 < W) {
+            const i1 = i0 + 1
+            if (isSea(i0) !== isSea(i1)) {
+              segs.push(pos.getX(i0), 0.06, pos.getZ(i0), pos.getX(i1), 0.06, pos.getZ(i1))
+            }
+          }
+          if (r + 1 < W) {
+            const i1 = i0 + W
+            if (isSea(i0) !== isSea(i1)) {
+              segs.push(pos.getX(i0), 0.06, pos.getZ(i0), pos.getX(i1), 0.06, pos.getZ(i1))
+            }
+          }
+        }
+      }
+      const coastGeo = new THREE.BufferGeometry()
+      coastGeo.setAttribute('position', new THREE.Float32BufferAttribute(segs, 3))
+      scene.add(new THREE.LineSegments(coastGeo, new THREE.LineBasicMaterial({
+        color: new THREE.Color('#EFE2C0').convertSRGBToLinear(),
+        transparent: true, opacity: 0.46
+      })))
+
+      // 远景"雾色围裙"：比图幅大得多，任何越界处都落进雾里，而不是露出空白
+      const apron = new THREE.Mesh(
+        new THREE.PlaneGeometry(SIZE_X * 4, SIZE_Z * 4),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color('#F2ECDC').convertSRGBToLinear() })
+      )
+      apron.rotation.x = -Math.PI / 2
+      apron.position.y = SEA_FLOOR - 0.25
+      scene.add(apron)
+
+      buildSkirt()
+    }
+
+    // 侧壁：沿地形四边向下补一圈"厚度"，让沙盘像实体模型
+    function buildSkirt() {
+      const N = 180
+      const halfX = SIZE_X / 2, halfZ = SIZE_Z / 2
+      const edges = [
+        t => [-halfX + t * SIZE_X, -halfZ],   // 北
+        t => [-halfX + t * SIZE_X, halfZ],    // 南
+        t => [-halfX, -halfZ + t * SIZE_Z],   // 西
+        t => [halfX, -halfZ + t * SIZE_Z]     // 东
+      ]
+      const verts = []
+      edges.forEach(pt => {
+        for (let i = 0; i < N; i++) {
+          const a = pt(i / N), b = pt((i + 1) / N)
+          const ha = Math.max(0.03, groundY(a[0], a[1]))
+          const hb = Math.max(0.03, groundY(b[0], b[1]))
+          verts.push(a[0], ha, a[1], b[0], hb, b[1], b[0], 0, b[1])
+          verts.push(a[0], ha, a[1], b[0], 0, b[1], a[0], 0, a[1])
+        }
+      })
+      const g = new THREE.BufferGeometry()
+      g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3))
+      g.computeVertexNormals()
+      scene.add(new THREE.Mesh(g, new THREE.MeshLambertMaterial({
+        color: new THREE.Color('#C9B393').convertSRGBToLinear(),
+        side: THREE.DoubleSide
+      })))
+    }
+
+    /* ---------- 路线 ---------- */
+    function buildRoute() {
+      const pts = nodes.map(n => new THREE.Vector3(worldX(lngOf(n)), 0, worldZ(latOf(n))))
+      const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35)
+      const sampled = curve.getPoints(360).map(p =>
+        new THREE.Vector3(p.x, Math.max(groundY(p.x, p.z), 0) + 2.4, p.z))
+      const rc = new THREE.CatmullRomCurve3(sampled)
+      // 辉光层：比主线粗一圈、加法混合，像路线本身在发光
+      const glowRoute = new THREE.Mesh(
+        new THREE.TubeGeometry(rc, 520, 1.15, 8, false),
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color('#C8102E').convertSRGBToLinear(),
+          transparent: true, opacity: 0.11, depthWrite: false,
+          blending: THREE.AdditiveBlending, fog: false
+        })
+      )
+      scene.add(glowRoute)
+      scene.add(new THREE.Mesh(
+        new THREE.TubeGeometry(rc, 520, 0.52, 10, false),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color('#C8102E').convertSRGBToLinear(), fog: false })
+      ))
+      const gold = new THREE.Mesh(
+        new THREE.TubeGeometry(rc, 520, 0.18, 8, false),
+        new THREE.MeshBasicMaterial({ color: new THREE.Color('#E8C86A').convertSRGBToLinear(), fog: false })
+      )
+      gold.position.y = 0.14
+      scene.add(gold)
+    }
+
+    /* ---------- 数字圆点（Sprite，省几何） ---------- */
+    function hexToRgba(hex, a) {
+      const n = parseInt(hex.slice(1), 16)
+      return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')'
+    }
+
+    // 柔光晕（加法混合），给节点/星标做发光底座
+    function glowSprite(rgba, opacity) {
+      const S = 128
+      const cv = document.createElement('canvas')
+      cv.width = cv.height = S
+      const c = cv.getContext('2d')
+      const g = c.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2)
+      g.addColorStop(0, rgba)
+      g.addColorStop(0.45, rgba.replace(/[\d.]+\)$/, '0.35)'))
+      g.addColorStop(1, 'rgba(0,0,0,0)')
+      c.fillStyle = g
+      c.beginPath(); c.arc(S / 2, S / 2, S / 2, 0, Math.PI * 2); c.fill()
+      const tex = new THREE.CanvasTexture(cv)
+      tex.encoding = THREE.sRGBEncoding
+      return new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, transparent: true, opacity, depthWrite: false,
+        blending: THREE.AdditiveBlending, fog: false
+      }))
+    }
+
+    function discSprite(text, fill, color) {
+      const S = 192
+      const cv = document.createElement('canvas')
+      cv.width = cv.height = S
+      const ctx = cv.getContext('2d')
+      ctx.beginPath(); ctx.arc(S / 2, S / 2, S / 2 - 10, 0, Math.PI * 2)
+      ctx.fillStyle = fill; ctx.fill()
+      ctx.lineWidth = 10; ctx.strokeStyle = 'rgba(255,252,244,.92)'; ctx.stroke()
+      ctx.fillStyle = color
+      ctx.font = '900 86px "Noto Serif SC", serif'
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'
+      ctx.fillText(text, S / 2, S / 2 + 3)
+      const tex = new THREE.CanvasTexture(cv)
+      tex.encoding = THREE.sRGBEncoding
+      tex.anisotropy = 4
+      return new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, transparent: true, depthWrite: false, depthTest: false, fog: false
+      }))
+    }
+
+    function buildNodes() {
+      nodes.forEach((n, i) => {
+        const st = STYLE[(states[n.code] || {}).state] || STYLE.open
+        const x = worldX(lngOf(n)), z = worldZ(latOf(n))
+        const y = Math.max(groundY(x, z), 0)
+
+        const disc = discSprite(String(n.order), st.fill, st.label)
+        disc.scale.set(3.9, 3.9, 1)
+        disc.position.set(x, y + 2.9, z)
+        disc.renderOrder = 10
+        scene.add(disc)
+
+        // 节点光晕：让圆点像悬浮的小灯，边缘不发死
+        const halo = glowSprite(hexToRgba(st.fill, '0.85'), 0.30)
+        halo.scale.set(8.2, 8.2, 1)
+        halo.position.copy(disc.position)
+        halo.position.y -= 0.1
+        scene.add(halo)
+
+        // 立柱：从地面到圆点，弱化处理
+        const pillar = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.09, 0.09, 2.6, 6),
+          new THREE.MeshBasicMaterial({
+            color: new THREE.Color('#8C8475').convertSRGBToLinear(),
+            transparent: true, opacity: 0.55, fog: false
+          })
+        )
+        pillar.position.set(x, y + 1.3, z)
+        scene.add(pillar)
+
+        // 不可见拾取球（手机上更好点）
+        const hit = new THREE.Mesh(
+          new THREE.SphereGeometry(2.6, 8, 8),
+          new THREE.MeshBasicMaterial({ visible: false })
+        )
+        hit.position.set(x, y + 2.6, z)
+        hit.userData = { node: n, index: i }
+        scene.add(hit)
+        pickables.push(hit)
+      })
+
+      // 起终点星标
+      ;[nodes[0], nodes[nodes.length - 1]].forEach(n => {
+        if (!n) return
+        const x = worldX(lngOf(n)), z = worldZ(latOf(n))
+        const star = makeStar(x, Math.max(groundY(x, z), 0) + 6.2, z)
+        stars.push(star)
+      })
+    }
+
+    function makeStar(x, y, z) {
+      const shape = new THREE.Shape()
+      const R = 1.25, r = 0.54
+      for (let i = 0; i < 10; i++) {
+        const ang = -Math.PI / 2 + i * Math.PI / 5
+        const rad = i % 2 === 0 ? R : r
+        const px = Math.cos(ang) * rad, py = Math.sin(ang) * rad
+        i === 0 ? shape.moveTo(px, py) : shape.lineTo(px, py)
+      }
+      shape.closePath()
+      const m = new THREE.Mesh(
+        new THREE.ShapeGeometry(shape),
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color('#D4A017').convertSRGBToLinear(),
+          side: THREE.DoubleSide, fog: false
+        })
+      )
+      m.position.set(x, y, z)
+      scene.add(m)
+      // 星标外圈柔光，像刻在纸上的烫金
+      const halo = glowSprite('rgba(232,200,106,0.9)', 0.34)
+      halo.scale.set(7.5, 7.5, 1)
+      halo.position.set(x, y, z)
+      scene.add(halo)
+      return m
+    }
+
+    /* ---------- 天气：只影响地形与环境光 ---------- */
+    let rain = null, snow = null
+    const RAIN_N = 900, SNOW_N = 640
+    const target = { fogNear: 120, fogFar: 260, sun: 0.95, hemi: 0.40, rain: 0, snow: 0 }
+    // 各档拉开差距：天光、雾距、亮度都不同，手机小屏也能一眼分辨
+    const MODES = {
+      clear: { fogNear: 130, fogFar: 280, sun: 1.10, hemi: 0.42, rain: 0, snow: 0, sky: '#F8F1E1' },
+      cloud: { fogNear: 95, fogFar: 205, sun: 0.50, hemi: 0.50, rain: 0, snow: 0, sky: '#D6D3C7' },
+      rain: { fogNear: 78, fogFar: 170, sun: 0.30, hemi: 0.44, rain: 0.55, snow: 0, sky: '#A9B7C2' },
+      snow: { fogNear: 82, fogFar: 180, sun: 0.88, hemi: 0.58, rain: 0, snow: 1.0, sky: '#F4F8FA' },
+      fog: { fogNear: 42, fogFar: 118, sun: 0.40, hemi: 0.52, rain: 0, snow: 0, sky: '#DBD5C4' }
+    }
+
+    // 自动天气：无人干预，按权重随机切换；晴天占比最高，避免长时间压住画面
+    // 尊重系统「减少动态效果」：这类用户不自动切换天气
+    const REDUCED = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+    const AUTO = opts.autoWeather !== false && !REDUCED
+    const W_MIN = (opts.weatherInterval && opts.weatherInterval[0]) || 40000
+    const W_MAX = (opts.weatherInterval && opts.weatherInterval[1]) || 70000
+    let weatherTimer = 0
+
+    function pickNextWeather() {
+      const r = Math.random()
+      if (r < 0.40) return 'clear'
+      if (r < 0.60) return 'cloud'
+      if (r < 0.78) return 'rain'
+      if (r < 0.92) return 'snow'
+      return 'fog'
+    }
+
+    function scheduleWeather() {
+      const wait = W_MIN + Math.random() * (W_MAX - W_MIN)
+      weatherTimer = setTimeout(() => {
+        if (disposed) return
+        if (!document.hidden && !autoLocked) {  // 节点天气接管时不自动覆盖
+          lastWeather = pickNextWeather()
+          setWeather(lastWeather)
+        }
+        scheduleWeather()
+      }, wait)
+    }
+
+    function buildWeather() {
+      const rp = new Float32Array(RAIN_N * 6)
+      for (let i = 0; i < RAIN_N; i++) {
+        const x = (Math.random() - 0.5) * SIZE_X, z = (Math.random() - 0.5) * SIZE_Z
+        const y = Math.random() * 34
+        rp[i * 6] = x; rp[i * 6 + 1] = y; rp[i * 6 + 2] = z
+        rp[i * 6 + 3] = x + 0.12; rp[i * 6 + 4] = y + 1.5; rp[i * 6 + 5] = z
+      }
+      const rg = new THREE.BufferGeometry()
+      rg.setAttribute('position', new THREE.BufferAttribute(rp, 3))
+      rain = new THREE.LineSegments(rg, new THREE.LineBasicMaterial({
+        color: 0xAEC6D4, transparent: true, opacity: 0
+      }))
+      rain.visible = false
+      scene.add(rain)
+
+      const sp = new Float32Array(SNOW_N * 3)
+      for (let i = 0; i < SNOW_N; i++) {
+        sp[i * 3] = (Math.random() - 0.5) * SIZE_X
+        sp[i * 3 + 1] = Math.random() * 34
+        sp[i * 3 + 2] = (Math.random() - 0.5) * SIZE_Z
+      }
+      const sg = new THREE.BufferGeometry()
+      sg.setAttribute('position', new THREE.BufferAttribute(sp, 3))
+      snow = new THREE.Points(sg, new THREE.PointsMaterial({
+        color: 0xFFFFFF, size: 0.75, transparent: true, opacity: 0
+      }))
+      snow.visible = false
+      scene.add(snow)
+    }
+
+    let autoLocked = false
+    function setWeather(mode, opts) {
+      // opts.lock = true → 由节点天气接管，后台随机轮换暂停；lock:false 解除
+      if (opts && opts.lock === true) autoLocked = true
+      if (opts && opts.lock === false) autoLocked = false
+      const cfg = MODES[mode] || MODES.clear
+      target.fogNear = cfg.fogNear; target.fogFar = cfg.fogFar
+      target.sun = cfg.sun; target.hemi = cfg.hemi
+      target.rain = cfg.rain; target.snow = cfg.snow
+      scene.fog.color.set(cfg.sky)
+      container.dataset.weather = mode
+      // 通知外部（地图页的天气标签需要同步）
+      if (onWeatherChange) onWeatherChange(mode)
+    }
+
+    function stepWeather(dt, t) {
+      const k = Math.min(1, dt * 2.4)
+      scene.fog.near += (target.fogNear - scene.fog.near) * k
+      scene.fog.far += (target.fogFar - scene.fog.far) * k
+      sun.intensity += (target.sun - sun.intensity) * k
+      hemi.intensity += (target.hemi - hemi.intensity) * k
+
+      if (rain) {
+        rain.material.opacity += (target.rain - rain.material.opacity) * k
+        rain.visible = rain.material.opacity > 0.01
+        if (rain.visible) {
+          const p = rain.geometry.attributes.position.array
+          for (let i = 0; i < RAIN_N; i++) {
+            const o = i * 6, drop = 40 * dt
+            p[o + 1] -= drop; p[o + 4] -= drop
+            if (p[o + 1] < groundY(p[o], p[o + 2]) + 0.4) {
+              const y = 30 + Math.random() * 6
+              p[o] = (Math.random() - 0.5) * SIZE_X
+              p[o + 2] = (Math.random() - 0.5) * SIZE_Z
+              p[o + 1] = y; p[o + 3] = p[o] + 0.12; p[o + 4] = y + 1.5; p[o + 5] = p[o + 2]
+            }
+          }
+          rain.geometry.attributes.position.needsUpdate = true
+        }
+      }
+      if (snow) {
+        snow.material.opacity += (target.snow - snow.material.opacity) * k
+        snow.visible = snow.material.opacity > 0.01
+        if (snow.visible) {
+          const p = snow.geometry.attributes.position.array
+          for (let i = 0; i < SNOW_N; i++) {
+            const o = i * 3
+            p[o + 1] -= 3.4 * dt
+            p[o] += Math.sin(t * 1.2 + i) * 0.7 * dt
+            if (p[o + 1] < groundY(p[o], p[o + 2]) + 0.3) {
+              p[o + 1] = 30 + Math.random() * 6
+              p[o] = (Math.random() - 0.5) * SIZE_X
+              p[o + 2] = (Math.random() - 0.5) * SIZE_Z
+            }
+          }
+          snow.geometry.attributes.position.needsUpdate = true
+        }
+      }
+    }
+
+    /* ---------- 相机与尺寸 ---------- */
+    function resize() {
+      const w = container.clientWidth || 1
+      const h = container.clientHeight || 1
+      renderer.setSize(w, h, false)
+      camera.aspect = w / h
+      camera.updateProjectionMatrix()
+      camera.fov = w / h < 0.8 ? 46 : 40
+      camera.updateProjectionMatrix()
+      updateCamera()
+    }
+
+    function baseDist() {
+      const aspect = (container.clientWidth || 1) / (container.clientHeight || 1)
+      const hFov = 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * aspect)
+      const need = 34
+      return Math.min(240, Math.max(78, need / Math.tan(hFov / 2)))
+    }
+
+    // 按当前俯角算出"地平线不会越过图幅边缘"的最大距离，超出就自动收回。
+    // 这样放宽了缩放范围也不会露出空白。
+    function fitZoom() {
+      const halfDepth = SIZE_Z / 2 - 4
+      const theta = Math.max(0.06, pitch - camera.fov * Math.PI / 360)
+      const denom = Math.sin(pitch) / Math.tan(theta) - Math.cos(pitch)
+      if (denom <= 0.0001) return
+      const maxD = halfDepth / denom
+      const maxZoom = maxD / baseDist()
+      if (zoom > maxZoom) zoom = Math.max(0.45, maxZoom)
+    }
+
+    // 镜头对准「路线包围盒中心」而不是图幅中心——地形比路线大得多，
+    // 这样既能把长征路线摆正，四周也仍然铺满地形
+    const FOCUS = (function () {
+      let minLng = 999, maxLng = -999, minLat = 999, maxLat = -999
+      nodes.forEach(n => {
+        const lng = lngOf(n), lat = latOf(n)
+        if (lng < minLng) minLng = lng
+        if (lng > maxLng) maxLng = lng
+        if (lat < minLat) minLat = lat
+        if (lat > maxLat) maxLat = lat
+      })
+      if (!nodes.length) return { x: 0, z: 0 }
+      return { x: worldX((minLng + maxLng) / 2), z: worldZ((minLat + maxLat) / 2) }
+    })()
+
+    function updateCamera() {
+      fitZoom()
+      const d = baseDist() * zoom
+      camera.position.set(
+        FOCUS.x + Math.sin(yaw) * Math.cos(pitch) * d,
+        Math.sin(pitch) * d,
+        FOCUS.z + Math.cos(yaw) * Math.cos(pitch) * d
+      )
+      camera.lookAt(FOCUS.x, 0.6, FOCUS.z)
+    }
+
+    /* ---------- 交互 ---------- */
+    const dom = renderer.domElement
+    const ray = new THREE.Raycaster()
+    const ndc = new THREE.Vector2()
+
+    function pick(x, y) {
+      const r = dom.getBoundingClientRect()
+      ndc.x = ((x - r.left) / r.width) * 2 - 1
+      ndc.y = -((y - r.top) / r.height) * 2 + 1
+      ray.setFromCamera(ndc, camera)
+      const hit = ray.intersectObjects(pickables, false)[0]
+      if (hit) onPick(hit.object.userData.node, hit.object.userData.index)
+      return !!hit
+    }
+
+    dom.addEventListener('pointerdown', e => {
+      if (e.isPrimary === false) return
+      dragging = true; moved = 0; lastX = e.clientX; lastY = e.clientY; yawVel = 0
+      try { dom.setPointerCapture(e.pointerId) } catch (err) {}
+    })
+
+    dom.addEventListener('pointermove', e => {
+      if (!dragging) return
+      const dx = e.clientX - lastX, dy = e.clientY - lastY
+      moved += Math.abs(dx) + Math.abs(dy)
+      lastX = e.clientX; lastY = e.clientY
+
+      // 死区：轻触/微动不转动视角，避免误触把画面带歪
+      if (moved < 8) return
+
+      // 水平：自由旋转，但灵敏度调低，滑动更稳
+      const k = e.pointerType === 'touch' ? 0.0058 : 0.0038
+      yaw -= dx * k
+      // 惯性很轻：只在明确甩动时给一点点余量，随即停下
+      yawVel = Math.abs(dx) > 5 ? -dx * k * 0.68 : 0
+      // 鼠标还可以用纵向拖拽调俯仰；触摸的纵向留给页面滚动
+      if (e.pointerType !== 'touch') {
+        pitch = Math.max(0.72, Math.min(1.10, pitch + dy * 0.0026))
+      }
+      updateCamera()
+    })
+
+    dom.addEventListener('pointerup', e => {
+      const wasDragging = dragging
+      dragging = false
+      if (!wasDragging) return
+      if (moved < 8) {
+        // 轻点：双击复位视角，单击拾取节点
+        const now = Date.now()
+        if (now - lastTapAt < 320) {
+          lastTapAt = 0; yawVel = 0
+          yaw = HOME.yaw; pitch = HOME.pitch; zoom = HOME.zoom
+          updateCamera()
+        } else {
+          lastTapAt = now
+          pick(e.clientX, e.clientY)
+        }
+      }
+    })
+
+    dom.addEventListener('pointercancel', () => { dragging = false; yawVel = 0 })
+
+    dom.addEventListener('wheel', e => {
+      e.preventDefault()
+      yawVel = 0
+      zoom = Math.max(0.7, Math.min(1.55, zoom * (1 + e.deltaY * 0.0008)))
+      updateCamera()
+    }, { passive: false })
+
+    // 双指：捏合缩放 + 上下拖动调俯仰（不影响页面滚动）
+    dom.addEventListener('touchmove', e => {
+      if (e.touches.length !== 2) return
+      e.preventDefault()
+      const a = e.touches[0], b = e.touches[1]
+      const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+      const midY = (a.clientY + b.clientY) / 2
+      if (twoPrev) {
+        if (twoPrev.dist > 10 && dist > 10) {
+          zoom = Math.max(0.7, Math.min(1.55, zoom * (twoPrev.dist / dist)))
+        }
+        pitch = Math.max(0.72, Math.min(1.10, pitch - (midY - twoPrev.midY) * 0.0038))
+        updateCamera()
+      }
+      twoPrev = { dist, midY }
+    }, { passive: false })
+    dom.addEventListener('touchend', () => { twoPrev = null })
+
+    /* ---------- 启动 ---------- */
+    loadDem().then(d => {
+      if (disposed) return
+      dem = d
+      if (!dem) {
+        container.innerHTML = '<div class="map3d-fallback">地形数据加载失败</div>'
+        return
+      }
+      try {
+        buildTerrain()
+        buildRoute()
+        buildNodes()
+        buildWeather()
+        resize()
+        setWeather(lastWeather)              // 延续上次天气
+        if (AUTO) scheduleWeather()          // 后台自动随机切换
+      } catch (err) {
+        console.error('[map3d] 构建失败', err)
+        container.innerHTML = '<div class="map3d-fallback">3D 沙盘构建失败：' + (err && err.message ? err.message : '未知错误') + '</div>'
+        return
+      }
+
+      const clock = new THREE.Clock()
+      function loop() {
+        if (disposed) return
+        raf = requestAnimationFrame(loop)
+        const dt = Math.min(0.05, clock.getDelta())
+        const t = clock.elapsedTime
+
+        // 松手余量：只保留很短的一点自转，很快停住，避免甩过头
+        if (!dragging && Math.abs(yawVel) > 0.0006) {
+          yaw += yawVel
+          yawVel *= 0.85
+          updateCamera()
+        } else if (!dragging && yawVel) {
+          yawVel = 0
+        }
+
+        stars.forEach((s, i) => {
+          s.lookAt(camera.position)
+          s.rotation.z += Math.sin(t + i) * 0.0006
+        })
+        stepWeather(dt, t)
+        renderer.render(scene, camera)
+      }
+      loop()
+    })
+
+    const ro = typeof ResizeObserver !== 'undefined'
+      ? new ResizeObserver(() => resize())
+      : null
+    if (ro) ro.observe(container)
+    addEventListener('resize', resize)
+
+    return {
+      setWeather,
+      resize,
+      destroy() {
+        disposed = true
+        clearTimeout(weatherTimer)
+        cancelAnimationFrame(raf)
+        removeEventListener('resize', resize)
+        if (ro) ro.disconnect()
+        scene.traverse(o => {
+          if (!o.isMesh && !o.isSprite && !o.isLineSegments && !o.isPoints) return
+          if (o.geometry) o.geometry.dispose()
+          const mats = Array.isArray(o.material) ? o.material : [o.material]
+          mats.forEach(m => {
+            if (!m) return
+            if (m.map) m.map.dispose()
+            m.dispose()
+          })
+        })
+        renderer.dispose()
+        container.innerHTML = ''
+      }
+    }
+  }
+
+  root.CZ_MAP3D = { mount }
+})(typeof self !== 'undefined' ? self : this)
