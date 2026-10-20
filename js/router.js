@@ -55,9 +55,32 @@
     } catch (e) { return true }
   }
 
+  // ★ 开发开关（config.DEV_AUTO_LOGIN）：进入页面前静默登录演示账号，屏蔽登录页
+  let demoLoginTried = false
+  function ensureDemoLogin() {
+    if (!config.DEV_AUTO_LOGIN || demoLoginTried || api.isLoggedIn()) return null
+    demoLoginTried = true
+    return api.devLogin()
+  }
+
   function render() {
+    // 演示账号：未登录则先静默登录，成功/失败后再渲染（失败回落登录页，只尝试一次）
+    const pending = ensureDemoLogin()
+    if (pending) {
+      pending.then(() => render(), err => {
+        console.warn('[dev] 演示账号自动登录失败，回落登录页：', err && err.message)
+        render()
+      })
+      return
+    }
     let { name, params } = parseHash()
-    // 首次体验（打开即首页）→ 滚动叙事页开场
+    // 演示账号开启时（config.DEV_AUTO_LOGIN），http 模式已登录则 #/login 视为首页；
+    // mock 模式保持原行为（游客可进登录页）
+    if (name === 'login' && !config.USE_MOCK && config.DEV_AUTO_LOGIN && api.isLoggedIn()) {
+      name = 'home'
+      params = {}
+    }
+    // 首次体验（打开即首页）→ 欢迎页开场
     if (name === 'home' && isFirstVisit()) {
       name = 'journey'
     }

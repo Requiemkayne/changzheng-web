@@ -252,6 +252,22 @@
     return http('me').then(r => r.user)
   }
 
+  /**
+   * 开发开关：静默登录演示账号（config.DEV_AUTO_LOGIN），用于「屏蔽登录页」
+   * 首次运行账号不存在 → 自动注册；已存在（409 USERNAME_TAKEN）→ 直接登录
+   * 仅 router 启动时调用一次，不参与正常业务
+   */
+  function devLogin() {
+    const acc = config.DEV_AUTO_LOGIN
+    if (!acc) return Promise.reject(new Error('未配置 DEV_AUTO_LOGIN'))
+    if (config.USE_MOCK) return Promise.resolve({ ok: true, mock: true })
+    // 先注册：已存在只会返回 409，不会触发 401 登出事件
+    return register(acc.username, acc.password, acc.nickname)
+      .catch(err => (err && err.code === 'USERNAME_TAKEN'
+        ? login(acc.username, acc.password)
+        : Promise.reject(err)))
+  }
+
   /* ================= 核心链路（后端 / mock 同构） ================= */
 
   /**
@@ -544,6 +560,7 @@
     login,
     logout,
     me,
+    devLogin,
     isLoggedIn,
     contestStatus,
     contestStart,
