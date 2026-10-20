@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 长征网页版后端入口 —— 零依赖（Node 22 内置 http/sqlite/crypto）
  *
  * 启动：node server/server.js          → http://0.0.0.0:8088（局域网手机可访问）
@@ -45,11 +45,11 @@ const MIME = {
  * 站点运行只需要 index.html + css/ + js/ + fonts/；server/、scripts/、tmp/、
  * .git/、*.md、*.db 等一律不对外，命中即 404（不区分存在与否，避免探测）。
  */
-const STATIC_DIRS = new Set(['css', 'js', 'fonts'])
+const STATIC_DIRS = new Set(['css', 'js', 'fonts', 'assets'])
 const STATIC_ROOT_FILES = new Set(['index.html', 'favicon.ico', 'favicon.svg'])
 const STATIC_EXT = new Set([
   '.html', '.css', '.js', '.woff', '.woff2',
-  '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp'
+  '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.json'
 ])
 
 function json(res, status, obj) {
@@ -190,6 +190,33 @@ async function handleLeaderboard(db, req, res, pathname, query) {
 
 /* ---------- 静态文件 ---------- */
 
+/* 开发期版本戳：index.html / css / js / 高程数据的修改时间之和。
+ * 客户端（?live=1）轮询它来判断是否需要自动刷新。 */
+const VERSION_PATHS = ['index.html', 'css', 'js', 'assets/map3d']
+let versionCache = { v: 0, at: 0 }
+
+function versionStamp() {
+  const now = Date.now()
+  if (now - versionCache.at < 400) return versionCache.v
+  let sum = 0
+  const walk = rel => {
+    if (rel.startsWith('js/vendor')) return          // 第三方库不参与，避免误触发
+    const abs = path.join(WEB_ROOT, rel)
+    let st
+    try { st = fs.statSync(abs) } catch (e) { return }
+    if (st.isDirectory()) {
+      let list = []
+      try { list = fs.readdirSync(abs) } catch (e) { return }
+      list.forEach(f => walk(rel + '/' + f))
+    } else {
+      sum += st.mtimeMs
+    }
+  }
+  VERSION_PATHS.forEach(walk)
+  versionCache = { v: Math.round(sum), at: now }
+  return versionCache.v
+}
+
 /** 第一段目录/文件判定 —— 只认白名单，其余一律不放行 */
 function isAllowedRelPath(rel) {
   const segs = rel.split(path.sep)
@@ -270,6 +297,14 @@ function startServer(port) {
         ' -> ' + res.statusCode + ' ' + (Date.now() - t0) + 'ms')
     })
     try {
+      if (u.pathname === '/__version') {
+        // 供 ?live=1 的自动刷新使用：返回当前版本戳
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-store'
+        })
+        return res.end(JSON.stringify({ v: versionStamp() }))
+      }
       if (u.pathname.startsWith('/api/')) {
         const handled = await handleLeaderboard(db, req, res, u.pathname, u.query)
         if (!handled) await handleApi(db, req, res, u.pathname, u.query)

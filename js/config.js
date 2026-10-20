@@ -27,21 +27,27 @@
     }
   }
 
-  /* ================= 开发用：演示账号自动登录（默认关闭） =================
-   * 默认 null → 正式行为：http 模式未登录一律进登录页。
-   * 本地免登录预览：URL 加 ?demo=1（如 http://localhost:8088/?demo=1）。
-   * ⚠ 账号密码写在前端，因此仅在本地/内网地址生效；
-   *   公网域名（部署后）即使带 ?demo=1 也不会启用，避免被人直接登进演示账号。
+  /* ================= 演示免登录（自动登录 demo 账号） =================
+   * 生效范围：
+   *   - 内网穿透域名（trycloudflare / ngrok / loca.lt）→ 默认开启，链接点开直接进
+   *   - 本地 / 局域网 → 需要显式带 ?demo=1
+   *   - 自有公网域名 → 不生效（避免把演示账号暴露到正式站点）
+   * 想强制看登录页：任何地址加 ?login=1
    */
   let DEV_AUTO_LOGIN = null
   const HOST = (typeof location !== 'undefined' && location.hostname) || ''
+  const IS_TUNNEL_HOST = /(^|\.)(trycloudflare\.com|ngrok-free\.app|ngrok\.io|loca\.lt)$/.test(HOST)
   const IS_LOCAL_HOST = HOST === 'localhost' ||
     /^127\./.test(HOST) ||
     HOST === '::1' || HOST === '[::1]' ||
     /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(HOST)
-  if (typeof location !== 'undefined' && IS_LOCAL_HOST &&
-      new URLSearchParams(location.search).get('demo') === '1') {
-    DEV_AUTO_LOGIN = { username: 'demo', password: 'demo1234', nickname: '演示用户' }
+  if (typeof location !== 'undefined') {
+    const q = new URLSearchParams(location.search)
+    const forceLogin = q.get('login') === '1'
+    const wantDemo = IS_TUNNEL_HOST || (IS_LOCAL_HOST && q.get('demo') === '1')
+    if (wantDemo && !forceLogin) {
+      DEV_AUTO_LOGIN = { username: 'demo', password: 'demo1234', nickname: '演示用户' }
+    }
   }
 
   return {
