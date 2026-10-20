@@ -2,7 +2,8 @@
  * hash 路由 + tabBar —— 小程序 5 页面在网页端的等价物
  *
  * 路由表：
- *   #/login           登录（http 模式未登录时的第一屏）
+ *   #/login           登录（http 模式未登录时的第一屏；mock 模式含游客体验入口）
+ *   #/logout          退出（清会话 / 游客态后回 #/login）
  *   #/                 首页（路线时间轴）
  *   #/node/{code}      节点详情
  *   #/quiz/{mode}/{code}  答题（mode=node 需 code；mode=final 无 code）
@@ -27,6 +28,7 @@
     const segs = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean)
     if (!segs.length) return { name: 'home', params: {} }
     if (segs[0] === 'login') return { name: 'login', params: {} }
+    if (segs[0] === 'logout') return { name: 'logout', params: {} }
     if (segs[0] === 'node' && segs[1]) return { name: 'node', params: { code: segs[1] } }
     if (segs[0] === 'quiz' && segs[1]) {
       return { name: 'quiz', params: { mode: segs[1], code: segs[2] || null } }
@@ -45,10 +47,12 @@
     })
   }
 
-  // 首次体验：无打卡进度且未登录 → 滚动叙事页开场（?intro=0 调试跳过）
+  // 首次体验：无打卡进度且未进入 → 欢迎页开场（?intro=0 调试跳过）
   function isFirstVisit() {
     if (new URLSearchParams(location.search).get('intro') === '0') return false
     if (!config.USE_MOCK) return !api.isLoggedIn()
+    // mock 模式：游客体验已进入 → 不再回首场（否则登录页 → 首场 → 登录页会成环）
+    if (api.isGuest()) return false
     try {
       const p = JSON.parse(localStorage.getItem('cz_progress') || 'null')
       return !(p && Object.keys(p.checkins || {}).length)
@@ -74,8 +78,19 @@
       return
     }
     let { name, params } = parseHash()
+    // 退出（#/logout）：清会话 / 游客态后回登录页
+    if (name === 'logout') {
+      document.getElementById('tabbar').style.display = 'none'
+      document.getElementById('app').innerHTML =
+        '<div class="page-center">' + root.CZ_UI.icon('lantern', 'page-center-icon') + '<div>正在退出…</div></div>'
+      api.logout().then(() => {
+        root.CZ_UI.toast('已退出')
+        location.hash = '#/login'
+      })
+      return
+    }
     // 演示账号开启时（config.DEV_AUTO_LOGIN），http 模式已登录则 #/login 视为首页；
-    // mock 模式保持原行为（游客可进登录页）
+    // mock 模式不做此重定向：#/login 是访客的入口页，页内有「游客体验」出口（js/views/login.js）
     if (name === 'login' && !config.USE_MOCK && config.DEV_AUTO_LOGIN && api.isLoggedIn()) {
       name = 'home'
       params = {}

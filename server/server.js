@@ -20,6 +20,8 @@ const contest = require('./contest')
 
 const WEB_ROOT = path.join(__dirname, '..')
 const MAX_BODY = 64 * 1024
+// 监听地址：默认 0.0.0.0（手机同局域网可访问），可用 HOST 覆盖（如 127.0.0.1 只本机）
+const BIND_HOST = process.env.HOST || '0.0.0.0'
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -38,6 +40,17 @@ const MIME = {
   '.mp3': 'audio/mpeg',
   '.mp4': 'video/mp4'
 }
+
+/* ---------- 静态资源白名单（默认拒绝：目录先判，扩展名再判） ----------
+ * 站点运行只需要 index.html + css/ + js/ + fonts/；server/、scripts/、tmp/、
+ * .git/、*.md、*.db 等一律不对外，命中即 404（不区分存在与否，避免探测）。
+ */
+const STATIC_DIRS = new Set(['css', 'js', 'fonts'])
+const STATIC_ROOT_FILES = new Set(['index.html', 'favicon.ico', 'favicon.svg'])
+const STATIC_EXT = new Set([
+  '.html', '.css', '.js', '.woff', '.woff2',
+  '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp'
+])
 
 function json(res, status, obj) {
   const body = JSON.stringify(obj)
@@ -177,15 +190,51 @@ async function handleLeaderboard(db, req, res, pathname, query) {
 
 /* ---------- 静态文件 ---------- */
 
-function serveStatic(res, pathname) {
-  // 防目录穿越：规范化后必须仍位于 WEB_ROOT 内
-  let file = path.normalize(path.join(WEB_ROOT, decodeURIComponent(pathname)))
-  if (!file.startsWith(WEB_ROOT + path.sep) && file !== WEB_ROOT) {
-    return fail(res, 403, 'FORBIDDEN', '禁止访问')
+/** 第一段目录/文件判定 —— 只认白名单，其余一律不放行 */
+function isAllowedRelPath(rel) {
+  const segs = rel.split(path.sep)
+  // 任何一段是隐藏项（.git/.env…）或空段，直接拒
+  for (const s of segs) {
+    if (!s || s === '.' || s === '..' || s.startsWith('.')) return false
   }
+  const top = segs[0].toLowerCase()
+  const inStaticDir = segs.length > 1 && STATIC_DIRS.has(top)
+  const isRootFile = segs.length === 1 && STATIC_ROOT_FILES.has(top)
+  if (!inStaticDir && !isRootFile) return false
+  // 第二道：扩展名也必须在白名单内
+  return STATIC_EXT.has(path.extname(segs[segs.length - 1]).toLowerCase())
+}
+
+/** 解析静态路径：{ file } | { status: 400|403|404 } */
+function resolveStatic(pathname) {
+  let decoded
+  try {
+    decoded = decodeURIComponent(pathname)
+  } catch (e) {
+    return { status: 400 } // 非法百分号编码（如 /%zz）
+  }
+  if (decoded.indexOf('\0') !== -1) return { status: 400 }
+  // 防目录穿越：规范化后必须仍位于 WEB_ROOT 内（越权仍回 403，保持既有测试）
+  let file = path.normalize(path.join(WEB_ROOT, decoded))
+  if (!file.startsWith(WEB_ROOT + path.sep) && file !== WEB_ROOT) {
+    return { status: 403 }
+  }
+  // 目录 → index.html（仅根目录或白名单目录能走到这里的 200）
   if (fs.existsSync(file) && fs.statSync(file).isDirectory()) {
     file = path.join(file, 'index.html')
   }
+  const rel = path.relative(WEB_ROOT, file)
+  if (!rel || rel.startsWith('..') || path.isAbsolute(rel)) return { status: 404 }
+  if (!isAllowedRelPath(rel)) return { status: 404 }
+  return { file }
+}
+
+function serveStatic(res, pathname) {
+  const r = resolveStatic(pathname)
+  if (r.status === 400) return fail(res, 400, 'BAD_REQUEST', '请求路径编码非法')
+  if (r.status === 403) return fail(res, 403, 'FORBIDDEN', '禁止访问')
+  if (r.status === 404) return fail(res, 404, 'NOT_FOUND', '文件不存在')
+  const file = r.file
   fs.readFile(file, (err, data) => {
     if (err) return fail(res, 404, 'NOT_FOUND', '文件不存在')
     const ext = path.extname(file).toLowerCase()
@@ -236,15 +285,17 @@ function startServer(port) {
   })
 
   return new Promise(resolve => {
-    server.listen(port, '0.0.0.0', () => resolve(server))
+    server.listen(port, BIND_HOST, () => resolve(server))
   })
 }
 
 if (require.main === module) {
   const port = Number(process.env.PORT) || 8088
-  startServer(port).then(() => {
-    console.log('长征后端已启动: http://localhost:' + port)
-    console.log('局域网访问: http://<本机IP>:' + port + ' （手机同一 WiFi）')
+  startServer(port).then(server => {
+    const addr = server.address()
+    const browse = (addr.address === '0.0.0.0' || addr.address === '::') ? 'localhost' : addr.address
+    console.log('长征后端已启动: http://' + browse + ':' + addr.port + '（实际监听 ' + addr.address + ':' + addr.port + '）')
+    console.log('局域网访问: http://<本机IP>:' + addr.port + ' （手机同一 WiFi）')
     console.log('数据库: ' + (process.env.DB_PATH || 'server/data.db'))
   }).catch(e => {
     console.error('启动失败:', e)

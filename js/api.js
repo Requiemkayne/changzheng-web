@@ -17,11 +17,16 @@
   } else {
     root.CZ_API = factory(root.CZ_CONFIG, root.CZ_PROGRESS, root.CZ_MOCK_NODES, root.CZ_MOCK_QUESTIONS)
   }
-})(typeof self !== 'undefined' ? self : this, function (config, progressUtil, mockNodes, mockQuestions) {
+})(typeof self !== 'undefined' ? self : this, function (config, progressUtil, mockNodes, mockQuestionsDoc) {
 
   const STORAGE_PROGRESS = 'cz_progress'
   const STORAGE_CHECKINS = 'cz_checkins'
   const STORAGE_TOKEN = 'cz_token'
+  const STORAGE_GUEST = 'cz_guest'
+
+  // 答案题库仅在 mock 模式被加载（见 js/mock/loader.js），http 模式下为 undefined：
+  // 兜底成空数组，保证任何读取路径都不会因为缺文件而抛异常
+  const mockQuestions = mockQuestionsDoc || []
 
   /* ================= 存储抽象（浏览器 localStorage；node 测试用内存兜底） ================= */
 
@@ -84,9 +89,30 @@
     }
   }
 
-  /** 是否已登录（仅 http 模式有意义；mock 模式恒为本地单用户） */
+  /* ---------- 游客态（mock 模式专用） ---------- */
+
+  /**
+   * 静态托管（GitHub Pages / 双击 index.html）没有后端，账号体系不可用；
+   * 此时用本地游客态代替登录态，避免登录页成为死胡同。
+   */
+  function isGuest() {
+    return !!(config.USE_MOCK && storeGet(STORAGE_GUEST))
+  }
+
+  /** 进入游客体验：写本地游客态（不碰打卡进度，进度行为保持不变） */
+  function guestLogin() {
+    if (!config.USE_MOCK) return Promise.reject(new Error('仅静态托管（游客体验）模式可用'))
+    storeSet(STORAGE_GUEST, { nickname: '游客', time: Date.now() })
+    return Promise.resolve({ ok: true, guest: true, user: { nickname: '游客' } })
+  }
+
+  /**
+   * 是否已登录
+   *   mock 模式 → 是否已进入游客体验（本地存储）
+   *   http 模式 → 是否有会话令牌
+   */
   function isLoggedIn() {
-    return config.USE_MOCK ? true : !!getToken()
+    return config.USE_MOCK ? isGuest() : !!getToken()
   }
 
   /**
@@ -239,8 +265,12 @@
     })
   }
 
-  /** 退出：吊销服务端会话 + 清本地令牌（网络失败也本地登出） */
+  /** 退出：吊销服务端会话 + 清本地令牌（网络失败也本地登出）；mock 模式只清游客态 */
   function logout() {
+    if (config.USE_MOCK) {
+      storeRemove(STORAGE_GUEST)
+      return Promise.resolve({ ok: true })
+    }
     return http('logout', {}).catch(() => ({ ok: true })).then(r => {
       setToken('')
       return r
@@ -562,6 +592,8 @@
     me,
     devLogin,
     isLoggedIn,
+    isGuest,
+    guestLogin,
     contestStatus,
     contestStart,
     contestSubmit,

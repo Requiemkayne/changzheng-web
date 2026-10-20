@@ -9,12 +9,12 @@
   const VIEWS = root.CZ_VIEWS || (root.CZ_VIEWS = {})
   const F = root.CZ_FORMAT
   const UI = root.CZ_UI
-  const config = root.CZ_CONFIG
   const api = root.CZ_API
 
-  // 出口：未登录 → 登录页；已登录 → 首页（mock 模式走登录页，可游客进入）
+  // 出口：已进入（http 登录 / mock 游客体验）→ 首页；未进入 → 登录页
+  // 未进入一律走登录页：mock 模式在那里提供「游客体验」入口（js/views/login.js）
   function exitDest() {
-    return (!config.USE_MOCK && api.isLoggedIn()) ? '#/' : '#/login'
+    return api.isLoggedIn() ? '#/' : '#/login'
   }
 
   // 金句按中文逗号断成两行，避免窄屏把词拆开；没有逗号时保持单行

@@ -18,6 +18,7 @@
 
 **模式一：静态预览（默认）**
 - 直接双击 `index.html` 即可运行（Chrome/Edge），进度存浏览器 localStorage
+- **静态托管仅供演示**：mock 模式判分在浏览器端、题库公开；正式考试/竞赛必须走后端（`server/server.js`）
 
 **模式二：本地后端 + 账号系统**
 - `js/config.js` 置 `USE_MOCK: false`
@@ -30,8 +31,8 @@
 ```
 ├── index.html            壳 + hash 路由 + 底部 tabBar
 ├── css/style.css         设计系统（长征红/勋章金/宣纸米白）
-├── scripts/test-web.js   验证脚本（mock 数据一致性 + 全链路 15 项断言）
-├── scripts/test-api.js   验证脚本（后端 API 全链路 39 项断言）
+├── scripts/test-web.js   验证脚本（mock 数据一致性 + 全链路 19 项断言）
+├── scripts/test-api.js   验证脚本（后端 API 全链路 71 项断言）
 ├── server/               本地后端（零依赖：Node 内置 http/sqlite/crypto）
 │   ├── server.js         入口：静态服务 + /api 路由
 │   ├── db.js             SQLite 建表（users/sessions/progress/checkin_logs）

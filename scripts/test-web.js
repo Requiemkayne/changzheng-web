@@ -5,6 +5,9 @@
  * 运行：node web/scripts/test-web.js
  */
 const assert = require('assert')
+const fs = require('fs')
+const path = require('path')
+const vm = require('vm')
 // 强制 mock 模式（config.USE_MOCK 当前指向后端模式；本测试验证 mock 数据与链路）
 const config = require('../js/config')
 config.USE_MOCK = true
@@ -173,6 +176,37 @@ async function chain() {
   const st3 = progress.computeStates(nodes, half, { sequentialUnlock: true })
   assert.strictEqual(st3.byCode.xiangjiang.state, 'open')
   ok('顺序模式：首节点 open / 后续 locked → 打卡后解锁')
+
+  /* ================= 3. 前端题库按需加载 ================= */
+  console.log('\n[3] 前端题库按需加载（后端模式不无条件下发答案）')
+
+  // index.html 里不能再有静态的 questions.js 标签
+  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
+  assert(!html.includes('src="js/mock/questions.js"'), 'index.html 仍静态引入 questions.js（后端模式会下发答案）')
+  assert(html.includes('src="js/mock/loader.js"'), 'index.html 未引入 js/mock/loader.js')
+  ok('index.html：无 questions.js 标签 / 有 loader.js 标签')
+
+  // 用假 document 跑一次 loader.js，验证两种模式行为差异
+  const loaderSrc = fs.readFileSync(path.join(__dirname, '..', 'js', 'mock', 'loader.js'), 'utf8')
+  function runLoader(czConfig) {
+    const writes = []
+    const ctx = { document: { write: s => writes.push(s) } }
+    if (czConfig) ctx.CZ_CONFIG = czConfig
+    ctx.self = ctx // loader.js 用 typeof self 取 root
+    vm.createContext(ctx)
+    vm.runInContext(loaderSrc, ctx)
+    return writes
+  }
+  const mockWrites = runLoader({ USE_MOCK: true })
+  assert.strictEqual(mockWrites.length, 1, 'mock 模式应注入 1 次脚本，实际 ' + JSON.stringify(mockWrites))
+  assert(mockWrites[0].includes('js/mock/questions.js'), 'mock 模式注入的不是 questions.js：' + mockWrites[0])
+  ok('loader.js：USE_MOCK=true → document.write 注入 questions.js')
+
+  const httpWrites = runLoader({ USE_MOCK: false })
+  assert.strictEqual(httpWrites.length, 0, '后端模式不得注入题库，实际写了 ' + JSON.stringify(httpWrites))
+  const noCfgWrites = runLoader(null)
+  assert.strictEqual(noCfgWrites.length, 0, '无 CZ_CONFIG 不得注入，实际写了 ' + JSON.stringify(noCfgWrites))
+  ok('loader.js：USE_MOCK=false / 无配置 → 零注入（答案不再无条件下发）')
 }
 
 chain().then(() => {

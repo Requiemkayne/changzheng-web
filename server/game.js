@@ -93,6 +93,41 @@ function doCheckin(db, userId, code) {
   return { ok: true, alreadyChecked: false, progress: p }
 }
 
+/* ---------- 下发记录（本场题目快照，进程内 Map，带 TTL） ---------- */
+
+const ATTEMPT_TTL_MS = 30 * 60 * 1000
+
+// key: userId|mode|code -> { ids: string[], time: number }
+// 唯一可信的「本场下发了哪几道题」来源；同 key 再次取题即覆盖（以最新一次为准）
+const attempts = new Map()
+
+function attemptKey(userId, mode, code) {
+  return String(userId) + '|' + String(mode) + '|' + String(code || '')
+}
+
+function pruneAttempts(now) {
+  for (const [key, item] of attempts) {
+    if (now - item.time > ATTEMPT_TTL_MS) attempts.delete(key)
+  }
+}
+
+function recordAttempt(userId, mode, code, ids) {
+  const now = Date.now()
+  pruneAttempts(now)
+  attempts.set(attemptKey(userId, mode, code), { ids: [...ids], time: now })
+}
+
+function readAttempt(userId, mode, code) {
+  const key = attemptKey(userId, mode, code)
+  const item = attempts.get(key)
+  if (!item) return null
+  if (Date.now() - item.time > ATTEMPT_TTL_MS) {
+    attempts.delete(key)
+    return null
+  }
+  return item
+}
+
 /* ---------- 取题（答案不下发） ---------- */
 
 function stripAnswers(qs) {
@@ -121,6 +156,7 @@ function getQuiz(db, userId, mode, code) {
     if (st.state === 'open') return { ok: false, error: 'NOT_CHECKED_IN', message: '尚未打卡' }
     const node = nodes.find(n => n.code === code)
     const qs = mockQuestions.filter(q => q.nodeCode === code && q.status === 'published')
+    recordAttempt(userId, mode, code, qs.map(q => q._id))
     return {
       ok: true,
       meta: {
@@ -138,6 +174,7 @@ function getQuiz(db, userId, mode, code) {
   const pool = mockQuestions.filter(q => q.nodeCode === 'final' && q.status === 'published')
   const n = Math.min(cfg.finalExam.questionCount, pool.length)
   const picked = shuffle(pool).slice(0, n)
+  recordAttempt(userId, mode, code, picked.map(q => q._id))
   return {
     ok: true,
     meta: {
@@ -172,19 +209,38 @@ function submitQuiz(db, userId, mode, code, answers) {
     return { ok: false, error: 'NOT_ALL_CHECKED_IN', message: '打卡全部节点后解锁' }
   }
 
-  const results = (answers || []).map(a => {
-    const q = mockQuestions.find(x => x._id === a.id)
-    const correct = q && sameSet(q.answer, a.answer)
+  // 只认服务端下发集合：没有下发记录、条数不符、id 集合不等、有重复 —— 一律不计分不写进度
+  const attempt = readAttempt(userId, mode, code)
+  if (!attempt) return { ok: false, error: 'ATTEMPT_NOT_FOUND', message: '请先取题再交卷' }
+
+  const list = Array.isArray(answers) ? answers : []
+  const ids = list.map(a => (a && a.id !== undefined ? a.id : null))
+  if (!list.length) {
+    return { ok: false, error: 'INVALID_ANSWER_SET', message: '答案不能为空' }
+  }
+  if (new Set(ids).size !== ids.length || !sameSet(ids, attempt.ids)) {
+    return { ok: false, error: 'INVALID_ANSWER_SET', message: '答案与本次下发的题目不一致' }
+  }
+
+  // 只判下发集合内的题，且按下发顺序逐题判
+  const answered = new Map(list.map(a => [a.id, a]))
+  const results = attempt.ids.map(id => {
+    const q = mockQuestions.find(x => x._id === id)
+    const a = answered.get(id)
+    const correct = !!(q && a && sameSet(q.answer, a.answer))
     return {
-      id: a.id, correct: !!correct,
+      id, correct,
       question: q ? q.question : '', options: q ? q.options : [],
       correctAnswer: q ? q.answer : [], explanation: q ? q.explanation : ''
     }
   })
   const correctCount = results.filter(r => r.correct).length
-  const total = results.length || 1
+  const total = attempt.ids.length
   const score = Math.round(correctCount / total * 100)
-  const passScore = mode === 'final' ? cfg.finalExam.passScore : 60
+  const node = nodes.find(n => n.code === code)
+  const passScore = mode === 'final'
+    ? cfg.finalExam.passScore
+    : (node && node.quiz && node.quiz.passScore) || cfg.defaultPassScore
   const passed = score >= passScore
 
   // 学习统计累计（兼容旧数据无 stats 字段）

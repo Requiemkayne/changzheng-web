@@ -8,10 +8,14 @@
   const F = root.CZ_FORMAT
   const api = root.CZ_API
   const UI = root.CZ_UI
+  const config = root.CZ_CONFIG
 
   VIEWS.login = {
     mount(rootEl) {
       let mode = 'login' // 'login' | 'register'
+      // 静态托管（mock 模式）没有后端，账号体系不可用 → 提供游客入口；
+      // http 模式（真后端）保持原有登录/注册流程，不出现该入口
+      const isMock = !!(config && config.USE_MOCK)
 
       rootEl.innerHTML =
         '<div class="login-page">' +
@@ -37,8 +41,13 @@
                 '<input class="form-input" id="auth-nickname" maxlength="20" placeholder="昵称（选填，默认同用户名）" style="display:none">' +
                 '<div class="form-error" id="auth-error"></div>' +
                 '<button class="btn btn-primary" type="submit" id="auth-submit">登 录</button>' +
+                (isMock
+                  ? '<button class="btn btn-ghost action-gap" type="button" id="guest-entry">游客体验 · 先随便看看</button>'
+                  : '') +
               '</form>' +
-              '<div class="login-tip">打卡进度云端保存 · 换设备不丢失</div>' +
+              '<div class="login-tip">' +
+                (isMock ? '游客体验无需账号 · 进度保存在本机浏览器' : '打卡进度云端保存 · 换设备不丢失') +
+              '</div>' +
             '</div>' +
             '<div class="login-footer">不 忘 初 心 · 牢 记 使 命</div>' +
           '</div>' +
@@ -59,8 +68,30 @@
 
       tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)))
 
+      // 游客体验：建立本地游客态 → 进首页（mock 模式下登录页唯一的可用出口）
+      const guestBtn = rootEl.querySelector('#guest-entry')
+      if (guestBtn) {
+        guestBtn.addEventListener('click', () => {
+          api.guestLogin().then(() => {
+            UI.toast('已进入游客体验')
+            if (location.hash === '' || location.hash === '#' || location.hash === '#/') {
+              root.CZ_ROUTER.refresh()
+            } else {
+              location.hash = '#/'
+            }
+          }).catch(err => {
+            errorEl.textContent = (err && err.message) || '进入失败，请重试'
+          })
+        })
+      }
+
       rootEl.querySelector('#auth-form').addEventListener('submit', e => {
         e.preventDefault()
+        // mock 模式没有后端账号：不发起请求，直接引导走游客入口
+        if (isMock) {
+          errorEl.textContent = '当前为游客体验模式，请点击下方「游客体验」进入'
+          return
+        }
         const username = rootEl.querySelector('#auth-username').value.trim()
         const password = rootEl.querySelector('#auth-password').value
         const nickname = nicknameInput.value.trim()

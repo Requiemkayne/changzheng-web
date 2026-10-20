@@ -57,6 +57,14 @@ async function main() {
     ok('GET / → 200 且返回 HTML（非 JSON）', r.status === 200 && r.body === null)
     r = await req('GET', '/css/style.css')
     ok('GET /css/style.css → 200', r.status === 200)
+    // 静态白名单：源码 / 数据 / 脚本 / 依赖一律 404（明确 404，不是「非 200」）
+    for (const denied of ['/server/data.db', '/server/question-bank.json', '/server/game.js',
+      '/scripts/test-api.js', '/README.md', '/.git/config']) {
+      const d = await req('GET', denied)
+      ok('静态白名单：GET ' + denied + ' → 404', d.status === 404, '实际 ' + d.status + ' ' + JSON.stringify(d.body))
+    }
+    r = await req('GET', '/js/api.js')
+    ok('静态白名单：GET /js/api.js → 200（白名单没写成全拒绝）', r.status === 200, '实际 ' + r.status)
     r = await req('GET', '/..%2fserver%2fdb.js')
     ok('目录穿越被拒（403/404）', r.status === 403 || r.status === 404)
     r = await req('GET', '/api/health')
@@ -148,6 +156,8 @@ async function main() {
     ok('2/3 → 67 分且及格通关', r.body.score === 67 && r.body.passed === true)
 
     const code2 = nodes[2].code
+    // 新契约：判分只认服务端下发集合，故先取题再交卷
+    await req('GET', '/api/quiz?mode=node&code=' + code2, undefined, token)
     const qs2 = mockQuestions.filter(q => q.nodeCode === code2)
     const wrong0 = qs2.map(q => ({ id: q._id, answer: [q.answer[0] === 0 ? 1 : 0] }))
     r = await req('POST', '/api/quiz/submit', { mode: 'node', code: code2, answers: wrong0 }, token)
@@ -158,6 +168,48 @@ async function main() {
     // 学习统计累计：4 次提交共 12 题，答对 3+2+0+3=8
     r = await req('GET', '/api/progress', undefined, token)
     ok('学习统计累计 12 题 / 8 对', r.body.progress.stats && r.body.progress.stats.totalCount === 12 && r.body.progress.stats.correctCount === 8)
+
+    /* ---------- 7.5 判分防绕过（分母不可操纵 / 未取题 / 冒用场次 / 零答案泄露） ---------- */
+    console.log('\n[7.5] 判分防绕过')
+    const codeA = nodes[3].code
+    r = await req('GET', '/api/quiz?mode=node&code=' + codeA, undefined, token)
+    const idsA = (r.body.questions || []).map(q => q.id)
+    ok('已打卡节点取出 3 题（下发集合已记录）',
+      r.status === 200 && idsA.length === 3, '实际 ' + r.status + ' ' + JSON.stringify(r.body && r.body.error))
+    const leakIdx = (r.body.questions || []).findIndex(q => 'answer' in q || 'explanation' in q)
+    ok('下发的每道题都无 answer/explanation 字段', (r.body.questions || []).length === 3 && leakIdx === -1,
+      '第 ' + (leakIdx + 1) + ' 题泄露：' + JSON.stringify((r.body.questions || [])[leakIdx]))
+
+    // 分母不可操纵：只交 1 条 → 400，且进度 stats 深比较完全不变
+    const oneOnly = [{ id: idsA[0], answer: (mockQuestions.find(q => q._id === idsA[0]) || { answer: [0] }).answer }]
+    const beforeBad = (await req('GET', '/api/progress', undefined, token)).body.progress
+    r = await req('POST', '/api/quiz/submit', { mode: 'node', code: codeA, answers: oneOnly }, token)
+    ok('只交 1 条 → 400 INVALID_ANSWER_SET',
+      r.status === 400 && r.body.error === 'INVALID_ANSWER_SET', '实际 ' + r.status + ' ' + JSON.stringify(r.body))
+    const afterBad = (await req('GET', '/api/progress', undefined, token)).body.progress
+    ok('非法提交后 stats 完全不变（深比较，堵死「只答 1 题换 100 分」）',
+      JSON.stringify(afterBad.stats) === JSON.stringify(beforeBad.stats),
+      '提交前 ' + JSON.stringify(beforeBad.stats) + ' / 提交后 ' + JSON.stringify(afterBad.stats))
+    ok('非法提交不写入 quizScores', !afterBad.quizScores[codeA], '实际 ' + JSON.stringify(afterBad.quizScores[codeA]))
+
+    // 不能冒用别的场次的题：拿 A 场次的完整题号去交 code=B
+    const codeB = nodes[4].code
+    await req('GET', '/api/quiz?mode=node&code=' + codeB, undefined, token)
+    r = await req('POST', '/api/quiz/submit', { mode: 'node', code: codeB, answers: answersFor(codeA) }, token)
+    ok('拿 A 场次的题交 code=' + codeB + ' → 400 INVALID_ANSWER_SET',
+      r.status === 400 && r.body.error === 'INVALID_ANSWER_SET', '实际 ' + r.status + ' ' + JSON.stringify(r.body))
+
+    // 未取题不能交卷：新用户打卡后不取题，直接交满 3 条
+    const t3 = (await req('POST', '/api/register', { username: '未取题员', password: 'peek123' })).body.token
+    const codeFresh = nodes[0].code
+    await req('POST', '/api/checkin', { code: codeFresh }, t3)
+    r = await req('POST', '/api/quiz/submit', { mode: 'node', code: codeFresh, answers: answersFor(codeFresh) }, t3)
+    ok('未取题直接交满 3 条 → 400 ATTEMPT_NOT_FOUND',
+      r.status === 400 && r.body.error === 'ATTEMPT_NOT_FOUND', '实际 ' + r.status + ' ' + JSON.stringify(r.body))
+    const pFresh = (await req('GET', '/api/progress', undefined, t3)).body.progress
+    ok('未取题交卷不计分（quizScores 空 / stats 未累计）',
+      !pFresh.quizScores[codeFresh] && (pFresh.stats ? pFresh.stats.totalCount : 0) === 0,
+      '实际 quizScores=' + JSON.stringify(pFresh.quizScores[codeFresh]) + ' stats=' + JSON.stringify(pFresh.stats))
 
     /* ---------- 8. final 毕业 ---------- */
     console.log('\n[8] 总结答题')
