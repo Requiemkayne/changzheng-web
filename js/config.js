@@ -30,11 +30,17 @@
   /* ================= 开发用：演示账号自动登录（默认关闭） =================
    * 默认 null → 正式行为：http 模式未登录一律进登录页。
    * 本地免登录预览：URL 加 ?demo=1（如 http://localhost:8088/?demo=1）。
-   * ⚠ 仅本地调试用：开启后进站会静默注册/登录该演示账号，
-   *   账号密码写在前端，公开部署时不要用 query 参数启用。
+   * ⚠ 账号密码写在前端，因此仅在本地/内网地址生效；
+   *   公网域名（部署后）即使带 ?demo=1 也不会启用，避免被人直接登进演示账号。
    */
   let DEV_AUTO_LOGIN = null
-  if (typeof location !== 'undefined' && new URLSearchParams(location.search).get('demo') === '1') {
+  const HOST = (typeof location !== 'undefined' && location.hostname) || ''
+  const IS_LOCAL_HOST = HOST === 'localhost' ||
+    /^127\./.test(HOST) ||
+    HOST === '::1' || HOST === '[::1]' ||
+    /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(HOST)
+  if (typeof location !== 'undefined' && IS_LOCAL_HOST &&
+      new URLSearchParams(location.search).get('demo') === '1') {
     DEV_AUTO_LOGIN = { username: 'demo', password: 'demo1234', nickname: '演示用户' }
   }
 
