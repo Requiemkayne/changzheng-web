@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    长征 · 重走长征路 —— 设计系统 v3（红色文献装帧 · 革命文物世界）
    世界：苏区出版物与革命文物 —— 铅印宋体大标 / 深红 shell / 烫金状态
    签名动作：打卡 = 盖章（stampIn）
@@ -931,7 +931,12 @@ a { color: var(--red-mid); text-decoration: none; }
 
 .map-frame {
   border-radius: var(--r-lg);
-  box-shadow: var(--shadow);
+  /* 外投影（抬离纸面）+ 顶部受光 / 底部收暗的内斜面，强化"立体图版"感 */
+  box-shadow:
+    0 20px 36px -24px rgba(90, 62, 20, 0.62),
+    inset 0 3px 0 rgba(255, 255, 255, 0.72),
+    inset 0 -4px 9px rgba(110, 9, 24, 0.12),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.5);
   border: var(--gold-border);
   overflow: hidden;
   background: linear-gradient(170deg, #FFFDF6, #F6EBD3);
@@ -1915,4 +1920,200 @@ a { color: var(--red-mid); text-decoration: none; }
   font-size: 11px;
   color: var(--gold-deep);
   letter-spacing: 2px;
+}
+
+/* ---------- 地图：2D 路线图 / 3D 沙盘 切换（手机优先） ---------- */
+
+.map-stage { position: relative; }
+
+/* 视角切换：浮在地图右上角，不再占版面，手机下拉不会被它挡住 */
+.map-mode {
+  position: absolute; top: 10px; right: 10px; z-index: 4;
+  display: flex; gap: 6px;
+}
+.map-mode-btn {
+  font-family: inherit; font-size: 12px; letter-spacing: 1px;
+  padding: 5px 12px; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(198, 163, 67, 0.6);
+  background: rgba(255, 252, 244, 0.88);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  color: var(--red-dark);
+  box-shadow: 0 4px 12px -6px rgba(90, 62, 20, 0.55);
+  transition: background .18s, color .18s, border-color .18s;
+}
+.map-mode-btn.on {
+  background: var(--red); color: #FFF4DC; border-color: var(--red);
+}
+
+.map3d-wrap {
+  position: relative;
+  height: min(64vh, 470px);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(198, 163, 67, 0.45);
+  background: radial-gradient(120% 90% at 50% 0%, #FDF7E8 0%, #EFE4CB 100%);
+  transition: background .6s ease;
+  touch-action: pan-y;   /* 竖向滑动交给页面滚动，横向用于转视角 */
+}
+.map3d-wrap[data-weather="rain"] { background: radial-gradient(120% 90% at 50% 0%, #EEEDE4 0%, #DBD9CF 100%); }
+.map3d-wrap[data-weather="snow"] { background: radial-gradient(120% 90% at 50% 0%, #FAFBF7 0%, #E6E9E1 100%); }
+.map3d-wrap[data-weather="fog"]  { background: radial-gradient(120% 90% at 50% 0%, #F4F0E4 0%, #E2DDCE 100%); }
+
+.map3d-loading,
+.map3d-fallback {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  font-size: 12px; letter-spacing: 2px; color: var(--muted);
+}
+
+
+/* 3D 模式下隐藏 2D 专属图表元素，保持手机端清爽 */
+.page.mode-3d .map-legend,
+.page.mode-3d .map-note,
+.page.mode-3d .map-replay-wrap { display: none; }
+.page.mode-3d .map-title { margin-bottom: 10px; }
+
+@media (max-width: 560px) {
+  .map3d-wrap { height: min(56vh, 400px); }
+  .map-mode { top: 8px; right: 8px; gap: 5px; }
+  .map-mode-btn { padding: 4px 10px; font-size: 11.5px; letter-spacing: .5px; }
+}
+
+/* 3D 模式：沙盘占满可用高度，减少页面空白 */
+.page.mode-3d .map3d-wrap { height: min(70vh, 520px); }
+@media (max-width: 560px) {
+  .page.mode-3d .map3d-wrap { height: min(64vh, 460px); }
+}
+
+@media (max-width: 560px) {
+  .page.mode-3d .map3d-wrap { height: min(52vh, 380px); }
+}
+
+/* ---------- 2D 路线图：半透明伪 3D 层 ---------- */
+
+.map-route-depth,
+.map-route-depth2,
+.map-route-depth3 {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+/* 三层挤出：贴地最深、最远最淡，形成"路线立起来"的厚度 */
+.map-route-depth  { stroke: rgba(110, 9, 24, 0.30); stroke-width: 7; }
+.map-route-depth2 { stroke: rgba(110, 9, 24, 0.19); stroke-width: 9.5; }
+.map-route-depth3 { stroke: rgba(110, 9, 24, 0.11); stroke-width: 12; }
+
+.map-node-shadow { fill: rgba(110, 9, 24, 0.22); pointer-events: none; }
+.map-node-post   { fill: rgba(110, 9, 24, 0.40); pointer-events: none; }
+.map-node-rim    { fill: none; stroke: rgba(110, 9, 24, 0.22); stroke-width: 1; pointer-events: none; }
+.map-node-sheen  { fill: rgba(255, 255, 255, 0.42); pointer-events: none; }
+
+/* 整幅图抬离纸面 */
+
+/* 3D 手势提示（自动消失，不拦截手势） */
+.map3d-hint {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+  font-size: 11px; letter-spacing: 1px; color: var(--red-dark);
+  background: rgba(255, 252, 244, 0.84);
+  border: 1px solid rgba(198, 163, 67, 0.45);
+  border-radius: 999px; padding: 5px 12px; white-space: nowrap;
+  pointer-events: none; z-index: 3; transition: opacity .8s;
+}
+.map3d-hint.off { opacity: 0; }
+
+/* ---------- 页面级天气特效层（纯视觉，不拦截交互） ---------- */
+.wx-layer {
+  position: fixed; inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
+}
+.wx-layer canvas { display: block; width: 100%; height: 100%; }
+
+/* 浮窗里的天气说明 */
+.map-float-wx {
+  margin-top: 9px; padding: 6px 9px;
+  font-size: 11px; letter-spacing: .5px; color: var(--red-dark);
+  background: rgba(200, 16, 46, 0.05);
+  border-left: 2px solid var(--gold);
+  border-radius: 6px;
+}
+.map-float-wx span { display: block; margin-top: 3px; font-size: 10.5px; color: var(--muted); }
+
+/* 节点详情：天气条（每个节点都有，无特效的也展示文字） */
+.node-wx {
+  margin: 14px 0 4px;
+  padding: 11px 14px;
+  background: rgba(255, 252, 244, 0.92);
+  border: 1px solid rgba(198, 163, 67, 0.45);
+  border-left: 3px solid var(--gold);
+  border-radius: 10px;
+}
+.node-wx-row { display: flex; align-items: baseline; gap: 8px; }
+.node-wx-label {
+  font-size: 10px; letter-spacing: 2px; color: var(--muted);
+  border: 1px solid rgba(198, 163, 67, 0.5); border-radius: 999px; padding: 1px 7px;
+}
+.node-wx-name {
+  font-family: var(--font-title); font-size: 14px; font-weight: 900;
+  letter-spacing: 2px; color: var(--red-dark);
+}
+.node-wx-desc { margin-top: 5px; font-size: 12px; line-height: 1.75; color: var(--ink); }
+
+/* ---------- 3D 沙盘的观感层（暖光 + 暗角 + 金色内框） ---------- */
+.map3d-veil {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 95% at 18% -6%, rgba(255, 246, 220, 0.26) 0%, rgba(255, 246, 220, 0) 52%),
+    radial-gradient(95% 75% at 88% 108%, rgba(110, 9, 24, 0.10) 0%, rgba(110, 9, 24, 0) 58%),
+    linear-gradient(180deg, rgba(255, 252, 244, 0.16) 0%, rgba(255, 252, 244, 0) 22%);
+  box-shadow: inset 0 0 34px 6px rgba(90, 62, 20, 0.11);
+  border-radius: inherit;
+  z-index: 2;
+}
+.map3d-plate {
+  position: absolute; inset: 9px;
+  pointer-events: none;
+  border: 1px solid rgba(232, 200, 106, 0.55);
+  border-radius: 10px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.28);
+  z-index: 3;
+}
+
+/* ---------- 地图上的天气标签 ---------- */
+.map3d-wx {
+  position: absolute; top: 10px; left: 10px; z-index: 4;
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 11px 5px 9px; border-radius: 999px;
+  background: rgba(255, 252, 244, 0.9);
+  border: 1px solid rgba(198, 163, 67, 0.55);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+  font-size: 11.5px; letter-spacing: 1px; color: var(--red-dark);
+  pointer-events: none;
+  box-shadow: 0 4px 12px -6px rgba(90, 62, 20, 0.5);
+}
+.map3d-wx i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.map3d-wx[data-w="clear"] i { background: #E8B93C; box-shadow: 0 0 7px rgba(232, 185, 60, 0.85); }
+.map3d-wx[data-w="cloud"] i { background: #98A2AC; }
+.map3d-wx[data-w="rain"]  i { background: #5B84A8; }
+.map3d-wx[data-w="snow"]  i { background: #BAD4E8; box-shadow: 0 0 6px rgba(186, 212, 232, 0.9); }
+.map3d-wx[data-w="fog"]   i { background: #C9C2AE; }
+
+@media (max-width: 560px) {
+  .map3d-wx { top: 8px; left: 8px; font-size: 11px; padding: 4px 9px 4px 7px; }
+}
+
+/* ---------- 2D 路线图：节点侧边的天气小景（雨 / 雪） ---------- */
+.map-wxv { pointer-events: none; }
+.map-wxv .wxv-cloud ellipse { stroke: none; }
+
+/* ---------- 开发期自动刷新提示 ---------- */
+.cz-live-dot {
+  position: fixed; right: 10px; bottom: 74px; z-index: 9999;
+  padding: 3px 7px; border-radius: 6px;
+  background: rgba(46, 160, 67, 0.9); color: #fff;
+  font: 700 9px/1.4 -apple-system, "Segoe UI", sans-serif; letter-spacing: 1px;
+  pointer-events: none; opacity: 0.75;
 }
