@@ -1,22 +1,25 @@
-﻿/**
+/**
  * 页面级天气特效 —— 覆盖整个可视区域（含内容区，不含底部导航）
  *
  * CZ_WEATHER.apply('rain' | 'snow' | 'fog' | 'cloud' | 'clear')
  * CZ_WEATHER.clear()
+ * CZ_WEATHER.setEnabled(false) / isEnabled() —— 总开关，存 localStorage('cz_wx_fx')
  *
  * 设计约束：
  *   1) 纯视觉层，pointer-events: none，不拦截任何点击/滑动
  *   2) 强度克制，透明度极低，不遮挡文字与地图
- *   3) 尊重 prefers-reduced-motion：只保留轻微色调，不绘制粒子
+ *   3) 尊重 prefers-reduced-motion：默认连洗色带粒子一起关（用户显式 setEnabled(true) 可推翻）
  *   4) 单例 canvas + rAF，切换天气不重建 DOM；页面不可见时暂停
  */
 ;(function (root) {
+  // 洗色阈值规则：正文 --muted #6E6350 叠在本层洗色上、底为 --paper #F7F0DF 时，合成对比度必须 ≥ 4.5:1（WCAG AA 正文）。
+  // 实测（780×1688 画布按 dpr2 逐像素合成到 #F7F0DF 取样最小对比度）：clear 5.19 / cloud 4.65 / rain 4.63 / fog 4.64 / snow 5.28；提高任何 alpha 前必须先重算这组数。
   const TINT = {
     clear: null,
-    cloud: 'rgba(116,126,140,0.16)',
-    rain: 'rgba(48,70,92,0.24)',
-    snow: 'rgba(255,255,255,0.26)',
-    fog: 'rgba(204,198,182,0.30)'
+    cloud: 'rgba(116,126,140,0.075)',
+    rain: 'rgba(48,70,92,0.045)',
+    snow: 'rgba(255,255,255,0.15)',
+    fog: 'rgba(204,198,182,0.20)'
   }
 
   let wrap = null, canvas = null, ctx = null, raf = 0
@@ -24,7 +27,33 @@
   let last = 0
   let drops = [], flakes = [], blobs = []
 
-  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+  /* ---------- 特效开关（localStorage: cz_wx_fx，'0' 关 / '1' 开 / 缺省=跟随系统） ---------- */
+
+  const STORE_KEY = 'cz_wx_fx'
+  const mq = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null
+  let pref = readPref()   // null = 用户没选过；true/false = 用户显式选择（优先级最高）
+
+  function readPref() {
+    try {
+      const v = localStorage.getItem(STORE_KEY)
+      return v === '0' ? false : v === '1' ? true : null
+    } catch (e) { return null }
+  }
+
+  function savePref(v) {
+    try { localStorage.setItem(STORE_KEY, v ? '1' : '0') } catch (e) { /* 隐私模式/配额异常忽略 */ }
+  }
+
+  function motionOk() { return !(mq && mq.matches) }
+
+  // 有效开关：用户显式选择优先；没选过时 prefers-reduced-motion: reduce → 默认关闭（洗色与粒子都不画）
+  function fxOn() { return pref === null ? motionOk() : pref }
+
+  function setEnabled(on) {
+    pref = !!on
+    savePref(pref)
+    sync()
+  }
 
   function ensure() {
     if (wrap) return
@@ -90,13 +119,26 @@
 
   function apply(next) {
     mode = next || 'clear'
-    ensure()
-    document.body.classList.remove('wx-cloud', 'wx-rain', 'wx-snow', 'wx-fog')
-    if (mode !== 'clear') document.body.classList.add('wx-' + mode)
     layout(mode)
-    if (mode === 'clear') { stop(); draw(0); return }
-    if (reduced) { stop(); draw(0); return }
-    start()
+    sync()
+  }
+
+  // 关掉特效 = 洗色、粒子、.wx-layer 全部不存在；打开 = 按当前 mode 重建
+  function sync() {
+    document.body.classList.remove('wx-cloud', 'wx-rain', 'wx-snow', 'wx-fog')
+    if (!fxOn()) { teardown(); return }
+    if (mode !== 'clear') document.body.classList.add('wx-' + mode)
+    ensure()
+    stop()
+    draw(0)
+    if (mode !== 'clear') start()
+  }
+
+  function teardown() {
+    stop()
+    removeEventListener('resize', resize)
+    if (wrap && wrap.parentNode) wrap.parentNode.removeChild(wrap)
+    wrap = canvas = ctx = null
   }
 
   function clear() { apply('clear') }
@@ -109,7 +151,8 @@
     if (tint) { ctx.fillStyle = tint; ctx.fillRect(0, 0, w, h) }
 
     if (mode === 'rain') {
-      ctx.strokeStyle = 'rgba(150,178,200,0.60)'
+      // 雨丝也必须过 AA：原 rgba(150,178,200,0.60) 叠在纸底上只有 3.47:1，改为浅冷蓝后任何像素 ≥4.6:1
+      ctx.strokeStyle = 'rgba(214,228,242,0.62)'
       ctx.lineWidth = 1
       ctx.beginPath()
       for (const d of drops) {
@@ -194,13 +237,22 @@
 
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) stop()
-    else if (mode !== 'clear' && !reduced) start()
+    else if (mode !== 'clear' && fxOn()) start()
   })
+
+  // reduced-motion 实时响应（不只是加载时求一次）：用户没显式选过时，系统偏好一变立刻生效
+  if (mq) {
+    const onMq = () => { if (pref === null) sync() }
+    if (mq.addEventListener) mq.addEventListener('change', onMq)
+    else if (mq.addListener) mq.addListener(onMq)
+  }
 
   root.CZ_WEATHER = {
     apply,
     clear,
     destroy,
-    current: () => mode
+    current: () => mode,
+    setEnabled,          // 用户显式开关，写入 localStorage('cz_wx_fx')，且优先于系统 reduced-motion
+    isEnabled: fxOn
   }
 })(typeof self !== 'undefined' ? self : this)

@@ -45,6 +45,10 @@
       s.onload = () => resolve()
       s.onerror = () => reject(new Error('three.js 加载失败'))
       document.head.appendChild(s)
+    }).catch(err => {
+      // 失败不缓存：否则 threePromise 永远是同一个 rejected promise，重试会永久卡死
+      threePromise = null
+      throw err
     })
     return threePromise
   }
@@ -234,7 +238,12 @@
       const vg = vigs[p.node.code]
       const lb = labels[p.node.code]
       nodesHtml +=
-        '<g class="map-node" data-code="' + p.node.code + '" data-i="' + p.i + '" style="animation-delay:' + (1.35 + p.i * 0.15) + 's">' +
+        '<g class="map-node" data-code="' + p.node.code + '" data-i="' + p.i + '"' +
+          ' tabindex="0" role="button"' +
+          ' aria-label="第' + p.node.order + '站 ' + F.escapeHtml(p.node.name) + '，打开节点详情"' +
+          ' style="animation-delay:' + (1.35 + p.i * 0.15) + 's">' +
+          // 触控热区：r=23 → 直径 46 单位，viewBox 360 渲到 352px 后实测 ≥44px（移动端最小点按尺寸）；放在最前面，不遮挡 .map-num 文本
+          '<circle class="map-node-hit" cx="' + p.x + '" cy="' + p.y + '" r="23" fill="transparent"/>' +
           (p.i === 0 ? star(p.x, p.y - 34, 'map-star-start') : '') +
           (p.i === nodes.length - 1 ? star(p.x, p.y - 34, 'map-star-end') : '') +
           (vg ? wxVignette(vg.mode, p.x, p.y, vg.side) : '') +
@@ -260,6 +269,7 @@
           '<div class="map-mode" id="map-mode">' +
             '<button class="map-mode-btn on" type="button" data-mode="2d">路线图</button>' +
             '<button class="map-mode-btn" type="button" data-mode="3d">3D 沙盘</button>' +
+            '<button class="map-mode-btn" type="button" data-fx="1" id="map-fx-btn" aria-pressed="true">天气特效</button>' +
           '</div>' +
           '<div class="map-frame">' +
           '<svg class="map-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">' +
@@ -327,6 +337,12 @@
 
     function playMarch() {
       if (reduced) return
+      // 重播前先撤掉 settle2D 写下的内联覆盖，否则节点不再有动画
+      rootEl.querySelectorAll('.map-node').forEach(g => {
+        g.style.animationName = ''; g.style.opacity = ''; g.style.transform = ''
+      })
+      goldLine.style.animationName = ''
+      goldLine.style.strokeDasharray = ''
       const len = routePath.getTotalLength()
       goldLine.style.strokeDasharray = len
       goldLine.style.strokeDashoffset = len
@@ -386,16 +402,32 @@
       float.style.display = 'block'
       const btn = float.querySelector('#map-float-detail')
       if (btn) btn.addEventListener('click', () => { location.hash = '#/node/' + p.node.code })
-      float.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+      revealFloat()
     }
+
+    // 按需最小滚动：只补「浮窗底边被底部 tabBar 盖住」的那点重叠量（+12 留缝），不重叠就一点不滚
+    function revealFloat() {
+      const fr = float.getBoundingClientRect()
+      const tbEl = document.getElementById('tabbar')
+      const barTop = tbEl ? tbEl.getBoundingClientRect().top : window.innerHeight
+      const overlap = fr.bottom - barTop
+      if (overlap > 0) window.scrollBy({ top: Math.ceil(overlap) + 12, behavior: 'smooth' })
+    }
+
     rootEl.querySelectorAll('.map-node').forEach(g => {
       g.addEventListener('click', () => showFloat(Number(g.dataset.i)))
+      // 键盘：Enter / Space 等价于点击（Space 阻止默认的页面滚动）
+      g.addEventListener('keydown', e => {
+        if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return
+        e.preventDefault()
+        showFloat(Number(g.dataset.i))
+      })
     })
 
     // 底部快切条：高亮对应节点 + 弹浮窗
     const strip = rootEl.querySelector('#map-strip')
     strip.innerHTML = nodes.map((n, i) =>
-      '<div class="map-chip" data-i="' + i + '">' + n.order + ' ' + F.escapeHtml(n.name) + '</div>'
+      '<button type="button" class="map-chip" data-i="' + i + '">' + n.order + ' ' + F.escapeHtml(n.name) + '</button>'
     ).join('')
     strip.addEventListener('click', e => {
       const chip = e.target.closest('.map-chip')
@@ -417,6 +449,18 @@
     let view3d = null
     let mode = '2d'
 
+    // 天气特效开关：复用 .map-mode-btn（零 CSS 改动），文本即状态
+    const fxBtn = rootEl.querySelector('#map-fx-btn')
+
+    function renderFxBtn() {
+      if (!fxBtn || !root.CZ_WEATHER) return
+      const on = root.CZ_WEATHER.isEnabled()
+      fxBtn.textContent = on ? '天气特效' : '天气特效·关'
+      fxBtn.classList.toggle('on', on)
+      fxBtn.setAttribute('aria-pressed', on ? 'true' : 'false')
+    }
+    renderFxBtn()
+
     // 天气标签：小圆点 + 中文名，让手机用户一眼分清当前天气
     const WX_LABEL = { clear: '晴', cloud: '阴', rain: '雨', snow: '雪', fog: '雾' }
     function setWxBadge(m) {
@@ -424,6 +468,37 @@
       wxBadge.dataset.w = m
       const span = wxBadge.querySelector('span')
       if (span) span.textContent = (WX_LABEL[m] || '晴') + '天'
+    }
+
+    // 3D → 2D：用内联样式消掉 .map-anim 的重播（display:none 回来后 CSS 动画会整段重播，出现 1~2s 空白窗）
+    function settle2D() {
+      // 用 animationName 而非 animation 简写：简写会把内联 animation-delay 一并重置为 0s，
+      // 之后 playMarch 重播就没有错峰了；只关掉名字即可杀掉重播，delay 原样保留
+      rootEl.querySelectorAll('.map-node').forEach(g => {
+        g.style.animationName = 'none'
+        g.style.opacity = '1'
+        g.style.transform = 'none'
+      })
+      if (goldLine) {
+        goldLine.style.animationName = 'none'
+        goldLine.style.strokeDasharray = 'none'
+        goldLine.style.strokeDashoffset = '0'
+      }
+    }
+
+    // 3D 掉线/不可用时的统一回退：清空容器、无悲鸣地切回 2D、只用人话说一句
+    // 用 flag 防重入：onLost 里 destroy() 可能再次触发回调，绝不能形成递归
+    let fallingBack = false
+    function fallbackTo2D(msg) {
+      if (fallingBack) return
+      fallingBack = true
+      try {
+        if (wrap3d) wrap3d.innerHTML = ''
+        applyMode('2d')
+        if (UI && typeof UI.toast === 'function') UI.toast(msg)
+      } finally {
+        fallingBack = false
+      }
     }
 
     function applyMode(next) {
@@ -434,7 +509,8 @@
       float.style.display = 'none'
       wrap3d.hidden = !is3d
       if (wxBadge) wxBadge.hidden = !is3d
-      modeBar.querySelectorAll('.map-mode-btn').forEach(b => b.classList.toggle('on', b.dataset.mode === next))
+      if (!is3d) settle2D()
+      modeBar.querySelectorAll('.map-mode-btn[data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === next))
 
       if (is3d && !view3d) {
         wrap3d.innerHTML = '<div class="map3d-loading">正在加载 3D 沙盘…</div>'
@@ -447,12 +523,25 @@
             nodes,
             states: statesByCode,
             onWeather: setWxBadge,          // 天气切换时同步左上角标签
+            // 运行时 WebGL 上下文丢失：map3d 内部已 preventDefault、停 rAF、清定时器，
+            // 这里只负责说人话并退回 2D（destroy 由 applyMode 内部完成）
+            onLost() {
+              try {
+                if (mode === '3d') fallbackTo2D('3D 显示已中断，已切回路线图')
+              } catch (e) { console.error('3D 回退失败', e) }
+            },
             onPick(node, index) {
               strip.querySelectorAll('.map-chip').forEach(c => c.classList.toggle('chip-active', Number(c.dataset.i) === index))
               showFloat(index)
             }
           })
         }).catch(err => {
+          // 归因分支：设备不支持 WebGL 与"加载失败"是两码事，前者不能提网络
+          if (err && err.code === 'WEBGL_UNAVAILABLE') {
+            if (mode === '3d') fallbackTo2D('当前设备不支持 3D 显示，已为你切回路线图')
+            else wrap3d.innerHTML = '<div class="map3d-loading">当前设备不支持 3D 显示</div>'
+            return
+          }
           console.error('3D 沙盘加载失败', err)
           wrap3d.innerHTML = '<div class="map3d-loading">3D 沙盘加载失败，请检查网络后重试</div>'
         })
@@ -465,7 +554,16 @@
 
     modeBar.addEventListener('click', e => {
       const btn = e.target.closest('.map-mode-btn')
-      if (btn && btn.dataset.mode !== mode) applyMode(btn.dataset.mode)
+      if (!btn) return
+      if (btn.dataset.fx) {
+        // 天气特效开关：关掉立刻撤洗色/粒子/图层，开回来按当前节点天气恢复
+        if (root.CZ_WEATHER) {
+          root.CZ_WEATHER.setEnabled(!root.CZ_WEATHER.isEnabled())
+          renderFxBtn()
+        }
+        return
+      }
+      if (btn.dataset.mode !== mode) applyMode(btn.dataset.mode)
     })
 
     // 离开页面时释放 WebGL

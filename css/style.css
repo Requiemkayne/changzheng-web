@@ -963,6 +963,10 @@ a { color: var(--red-mid); text-decoration: none; }
 .map-node:hover circle { filter: brightness(1.15); }
 .map-node:active circle { filter: brightness(0.9); }
 .map-node-hl circle { stroke-width: 4.5; }
+/* 键盘可达：Tab 聚焦节点。SVG <g> 的 outline 在部分内核上不绘制，
+   故再给顶面圆盘一圈金环做等价可见焦点 */
+.map-node:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.map-node:focus-visible .map-node-face { stroke: var(--gold); stroke-width: 4; }
 
 .map-num {
   font-size: 11px;
@@ -1030,6 +1034,17 @@ a { color: var(--red-mid); text-decoration: none; }
   cursor: pointer;
   box-shadow: var(--shadow);
   font-variant-numeric: tabular-nums;
+}
+/* 快切条元素由 <div> 改为 <button>：:where 为零特异性，只压 UA 默认外观，
+   不覆盖 .map-chip / .chip-active 已有的底色、描边、字号、内边距与圆角 */
+:where(button.map-chip) {
+  appearance: none; -webkit-appearance: none;
+  margin: 0; border: 0; background: none;
+  font: inherit; color: inherit; text-align: inherit;
+  cursor: pointer;
+}
+:where(button.map-chip):focus-visible {
+  outline: 2px solid var(--gold); outline-offset: 2px;
 }
 .map-chip.chip-active {
   border-color: var(--gold);
@@ -1623,9 +1638,10 @@ a { color: var(--red-mid); text-decoration: none; }
 @keyframes routeMarch { to { stroke-dashoffset: 0; } }
 
 .map-svg.map-anim .map-node {
-  opacity: 0;
   transform-box: fill-box; transform-origin: center;
-  animation: nodePop .45s cubic-bezier(.22, 1, .36, 1) forwards;
+  /* both：delay 期间沿用 from 关键帧（opacity 0），结束后停在 to（opacity 1）。
+     原先额外写的静态 opacity:0 会让 JS 内联 animation:none 兜底后节点永久不可见 */
+  animation: nodePop .45s cubic-bezier(.22, 1, .36, 1) both;
 }
 @keyframes nodePop {
   from { opacity: 0; transform: scale(1.7); }
@@ -1991,10 +2007,6 @@ a { color: var(--red-mid); text-decoration: none; }
 /* 3D 模式：沙盘占满可用高度，减少页面空白 */
 .page.mode-3d .map3d-wrap { height: min(70vh, 520px); }
 @media (max-width: 560px) {
-  .page.mode-3d .map3d-wrap { height: min(64vh, 460px); }
-}
-
-@media (max-width: 560px) {
   .page.mode-3d .map3d-wrap { height: min(52vh, 380px); }
 }
 
@@ -2103,6 +2115,8 @@ a { color: var(--red-mid); text-decoration: none; }
   pointer-events: none;
   box-shadow: 0 4px 12px -6px rgba(90, 62, 20, 0.5);
 }
+/* 元素带 hidden 时必须真正不占位：display:flex 会压过 UA 的 [hidden]{display:none} */
+.map3d-wx[hidden] { display: none; }
 .map3d-wx i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .map3d-wx[data-w="clear"] i { background: #E8B93C; box-shadow: 0 0 7px rgba(232, 185, 60, 0.85); }
 .map3d-wx[data-w="cloud"] i { background: #98A2AC; }

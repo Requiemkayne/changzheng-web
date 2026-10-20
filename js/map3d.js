@@ -66,12 +66,45 @@
     const states = opts.states || {}
     const onPick = opts.onPick || function () {}
     const onWeatherChange = typeof opts.onWeather === 'function' ? opts.onWeather : null
+    const onLost = typeof opts.onLost === 'function' ? opts.onLost : null
+    const onError = typeof opts.onError === 'function' ? opts.onError : null
 
     // 坐标兼容：mock/样例用 lng/lat，接口返回用 location.longitude/latitude
     const lngOf = n => (n.lng != null ? n.lng : (n.location ? n.location.longitude : 0))
     const latOf = n => (n.lat != null ? n.lat : (n.location ? n.location.latitude : 0))
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+    /* ---------- 句柄登记：定时器 / rAF 统一登记，销毁或上下文丢失时一次清干净 ---------- */
+    const timers = []
+    function later(fn, ms) {
+      const id = setTimeout(() => {
+        const i = timers.indexOf(id)
+        if (i >= 0) timers.splice(i, 1)
+        fn()
+      }, ms)
+      timers.push(id)
+      return id
+    }
+    function clearTimers() {
+      for (let i = 0; i < timers.length; i++) clearTimeout(timers[i])
+      timers.length = 0
+    }
+    function stopRaf() {
+      if (rafId) { cancelAnimationFrame(rafId); rafId = 0 }
+    }
+
+    // WebGL 不可用时同步抛出带 code 的错误；失败路径上不碰容器，
+    // 否则会留下半初始化的 canvas，还会被上层误报成"网络问题"
+    let renderer
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
+      if (!renderer.getContext()) throw new Error('WebGL 上下文为空')
+    } catch (cause) {
+      const err = new Error('WebGL 不可用：' + ((cause && cause.message) || '无法创建 WebGL 上下文'))
+      err.code = 'WEBGL_UNAVAILABLE'
+      err.cause = cause
+      if (onError) { try { onError(err) } catch (e) {} }
+      throw err
+    }
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2))
     renderer.outputEncoding = THREE.sRGBEncoding
     container.innerHTML = ''
@@ -86,9 +119,9 @@
     hintEl.className = 'map3d-hint'
     hintEl.textContent = '左右滑动转向 · 双指上下俯仰 · 双击复位'
     container.appendChild(hintEl)
-    setTimeout(() => {
+    later(() => {
       hintEl.classList.add('off')
-      setTimeout(() => { if (hintEl.parentNode) hintEl.parentNode.removeChild(hintEl) }, 900)
+      later(() => { if (hintEl.parentNode) hintEl.parentNode.removeChild(hintEl) }, 900)
     }, 5200)
 
     // 观感层：暖光 + 暗角 + 金色内框（纯装饰，不吃事件）
@@ -114,8 +147,10 @@
     scene.add(fill)
 
     let dem = null
-    let raf = 0
+    let rafId = 0
     let disposed = false
+    let lost = false
+    let destroying = false
     const HOME = { yaw: 0.14, pitch: 0.86, zoom: 1 }
     let yaw = HOME.yaw, pitch = HOME.pitch, zoom = HOME.zoom
     let dragging = false, moved = 0, lastX = 0, lastY = 0
@@ -493,8 +528,6 @@
     const AUTO = opts.autoWeather !== false && !REDUCED
     const W_MIN = (opts.weatherInterval && opts.weatherInterval[0]) || 40000
     const W_MAX = (opts.weatherInterval && opts.weatherInterval[1]) || 70000
-    let weatherTimer = 0
-
     function pickNextWeather() {
       const r = Math.random()
       if (r < 0.40) return 'clear'
@@ -506,8 +539,8 @@
 
     function scheduleWeather() {
       const wait = W_MIN + Math.random() * (W_MAX - W_MIN)
-      weatherTimer = setTimeout(() => {
-        if (disposed) return
+      later(() => {
+        if (disposed || lost) return
         if (!document.hidden && !autoLocked) {  // 节点天气接管时不自动覆盖
           lastWeather = pickNextWeather()
           setWeather(lastWeather)
@@ -666,6 +699,19 @@
 
     /* ---------- 交互 ---------- */
     const dom = renderer.domElement
+
+    // 上下文丢失：必须 preventDefault，否则浏览器不会通知恢复；
+    // 同时停帧、摘定时器、置可用标记为 false，并通知外部
+    function handleContextLost(e) {
+      if (e && e.preventDefault) e.preventDefault()
+      if (lost || destroying) return
+      lost = true
+      stopRaf()
+      clearTimers()
+      if (onLost) { try { onLost() } catch (err) {} }
+    }
+    dom.addEventListener('webglcontextlost', handleContextLost, false)
+
     const ray = new THREE.Raycaster()
     const ndc = new THREE.Vector2()
 
@@ -753,7 +799,7 @@
 
     /* ---------- 启动 ---------- */
     loadDem().then(d => {
-      if (disposed) return
+      if (disposed || lost) return
       dem = d
       if (!dem) {
         container.innerHTML = '<div class="map3d-fallback">地形数据加载失败</div>'
@@ -775,8 +821,8 @@
 
       const clock = new THREE.Clock()
       function loop() {
-        if (disposed) return
-        raf = requestAnimationFrame(loop)
+        if (disposed || lost) return
+        rafId = requestAnimationFrame(loop)
         const dt = Math.min(0.05, clock.getDelta())
         const t = clock.elapsedTime
 
@@ -809,11 +855,14 @@
       setWeather,
       resize,
       destroy() {
+        if (destroying) return
+        destroying = true
         disposed = true
-        clearTimeout(weatherTimer)
-        cancelAnimationFrame(raf)
+        stopRaf()
+        clearTimers()
         removeEventListener('resize', resize)
         if (ro) ro.disconnect()
+        dom.removeEventListener('webglcontextlost', handleContextLost, false)
         scene.traverse(o => {
           if (!o.isMesh && !o.isSprite && !o.isLineSegments && !o.isPoints) return
           if (o.geometry) o.geometry.dispose()
@@ -824,6 +873,9 @@
             m.dispose()
           })
         })
+        // 只 dispose() 不会结束上下文：连续进出 3D 会一路吃掉浏览器配额，
+        // 所以必须先 forceContextLoss() 真正释放（实测 isContextLost() 由此变 true）
+        try { renderer.forceContextLoss() } catch (err) {}
         renderer.dispose()
         container.innerHTML = ''
       }

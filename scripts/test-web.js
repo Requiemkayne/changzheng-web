@@ -207,6 +207,213 @@ async function chain() {
   const noCfgWrites = runLoader(null)
   assert.strictEqual(noCfgWrites.length, 0, '无 CZ_CONFIG 不得注入，实际写了 ' + JSON.stringify(noCfgWrites))
   ok('loader.js：USE_MOCK=false / 无配置 → 零注入（答案不再无条件下发）')
+
+  /* ================= 4. 批次③：3D 沙盘 / 天气 / 地图 ================= */
+  console.log('\n[4] 批次③：3D 沙盘 / 天气 / 地图（回归锁）')
+
+  const webRoot = path.join(__dirname, '..')
+  const map3dSrc = fs.readFileSync(path.join(webRoot, 'js', 'map3d.js'), 'utf8')
+  const mapViewSrc = fs.readFileSync(path.join(webRoot, 'js', 'views', 'map.js'), 'utf8')
+  const wxSrc = fs.readFileSync(path.join(webRoot, 'js', 'weather.js'), 'utf8')
+  const cssSrc = fs.readFileSync(path.join(webRoot, 'css', 'style.css'), 'utf8')
+
+  // 断言失败信息要能定位：把偏移换算成「文件:行号」
+  function atIdx(file, src, idx) {
+    return idx < 0 ? file + ':(未找到该代码)' : file + ':' + (src.slice(0, idx).split('\n').length)
+  }
+  function at(file, src, needle) {
+    return atIdx(file, src, src.indexOf(needle))
+  }
+
+  // 用 stub 的 localStorage / matchMedia / document 直接跑 js/weather.js（真行为，不是读源码）
+  function runWeather(env) {
+    env = env || {}
+    const store = Object.assign({}, env.store || {})
+    const mqFns = []
+    let rafSeq = 0
+    const ctx2d = {
+      setTransform() {}, clearRect() {}, fillRect() {}, beginPath() {}, moveTo() {},
+      lineTo() {}, stroke() {}, arc() {}, fill() {},
+      createRadialGradient: () => ({ addColorStop() {} })
+    }
+    const mq = {
+      matches: !!env.reducedMotion,
+      addEventListener(type, fn) { if (type === 'change') mqFns.push(fn) },
+      removeEventListener() {}
+    }
+    const sandbox = {
+      localStorage: {
+        getItem: k => (k in store ? store[k] : null),
+        setItem: (k, v) => { store[k] = String(v) }
+      },
+      matchMedia: () => mq,
+      document: {
+        hidden: false,
+        body: { classList: { add() {}, remove() {}, toggle() {} }, appendChild() {} },
+        createElement: () => ({ style: {}, width: 0, height: 0, getContext: () => ctx2d, appendChild() {} }),
+        getElementById: () => null,
+        addEventListener() {}
+      },
+      addEventListener() {}, removeEventListener() {},
+      requestAnimationFrame: () => ++rafSeq,
+      cancelAnimationFrame() {},
+      innerWidth: 390, innerHeight: 844, devicePixelRatio: 2,
+      performance: { now: () => 0 },
+      console
+    }
+    sandbox.self = sandbox
+    vm.createContext(sandbox)
+    vm.runInContext(wxSrc, sandbox)
+    return {
+      wx: sandbox.CZ_WEATHER,
+      store,
+      fireMotionChange(matches) { mq.matches = matches; mqFns.forEach(fn => fn()) }
+    }
+  }
+
+  // ①【行为】fxOn() 缺省跟随系统「减少动态效果」
+  const wxLoose = runWeather({ reducedMotion: false })
+  assert.strictEqual(wxLoose.wx.isEnabled(), true,
+    '期望 系统未开 prefers-reduced-motion 且 localStorage 无 cz_wx_fx 时 isEnabled()=true，实际 ' +
+    wxLoose.wx.isEnabled() + ' @ ' + at('js/weather.js', wxSrc, 'function fxOn'))
+  const wxReduced = runWeather({ reducedMotion: true })
+  assert.strictEqual(wxReduced.wx.isEnabled(), false,
+    '期望 系统开 prefers-reduced-motion 且无 cz_wx_fx 时 isEnabled()=false，实际 ' +
+    wxReduced.wx.isEnabled() + ' @ ' + at('js/weather.js', wxSrc, 'function fxOn'))
+  ok('weather.js 行为：fxOn() 缺省跟随 matchMedia(prefers-reduced-motion)')
+
+  // ②【行为】cz_wx_fx 读写 / setEnabled 语义 / 系统偏好变化实时响应
+  const wxStored = runWeather({ reducedMotion: false, store: { cz_wx_fx: '0' } })
+  assert.strictEqual(wxStored.wx.isEnabled(), false,
+    '期望 已存 cz_wx_fx="0" 时 isEnabled()=false（用户显式关优先于系统偏好），实际 ' +
+    wxStored.wx.isEnabled() + ' @ ' + at('js/weather.js', wxSrc, 'function readPref'))
+  const wxCase = runWeather({ reducedMotion: true })
+  wxCase.wx.setEnabled(true)
+  assert.strictEqual(wxCase.wx.isEnabled(), true,
+    '期望 setEnabled(true) 后 isEnabled()=true（可推翻系统 reduced-motion），实际 ' +
+    wxCase.wx.isEnabled() + ' @ ' + at('js/weather.js', wxSrc, 'function setEnabled'))
+  assert.strictEqual(wxCase.store.cz_wx_fx, '1',
+    '期望 setEnabled(true) 往 localStorage 写 cz_wx_fx="1"，实际 ' +
+    JSON.stringify(wxCase.store.cz_wx_fx) + ' @ ' + at('js/weather.js', wxSrc, 'function savePref'))
+  wxCase.wx.setEnabled(false)
+  assert.strictEqual(wxCase.wx.isEnabled(), false,
+    '期望 setEnabled(false) 后 isEnabled()=false，实际 ' + wxCase.wx.isEnabled() +
+    ' @ ' + at('js/weather.js', wxSrc, 'function setEnabled'))
+  assert.strictEqual(wxCase.store.cz_wx_fx, '0',
+    '期望 setEnabled(false) 往 localStorage 写 cz_wx_fx="0"，实际 ' +
+    JSON.stringify(wxCase.store.cz_wx_fx) + ' @ ' + at('js/weather.js', wxSrc, 'function savePref'))
+  // 用户显式选过 → 系统偏好变化不得推翻；没选过 → 必须实时跟随
+  wxCase.wx.setEnabled(true)
+  wxCase.fireMotionChange(true)
+  assert.strictEqual(wxCase.wx.isEnabled(), true,
+    '期望 用户显式 setEnabled(true) 后 mq change 不推翻用户选择，实际 ' + wxCase.wx.isEnabled() +
+    ' @ ' + at('js/weather.js', wxSrc, 'const onMq'))
+  const wxFollow = runWeather({ reducedMotion: false })
+  wxFollow.fireMotionChange(true)
+  assert.strictEqual(wxFollow.wx.isEnabled(), false,
+    '期望 用户未显式选择时 mq change 实时关掉特效，实际 ' + wxFollow.wx.isEnabled() +
+    ' @ ' + at('js/weather.js', wxSrc, 'const onMq'))
+  ok('weather.js 行为：cz_wx_fx 读写 + setEnabled/isEnabled 语义 + mq change 实时响应')
+
+  // ③【契约】destroy() 必须真正释放 WebGL 上下文（顺序 + try/catch + 句柄清理）
+  const lossIdx = map3dSrc.indexOf('renderer.forceContextLoss()')
+  const disposeIdx = map3dSrc.indexOf('renderer.dispose()')
+  assert(lossIdx >= 0,
+    '期望 js/map3d.js 存在 renderer.forceContextLoss()（只 dispose 不结束上下文，连续进出 3D 会吃满浏览器配额），' +
+    '实际未找到 forceContextLoss')
+  assert(disposeIdx >= 0, '期望 js/map3d.js 存在 renderer.dispose()，实际未找到')
+  assert(/try\s*\{\s*renderer\.forceContextLoss\(\)\s*\}\s*catch/.test(map3dSrc),
+    '期望 forceContextLoss() 包在 try{}catch{} 里（无 WebGL 时可能抛错拖垮 destroy），实际不是该形式 @ ' +
+    at('js/map3d.js', map3dSrc, 'renderer.forceContextLoss()'))
+  assert(lossIdx < disposeIdx,
+    '期望 forceContextLoss() 出现在 renderer.dispose() 之前（先释放上下文再 dispose），实际顺序颠倒：' +
+    'dispose() @ ' + at('js/map3d.js', map3dSrc, 'renderer.dispose()') + ' 早于 forceContextLoss() @ ' +
+    at('js/map3d.js', map3dSrc, 'renderer.forceContextLoss()'))
+  assert(map3dSrc.indexOf("dom.addEventListener('webglcontextlost'") >= 0,
+    '期望 js/map3d.js 注册 webglcontextlost 监听（丢失时要 preventDefault + 停帧 + 通知外部），实际未找到')
+  const destroyHead = map3dSrc.indexOf('destroy() {')
+  const destroySrc = destroyHead < 0 ? '' : map3dSrc.slice(destroyHead, map3dSrc.indexOf('root.CZ_MAP3D'))
+  for (const need of ["dom.removeEventListener('webglcontextlost'", 'stopRaf()', 'clearTimers()']) {
+    assert(destroySrc.indexOf(need) >= 0,
+      '期望 destroy() 里出现 ' + need + '，实际未找到（上下文丢失后会留下悬挂监听 / rAF / 定时器） @ ' +
+      (destroyHead < 0 ? 'js/map3d.js:(无 destroy 方法)' : atIdx('js/map3d.js', map3dSrc, destroyHead)))
+  }
+  ok('map3d.js 契约：destroy() 先 forceContextLoss() 再 dispose() + 摘 webglcontextlost / 停 rAF / 清定时器')
+
+  // ④【契约】WebGL 不可用必须抛 err.code='WEBGL_UNAVAILABLE'，且抛错早于改容器内容
+  const codeIdx = map3dSrc.indexOf("err.code = 'WEBGL_UNAVAILABLE'")
+  assert(codeIdx >= 0,
+    "期望 js/map3d.js 在 WebGL 不可用时抛 err.code='WEBGL_UNAVAILABLE'（不得静默降级），实际未找到该赋值")
+  assert(/err\.code = 'WEBGL_UNAVAILABLE'[\s\S]{0,400}?throw err/.test(map3dSrc),
+    '期望 设置 WEBGL_UNAVAILABLE 后把 err 抛出（上层据此回 2D），实际抛出缺失或被吞掉 @ ' +
+    at('js/map3d.js', map3dSrc, "err.code = 'WEBGL_UNAVAILABLE'"))
+  const firstTouchIdx = map3dSrc.indexOf('container.innerHTML')
+  assert(firstTouchIdx >= 0 && codeIdx < firstTouchIdx,
+    '期望 判定 WebGL 失败早于任何 container.innerHTML 改写（否则先清容器再抛错，留下半初始化画布并被误报成网络问题），' +
+    '实际 container.innerHTML 首次出现在 ' + atIdx('js/map3d.js', map3dSrc, firstTouchIdx) +
+    '，而 WEBGL_UNAVAILABLE 在 ' + atIdx('js/map3d.js', map3dSrc, codeIdx))
+  ok('map3d.js 契约：WebGL 不可用抛 WEBGL_UNAVAILABLE（先抛错、后碰容器）')
+
+  // ⑤【契约】views/map.js：WEBGL_UNAVAILABLE → 回 2D / threePromise 不缓存 rejected / 不再 scrollIntoView
+  const wxCatchIdx = mapViewSrc.indexOf("err.code === 'WEBGL_UNAVAILABLE'")
+  assert(wxCatchIdx >= 0,
+    "期望 js/views/map.js 的 catch 分支判定 err.code === 'WEBGL_UNAVAILABLE'（设备不支持≠加载失败），实际未找到")
+  const fbIdx = mapViewSrc.indexOf('fallbackTo2D(', wxCatchIdx)
+  assert(fbIdx > wxCatchIdx && fbIdx - wxCatchIdx < 300,
+    '期望 判定 WEBGL_UNAVAILABLE 后就地调用 fallbackTo2D(...) 切回 2D，实际 ' +
+    (fbIdx < 0 ? '该分支内没有 fallbackTo2D 调用' : '距判定点 ' + (fbIdx - wxCatchIdx) + ' 字符才调用') +
+    ' @ ' + atIdx('js/views/map.js', mapViewSrc, wxCatchIdx))
+  const promiseCreateIdx = mapViewSrc.indexOf('threePromise = new Promise')
+  // 从赋值点之后再找：文件顶部还有一句 \`let threePromise = null\` 的声明，不能拿它充数
+  const promiseNullIdx = promiseCreateIdx < 0 ? -1 : mapViewSrc.indexOf('threePromise = null', promiseCreateIdx)
+  assert(promiseCreateIdx >= 0 && promiseNullIdx > promiseCreateIdx,
+    '期望 loadThree 失败后把 threePromise 置 null（否则 rejected promise 被永久缓存，重试永久卡死），实际 ' +
+    (promiseNullIdx < 0 ? 'new Promise 之后没有任何 threePromise = null' : 'null 赋值位置异常') +
+    ' @ ' + atIdx('js/views/map.js', mapViewSrc, promiseCreateIdx))
+  assert(/\.catch\(err => \{[\s\S]{0,300}?threePromise = null/.test(mapViewSrc),
+    '期望 threePromise = null 落在 loadThree 的 .catch 里（失败即清缓存），实际 ' +
+    'threePromise = null @ ' + at('js/views/map.js', mapViewSrc, 'threePromise = null') + ' 不在该 catch 块内')
+  assert(mapViewSrc.indexOf('scrollIntoView') < 0,
+    '期望 js/views/map.js 不再出现 scrollIntoView(（整页滚动会把地图顶出屏幕），实际仍出现在 ' +
+    at('js/views/map.js', mapViewSrc, 'scrollIntoView'))
+  assert(mapViewSrc.indexOf('window.scrollBy({') >= 0,
+    '期望 改由 revealFloat() 用 window.scrollBy({ top: … }) 只补浮窗被 tabBar 盖住的重叠量，' +
+    '实际未找到 scrollBy 调用')
+  ok('views/map.js 契约：WEBGL_UNAVAILABLE → fallbackTo2D / threePromise 失败置 null / 无 scrollIntoView 改 scrollBy')
+
+  // ⑥【契约】.map-node 可聚焦 <g> + 44px 触控热区 + 快切条是 <button>
+  assert(/<g class="map-node"[\s\S]{0,240}?tabindex="0" role="button"[\s\S]{0,240}?aria-label="/.test(mapViewSrc),
+    '期望 .map-node 是 <g> 且同时带 tabindex="0" / role="button" / aria-label=（键盘与读屏可达），实际散落位置为 ' +
+    'g @ ' + at('js/views/map.js', mapViewSrc, '<g class="map-node"') +
+    ' / tabindex @ ' + at('js/views/map.js', mapViewSrc, 'tabindex="0" role="button"') +
+    ' / aria-label @ ' + at('js/views/map.js', mapViewSrc, "' aria-label="))
+  assert(/class="map-node-hit"[\s\S]{0,140}?r="23"/.test(mapViewSrc),
+    '期望节点内含 <circle class="map-node-hit" … r="23">（直径 46 单位 → 移动端 ≥44px 热区），实际 ' +
+    'map-node-hit @ ' + at('js/views/map.js', mapViewSrc, 'map-node-hit') + ' 附近无 r="23"')
+  assert(mapViewSrc.indexOf('<button type="button" class="map-chip"') >= 0,
+    '期望 底部快切条元素是 <button class="map-chip">（原生可聚焦可回车），实际未找到该标签 @ ' +
+    at('js/views/map.js', mapViewSrc, 'class="map-chip" data-i='))
+  ok('views/map.js 契约：.map-node 为可聚焦 <g>(tabindex/role/aria-label) + r=23 触控热区 + .map-chip 是 <button>')
+
+  // ⑦【契约】style.css：天气标签隐藏 / 快切条零特异性 / 焦点环
+  assert(/\.map3d-wx\[hidden\]\s*\{\s*display:\s*none/.test(cssSrc),
+    '期望 css/style.css 有 .map3d-wx[hidden] { display: none; }（2D 模式下天气标签必须真的消失，' +
+    '否则 .map3d-wx 的 display:flex 会盖掉 hidden），实际 @ ' +
+    at('css/style.css', cssSrc, '.map3d-wx {'))
+  const whereIdx = cssSrc.indexOf(':where(button.map-chip)')
+  assert(whereIdx >= 0,
+    '期望 css/style.css 用零特异性的 :where(button.map-chip) 只压 UA 默认外观，实际未找到该选择器')
+  const bareRe = /(?:^|[\n,{}])\s*button\.map-chip\s*(?:,|\{)/g
+  const bare = bareRe.exec(cssSrc)
+  assert(!bare,
+    '期望 button.map-chip 只以 :where(button.map-chip) 形式出现（裸选择器特异性 0,0,1 会盖掉 .map-chip 的底色/描边/圆角），' +
+    '实际存在裸选择器 @ ' +
+    // 正则整体吃掉了换行，行号要按选择器本体所在位置算
+    (bare ? atIdx('css/style.css', cssSrc, bare.index + bare[0].indexOf('button.map-chip')) : ''))
+  assert(/\.map-node:focus-visible\s*\{/.test(cssSrc),
+    '期望 css/style.css 有 .map-node:focus-visible 焦点环（键盘用户必须看得见落点），实际 @ ' +
+    at('css/style.css', cssSrc, '.map-node {'))
+  ok('style.css 契约：[hidden] 隐藏 / :where(button.map-chip) 零特异性 / .map-node:focus-visible')
 }
 
 chain().then(() => {
