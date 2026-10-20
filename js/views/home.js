@@ -82,8 +82,8 @@
       '<div class="card journey-entry" id="journey-entry">' +
         '<div class="journey-entry-ic">' + UI.icon('map') + '</div>' +
         '<div style="flex:1">' +
-          '<div class="journey-entry-name">沉浸式长征路</div>' +
-          '<div class="journey-entry-sub">红飘带滚动叙事 · 从历史到今朝</div>' +
+          '<div class="journey-entry-name">长征之路</div>' +
+          '<div class="journey-entry-sub">于都出发 · 会宁会师 · 七处节点速览</div>' +
         '</div>' +
         UI.icon('chevron', 'tl-arrow') +
       '</div>' +

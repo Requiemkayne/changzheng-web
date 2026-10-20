@@ -1477,206 +1477,119 @@ a { color: var(--red-mid); text-decoration: none; }
   margin-top: 26px;
 }
 
-/* ---------- 滚动叙事页（中央红飘带 · 历史→现代转场） ---------- */
+/* ---------- 欢迎页（单屏简版开场） ---------- */
 
-.journey { position: relative; min-height: 100vh; }
-
-/* 中央飘带（固定层，内容在其上滚动） */
-.journey-ribbon {
-  position: fixed; inset: 0;
-  z-index: 1;
-  pointer-events: none;
-}
-.jr-svg { display: block; width: 100%; height: 100%; }
-.jr-svg path { vector-effect: non-scaling-stroke; fill: none; }
-.jr-base  { stroke: rgba(130, 22, 38, 0.16); stroke-width: 9; stroke-linecap: round; }
-.jr-fill  { stroke: var(--red); stroke-width: 9; stroke-linecap: round;
-            stroke-dasharray: 100; stroke-dashoffset: 100; }
-.jr-gold  { stroke: var(--gold-light); stroke-width: 2.2; stroke-linecap: round;
-            stroke-dasharray: 0.6 4.4; stroke-dashoffset: 100; }
-.jr-dots { position: absolute; inset: 0; }
-.jr-dot {
-  position: absolute; left: 50%;
-  width: 26px; height: 26px;
-  margin: -13px 0 0 -13px;
-  border-radius: 50%;
-  border: 2px solid var(--red);
-  background: var(--paper);
-  color: var(--red);
-  display: flex; align-items: center; justify-content: center;
-  font-style: normal;
-  font-family: var(--font-title);
-  font-size: 12px; font-weight: 900;
-  font-variant-numeric: tabular-nums;
-  transition: all .4s;
-}
-.jr-dot span { transform: translateY(-1px); }
-.jr-dot.jr-lit {
-  background: var(--red);
-  color: var(--gold-light);
-  border-color: var(--gold-light);
-  box-shadow: 0 0 12px rgba(198, 163, 67, 0.75);
-}
-
-.journey-top {
-  position: fixed; top: 0; left: 0; right: 0;
-  z-index: 10;
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px;
-  background: linear-gradient(180deg, rgba(247, 240, 223, 0.95), rgba(247, 240, 223, 0));
-}
-.journey-back {
-  display: flex; align-items: center; gap: 3px;
-  background: none; border: none;
-  font-size: 13px; letter-spacing: 2px;
-  color: var(--red-dark);
-  cursor: pointer;
-  padding: 4px 0;
-}
-.journey-back svg { width: 14px; height: 14px; }
-.journey-top-title {
-  font-family: var(--font-title);
-  font-size: 14px; font-weight: 900;
-  letter-spacing: 6px; text-indent: 6px;
-  color: var(--red-dark);
-}
-
-.journey-main { position: relative; z-index: 2; }
-
-/* 开场段 */
-.j-hero {
-  height: 100vh;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+.journey.welcome {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 0 24px;
+  padding: 64px 26px 48px;
 }
-.j-hero-badge {
-  font-size: 11px; letter-spacing: 3px;
+
+.welcome-badge {
+  font-size: 11px;
+  letter-spacing: 3px;
   color: var(--gold-deep);
   border: 1px solid var(--gold);
   border-radius: 999px;
   padding: 5px 14px;
   background: rgba(255, 253, 247, 0.75);
-  margin-bottom: 22px;
 }
-.j-hero-title {
-  font-family: var(--font-title);
-  font-size: 46px; font-weight: 900;
-  letter-spacing: 8px; text-indent: 8px;
-  color: var(--red-dark);
-  text-shadow: 0 2px 14px rgba(130, 22, 38, 0.25);
-}
-.j-hero-sub { font-size: 12px; letter-spacing: 4px; color: var(--muted); margin-top: 16px; }
-.j-hero-hint {
-  position: absolute; bottom: 34px;
-  display: flex; flex-direction: column; align-items: center; gap: 4px;
-  font-size: 11px; letter-spacing: 3px; color: var(--muted);
-  animation: j-bob 2.2s ease-in-out infinite;
-}
-.j-hero-hint svg { width: 16px; height: 16px; transform: rotate(90deg); color: var(--gold-deep); }
-@keyframes j-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(6px); } }
 
-/* 场景段：段内 sticky 停留，滚动驱动交叉淡化 */
-.j-scene { height: 150vh; position: relative; }
-.j-sticky { position: sticky; top: 9vh; padding: 0 14px; }
-.j-card {
-  max-width: 480px;
-  margin: 0 auto;
-  background: var(--card);
-  border: var(--gold-border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-.j-media {
-  position: relative;
-  aspect-ratio: 4 / 3;
-  background: #2E2418;
-  overflow: hidden;
-}
-.j-layer { position: absolute; inset: 0; transition: opacity .35s linear; will-change: opacity; }
-.j-layer img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.j-ph {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
+.welcome-title {
   font-family: var(--font-title);
-  font-size: 21px; font-weight: 900;
-  letter-spacing: 6px;
-  color: rgba(255, 244, 220, 0.85);
+  font-size: 46px;
+  font-weight: 900;
+  letter-spacing: 8px;
+  text-indent: 8px;
+  color: var(--red-dark);
+  text-shadow: 0 2px 14px rgba(130, 22, 38, 0.22);
+  margin-top: 22px;
 }
-.j-ph span { padding: 0 20px; text-align: center; }
-.j-ph-hist {
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E"),
-    linear-gradient(155deg, #54432E, #33271A 60%, #221A10);
-}
-.j-ph-mod {
-  background:
-    linear-gradient(155deg, rgba(168, 24, 44, 0.92), rgba(110, 9, 24, 0.96)),
-    linear-gradient(155deg, #A8182C, #6E0918);
-}
-.j-tag {
-  position: absolute; top: 10px;
-  font-size: 10px; letter-spacing: 2px;
-  color: #FFF4DC;
-  background: rgba(34, 26, 16, 0.68);
-  border: 1px solid rgba(232, 200, 106, 0.45);
-  border-radius: 999px;
-  padding: 3px 10px;
-  transition: opacity .35s linear;
-}
-.j-tag-hist { left: 10px; }
-.j-tag-mod  { right: 10px; border-color: rgba(255, 244, 220, 0.5); }
-.j-caption {
-  position: absolute; bottom: 10px; left: 12px; right: 12px;
-  font-size: 11px; letter-spacing: 1px;
-  color: #FFF4DC;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
-  transition: opacity .35s linear;
-}
-.j-text { padding: 15px 17px 16px; }
-.j-head { display: flex; align-items: baseline; gap: 11px; }
-.j-order {
-  font-family: var(--font-title);
-  font-size: 19px; font-weight: 900;
-  color: var(--gold-deep);
-  border-bottom: 2px solid var(--gold);
-  padding-bottom: 1px;
-  font-variant-numeric: tabular-nums;
-}
-.j-name {
-  font-family: var(--font-title);
-  font-size: 21px; font-weight: 900;
+
+.welcome-sub {
+  font-size: 12px;
   letter-spacing: 3px;
-  color: var(--red-dark);
+  color: var(--muted);
+  margin-top: 14px;
 }
-.j-meta { font-size: 12px; color: var(--muted); letter-spacing: 1px; margin-top: 6px; }
-.j-summary { font-size: 13px; line-height: 1.8; color: var(--ink); margin-top: 10px; }
-.j-hint {
-  display: flex; align-items: center; justify-content: center; gap: 4px;
-  font-size: 11px; letter-spacing: 2px; color: var(--muted);
-  margin-top: 13px;
-  transition: opacity .3s;
-}
-.j-hint svg { width: 13px; height: 13px; transform: rotate(90deg); }
 
-/* 结尾段 */
-.j-end {
-  height: 100vh;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  text-align: center;
-  padding: 0 28px;
+.welcome-rule {
+  width: 46px;
+  height: 2px;
+  background: var(--gold);
+  opacity: 0.65;
+  margin: 26px 0 22px;
 }
-.j-end-star { color: var(--gold); font-size: 34px; margin-bottom: 18px; }
-.j-end-star svg { width: 34px; height: 34px; }
-.j-end-title {
-  font-family: var(--font-title);
-  font-size: 30px; font-weight: 900;
-  letter-spacing: 6px; text-indent: 6px;
+
+.welcome-route {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 420px;
+  box-sizing: border-box;
+}
+
+.welcome-chip {
+  font-size: 11px;
+  letter-spacing: 1px;
   color: var(--red-dark);
+  background: rgba(200, 16, 46, 0.05);
+  border: 1px solid rgba(200, 16, 46, 0.16);
+  border-radius: 999px;
+  padding: 5px 11px;
 }
-.j-end-text { font-size: 13px; line-height: 1.9; color: var(--ink); margin-top: 14px; max-width: 320px; }
-.j-end-btn { margin-top: 26px; padding: 12px 34px; font-size: 15px; letter-spacing: 4px; }
+
+.welcome-chip b {
+  font-family: var(--font-title);
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--gold-deep);
+  margin-right: 5px;
+}
+
+.welcome-quote {
+  font-size: 13px;
+  line-height: 1.9;
+  color: var(--ink);
+  margin-top: 24px;
+  max-width: 340px;
+}
+
+.welcome-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 32px;
+}
+
+.welcome-start {
+  padding: 12px 36px;
+  font-size: 15px;
+  letter-spacing: 4px;
+  text-indent: 4px;
+}
+
+.welcome-skip {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  font-size: 12px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+@media (max-width: 380px) {
+  .welcome-title { font-size: 38px; letter-spacing: 5px; text-indent: 5px; }
+  .welcome-route { gap: 6px; }
+}
 
 
 /* ---------- 动效收束：唯一签名动作 = 盖章，其余只做状态过渡 ---------- */
