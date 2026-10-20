@@ -14,6 +14,7 @@ const http = require('node:http')
 const fs = require('node:fs')
 const path = require('node:path')
 const url = require('node:url')
+const zlib = require('node:zlib')
 
 const { openDb } = require('./db')
 const auth = require('./auth')
@@ -333,21 +334,186 @@ function resolveStatic(pathname) {
   return { file }
 }
 
-function serveStatic(res, pathname) {
+/* ---------- 静态资源：条件请求（ETag / Last-Modified / 304）+ gzip ---------- */
+
+const NO_CACHE = 'no-cache'                                 // 文本类：可重新验证，靠 ETag 拿 304
+const IMMUTABLE = 'public, max-age=31536000, immutable'     // 文件名自带内容哈希：内容改不动
+const SHORT_CACHE = 'public, max-age=86400'                 // 无哈希的大资源：只给 1 天，靠 ETag 兜底
+
+// 只压文本类：woff2 / png / jpg / ico / webp 本身已压缩，再 gzip 只会变大（实测对比见交付报告）
+const COMPRESSIBLE_EXT = new Set(['.html', '.css', '.js', '.json', '.svg'])
+const GZIP_MIN_BYTES = 1024
+const GZIP_CACHE_MAX_BYTES = 32 * 1024 * 1024
+
+const gzipCache = new Map()     // 'file|mtimeMs|size' -> Buffer（插入序即淘汰序）
+const gzipInflight = new Map()  // 同一份内容首次压缩的并发请求合并成一次，别 20 个请求烧 20 次 CPU
+let gzipCacheBytes = 0
+
+function gzipCacheGet(key) {
+  const hit = gzipCache.get(key)
+  if (!hit) return null
+  gzipCache.delete(key)       // 命中即挪到队尾（LRU）
+  gzipCache.set(key, hit)
+  return hit
+}
+
+function gzipCachePut(key, buf) {
+  if (buf.length > GZIP_CACHE_MAX_BYTES) return
+  const old = gzipCache.get(key)
+  if (old) gzipCacheBytes -= old.length
+  gzipCache.set(key, buf)
+  gzipCacheBytes += buf.length
+  while (gzipCacheBytes > GZIP_CACHE_MAX_BYTES) {
+    const first = gzipCache.keys().next()
+    if (first.done) break
+    gzipCacheBytes -= gzipCache.get(first.value).length
+    gzipCache.delete(first.value)
+  }
+}
+
+/** 压缩并缓存：同一文件同一 mtime/size 只压一次 */
+function gzipFor(key, data) {
+  const cached = gzipCacheGet(key)
+  if (cached) return Promise.resolve(cached)
+  const running = gzipInflight.get(key)
+  if (running) return running
+  const p = new Promise((resolve, reject) => {
+    zlib.gzip(data, (err, buf) => (err ? reject(err) : resolve(buf)))
+  }).then(buf => {
+    gzipInflight.delete(key)
+    gzipCachePut(key, buf)
+    return buf
+  }, err => {
+    gzipInflight.delete(key)
+    throw err
+  })
+  gzipInflight.set(key, p)
+  return p
+}
+
+/** Accept-Encoding 是否允许 gzip：显式 gzip;q=0 一律否决；没有 gzip 条目才看 * */
+function acceptsGzip(header) {
+  if (!header) return false
+  let wildcard = -1
+  for (const part of String(header).split(',')) {
+    const fields = part.split(';')
+    const name = fields[0].trim().toLowerCase()
+    if (!name) continue
+    let q = 1
+    for (let i = 1; i < fields.length; i++) {
+      const kv = fields[i].split('=')
+      if (kv.length === 2 && kv[0].trim().toLowerCase() === 'q') {
+        const v = Number(kv[1].trim())
+        if (Number.isFinite(v)) q = v
+      }
+    }
+    if (name === 'gzip' || name === 'x-gzip') return q > 0
+    if (name === '*') wildcard = q
+  }
+  return wildcard > 0
+}
+
+/** 强校验：size + mtimeMs（同一份字节、同一时间戳 ⇒ 同一份内容） */
+function etagOf(st) {
+  return '"' + st.size.toString(16) + '-' + Math.floor(st.mtimeMs).toString(16) + '"'
+}
+
+/** If-None-Match 命中：逗号分隔列表 / * / 容忍 W- 前缀与裸值 */
+function etagMatches(header, etag) {
+  if (!header) return false
+  const bare = etag.slice(1, -1)
+  for (const raw of String(header).split(',')) {
+    let s = raw.trim()
+    if (s === '*') return true
+    if (s.slice(0, 2).toUpperCase() === 'W/') s = s.slice(2).trim()
+    if (s.length > 1 && s[0] === '"' && s[s.length - 1] === '"') s = s.slice(1, -1)
+    if (s === bare) return true
+  }
+  return false
+}
+
+/** If-Modified-Since 命中（mtime 截到秒再比，避免毫秒导致永不命中） */
+function notModifiedSince(header, mtimeMs) {
+  if (!header) return false
+  const since = Date.parse(header)
+  if (!Number.isFinite(since)) return false
+  return Math.floor(mtimeMs / 1000) * 1000 <= since
+}
+
+/** 追加 Vary：CORS 可能已经设过 Vary: Origin，绝不能覆盖 */
+function addVary(res, value) {
+  const cur = res.getHeader('Vary')
+  if (cur === undefined) {
+    res.setHeader('Vary', value)
+    return
+  }
+  const list = String(cur).split(',').map(s => s.trim().toLowerCase())
+  if (list.indexOf('*') !== -1 || list.indexOf(value.toLowerCase()) !== -1) return
+  res.setHeader('Vary', String(cur) + ', ' + value)
+}
+
+/** 文件名里带 8 位以上十六进制内容哈希才敢给 immutable */
+function hasContentHash(file) {
+  return /[0-9a-f]{8,}/i.test(path.basename(file, path.extname(file)))
+}
+
+/** 缓存策略分层（文本类保持 no-cache，向后兼容） */
+function cacheControlFor(file) {
+  const rel = path.relative(WEB_ROOT, file).split(path.sep).join('/')
+  const ext = path.extname(file).toLowerCase()
+  // 字体：Google Fonts 的子集文件名就是内容哈希，改内容必然换名 → 可永久缓存
+  if (rel.indexOf('fonts/') === 0 && (ext === '.woff2' || ext === '.woff')) return IMMUTABLE
+  // 3D 大资源：文件名带哈希的永久缓存；heightmap.json / heightmap.png / three.min.js 这类只给 1 天
+  if (rel.indexOf('assets/') === 0) return hasContentHash(file) ? IMMUTABLE : SHORT_CACHE
+  // 其余（html/css/js/json）：开发期改动频繁，保持 no-cache，靠 ETag 拿 304
+  return NO_CACHE
+}
+
+/** 发 200 正文：Content-Length 必须等于真实发出的字节数（gzip 时是压缩后长度） */
+function sendBody(res, buf, gzipped, ext) {
+  res.setHeader('Content-Type', MIME[ext] || 'application/octet-stream')
+  if (gzipped) res.setHeader('Content-Encoding', 'gzip')
+  res.setHeader('Content-Length', String(buf.length))
+  res.writeHead(200)
+  res.end(buf)
+}
+
+function serveStatic(req, res, pathname) {
   const r = resolveStatic(pathname)
   if (r.status === 400) return fail(res, 400, 'BAD_REQUEST', '请求路径编码非法')
   if (r.status === 403) return fail(res, 403, 'FORBIDDEN', '禁止访问')
   if (r.status === 404) return fail(res, 404, 'NOT_FOUND', '文件不存在')
   const file = r.file
-  fs.readFile(file, (err, data) => {
-    if (err) return fail(res, 404, 'NOT_FOUND', '文件不存在')
-    const ext = path.extname(file).toLowerCase()
-    // no-cache：开发期 JS/CSS 频繁改动，防止浏览器缓存旧版本导致行为错乱
-    res.writeHead(200, {
-      'Content-Type': MIME[ext] || 'application/octet-stream',
-      'Cache-Control': 'no-cache'
+  const ext = path.extname(file).toLowerCase()
+  fs.stat(file, (statErr, st) => {
+    if (statErr || !st.isFile()) return fail(res, 404, 'NOT_FOUND', '文件不存在')
+    const etag = etagOf(st)
+    const compressible = COMPRESSIBLE_EXT.has(ext)
+    // Vary 无条件发：同一个 URL 的响应体随 Accept-Encoding 变化
+    if (compressible) addVary(res, 'Accept-Encoding')
+    res.setHeader('ETag', etag)
+    res.setHeader('Last-Modified', new Date(Math.floor(st.mtimeMs / 1000) * 1000).toUTCString())
+    res.setHeader('Cache-Control', cacheControlFor(file))
+    // 条件请求：带 If-None-Match 就以它为准，没有才看 If-Modified-Since（RFC 9110 §13.1.3）
+    const inm = req.headers['if-none-match']
+    const hit = inm ? etagMatches(inm, etag) : notModifiedSince(req.headers['if-modified-since'], st.mtimeMs)
+    if (hit) {
+      res.writeHead(304)
+      return res.end()   // 304 无响应体，也不发 Content-Length
+    }
+    const useGzip = compressible && st.size >= GZIP_MIN_BYTES && acceptsGzip(req.headers['accept-encoding'])
+    fs.readFile(file, (err, data) => {
+      if (err) {
+        res.removeHeader('ETag')
+        res.removeHeader('Last-Modified')
+        res.removeHeader('Cache-Control')
+        return fail(res, 404, 'NOT_FOUND', '文件不存在')
+      }
+      if (!useGzip) return sendBody(res, data, false, ext)
+      const key = file + '|' + Math.round(st.mtimeMs) + '|' + st.size
+      gzipFor(key, data).then(buf => sendBody(res, buf, true, ext),
+        () => sendBody(res, data, false, ext))
     })
-    res.end(data)
   })
 }
 
@@ -433,7 +599,7 @@ function startServer(port) {
         const handled = await handleLeaderboard(db, req, res, u.pathname, u.query)
         if (!handled) await handleApi(db, req, res, u.pathname, u.query)
       } else if (req.method === 'GET') {
-        serveStatic(res, u.pathname === '/' ? '/index.html' : u.pathname)
+        serveStatic(req, res, u.pathname === '/' ? '/index.html' : u.pathname)
       } else {
         fail(res, 405, 'METHOD_NOT_ALLOWED', '不支持的请求方法')
       }

@@ -529,6 +529,147 @@ async function main() {
       ' / .svg MIME @ ' + (iMime < 0 ? 'server/server.js:(未找到该代码)' : atIdx('server/server.js', srvSrc, iMime)) +
       ' / 白名单 @ ' + (iAllow < 0 ? 'server/server.js:(未找到该代码)' : atIdx('server/server.js', srvSrc, iAllow)))
 
+
+    /* ---------- 13. 批次⑦：静态压缩协商 / 304 / 缓存策略分层 ---------- */
+    console.log('\n[13] 批次⑦：静态压缩协商 / 304 / 缓存策略分层')
+    // 裸 http：fetch 会自动解压，量不到线上真实字节；这里的断言全看传输层
+    const nodeHttp = require('node:http')
+    const nodeZlib = require('node:zlib')
+    const statOf = rel => fs.statSync(path.join(__dirname, '..', rel))
+    const BASE_URL = new URL(BASE)
+    const rawReq = (method, p, headers) => new Promise((resolve, reject) => {
+      const r2 = nodeHttp.request({
+        host: BASE_URL.hostname, port: BASE_URL.port, path: p, method, headers: headers || {}
+      }, res => {
+        const chunks = []
+        res.on('data', c => chunks.push(c))
+        res.on('end', () => resolve({ status: res.statusCode, headers: res.headers, bytes: Buffer.concat(chunks) }))
+      })
+      r2.on('error', reject)
+      r2.end()
+    })
+    const rawGet = (p, headers) => rawReq('GET', p, headers)
+
+    // 13.1 gzip 协商三态（style.css 73,395 B，远超 1 KB 阈值）
+    const cssRaw = statOf('css/style.css').size
+    const cssGz = await rawGet('/css/style.css', { 'Accept-Encoding': 'gzip' })
+    ok('gzip 协商：Accept-Encoding: gzip → 200 + Content-Encoding: gzip + Vary: Accept-Encoding + Content-Length=压缩后字节',
+      cssGz.status === 200 && cssGz.headers['content-encoding'] === 'gzip' &&
+      /accept-encoding/i.test(cssGz.headers.vary || '') &&
+      Number(cssGz.headers['content-length']) === cssGz.bytes.length &&
+      nodeZlib.gunzipSync(cssGz.bytes).length === cssRaw,
+      '实际 ' + cssGz.status + ' ce=' + cssGz.headers['content-encoding'] + ' vary=' + cssGz.headers.vary +
+      ' cl=' + cssGz.headers['content-length'] + ' 实收=' + cssGz.bytes.length)
+    ok('压缩率实测：css/style.css ' + cssRaw + ' B → ' + cssGz.bytes.length + ' B（' +
+      (cssGz.bytes.length / cssRaw * 100).toFixed(1) + '%）',
+      cssGz.bytes.length < cssRaw * 0.5, '实际 压缩后 ' + cssGz.bytes.length + ' / 原始 ' + cssRaw)
+
+    const cssQ0 = await rawGet('/css/style.css', { 'Accept-Encoding': 'gzip;q=0' })
+    ok('gzip 否定①：Accept-Encoding: gzip;q=0 → 未压缩（无 Content-Encoding，Content-Length=原始字节）',
+      cssQ0.status === 200 && !cssQ0.headers['content-encoding'] &&
+      Number(cssQ0.headers['content-length']) === cssRaw && cssQ0.bytes.length === cssRaw,
+      '实际 ce=' + cssQ0.headers['content-encoding'] + ' cl=' + cssQ0.headers['content-length'] +
+      ' 实收=' + cssQ0.bytes.length + ' @ server/server.js:399-421')
+
+    const cssNone = await rawGet('/css/style.css')
+    ok('gzip 否定②：完全不发 Accept-Encoding → 未压缩',
+      !cssNone.headers['content-encoding'] && cssNone.bytes.length === cssRaw,
+      '实际 ce=' + cssNone.headers['content-encoding'] + ' 实收=' + cssNone.bytes.length)
+
+    // 13.2 ETag / Last-Modified / 304（无响应体）
+    const etag = cssNone.headers.etag
+    const lastMod = cssNone.headers['last-modified']
+    ok('200 首访带强校验：ETag 形如 "<size>-<mtime>" 且 Last-Modified 是合法 HTTP 日期',
+      !!etag && /^"[0-9a-f]+-[0-9a-f]+"$/.test(etag) && !!lastMod && Number.isFinite(Date.parse(lastMod)),
+      '实际 etag=' + etag + ' last-modified=' + lastMod)
+
+    const inm = await rawGet('/css/style.css', { 'If-None-Match': etag })
+    ok('If-None-Match 命中 → 304 且响应体 0 字节', inm.status === 304 && inm.bytes.length === 0,
+      '实际 ' + inm.status + ' 体=' + inm.bytes.length)
+    ok('304 仍带 ETag / Cache-Control / Vary（Content-Length 可省，但不许带体）',
+      inm.headers.etag === etag && inm.headers['cache-control'] === 'no-cache' &&
+      /accept-encoding/i.test(inm.headers.vary || '') && Number(inm.headers['content-length'] || 0) === 0,
+      '实际 etag=' + inm.headers.etag + ' cc=' + inm.headers['cache-control'] + ' vary=' + inm.headers.vary +
+      ' cl=' + inm.headers['content-length'])
+
+    const ims = await rawGet('/css/style.css', { 'If-Modified-Since': lastMod })
+    ok('If-Modified-Since 命中 → 304 且 0 字节', ims.status === 304 && ims.bytes.length === 0,
+      '实际 ' + ims.status + ' 体=' + ims.bytes.length)
+
+    const inmMiss = await rawGet('/css/style.css', { 'If-None-Match': '"deadbeef-1"' })
+    ok('If-None-Match 不命中 → 200 全量（不会误判 304）',
+      inmMiss.status === 200 && inmMiss.bytes.length === cssRaw, '实际 ' + inmMiss.status + ' 体=' + inmMiss.bytes.length)
+
+    const stale = await rawGet('/css/style.css', { 'If-Modified-Since': 'Thu, 01 Jan 1970 00:00:00 GMT' })
+    ok('If-Modified-Since 早于 mtime → 200 全量', stale.status === 200 && stale.bytes.length === cssRaw,
+      '实际 ' + stale.status + ' 体=' + stale.bytes.length)
+
+    // 13.3 已压缩二进制不压（压了反而更大，用实测数字说话）
+    const fontName = fs.readdirSync(path.join(__dirname, '..', 'fonts')).filter(f => f.endsWith('.woff2')).sort()[0]
+    const fontPath = '/fonts/' + fontName
+    const fontDisk = statOf('fonts/' + fontName).size
+    const fontRes = await rawGet(fontPath, { 'Accept-Encoding': 'gzip' })
+    ok('字体 woff2 不压：AE=gzip 也原样下发（无 Content-Encoding，Content-Length=磁盘字节）',
+      fontRes.status === 200 && !fontRes.headers['content-encoding'] &&
+      Number(fontRes.headers['content-length']) === fontDisk && fontRes.bytes.length === fontDisk,
+      '实际 ' + fontRes.status + ' ce=' + fontRes.headers['content-encoding'] + ' 实收=' + fontRes.bytes.length +
+      ' 磁盘=' + fontDisk + ' @ ' + fontPath)
+
+    const pngDisk = statOf('assets/map3d/heightmap.png').size
+    const pngGzSize = nodeZlib.gzipSync(fs.readFileSync(path.join(__dirname, '..', 'assets', 'map3d', 'heightmap.png'))).length
+    const pngRes = await rawGet('/assets/map3d/heightmap.png', { 'Accept-Encoding': 'gzip' })
+    ok('heightmap.png 不压，且实测 gzip 后反而更大（' + pngDisk + ' B → ' + pngGzSize + ' B，+' +
+      (pngGzSize / pngDisk * 100 - 100).toFixed(1) + '%）',
+      !pngRes.headers['content-encoding'] && pngRes.bytes.length === pngDisk && pngGzSize > pngDisk,
+      '实际 ce=' + pngRes.headers['content-encoding'] + ' 实收=' + pngRes.bytes.length + ' gzip后=' + pngGzSize)
+
+    // 13.4 1 KB 阈值
+    const svgDisk = statOf('favicon.svg').size
+    const svgRes = await rawGet('/favicon.svg', { 'Accept-Encoding': 'gzip' })
+    ok('gzip 阈值：' + svgDisk + ' B 的 favicon.svg 低于 1024 B 不压（但仍有 ETag + Vary）',
+      !svgRes.headers['content-encoding'] && svgRes.bytes.length === svgDisk &&
+      !!svgRes.headers.etag && /accept-encoding/i.test(svgRes.headers.vary || ''),
+      '实际 ce=' + svgRes.headers['content-encoding'] + ' 实收=' + svgRes.bytes.length)
+
+    // 13.5 缓存策略分层
+    const cc = async p => (await rawGet(p)).headers['cache-control']
+    const ccCss = await cc('/css/style.css')
+    const ccHtml = await cc('/index.html')
+    const ccJs = await cc('/js/api.js')
+    ok('缓存分层①：html / css / js 维持 no-cache（靠 ETag 走 304，向后兼容）',
+      ccCss === 'no-cache' && ccHtml === 'no-cache' && ccJs === 'no-cache',
+      '实际 css=' + ccCss + ' html=' + ccHtml + ' js=' + ccJs)
+    const ccFont = await cc(fontPath)
+    ok('缓存分层②：fonts/*.woff2（文件名带内容哈希）→ public, max-age=31536000, immutable',
+      ccFont === 'public, max-age=31536000, immutable', '实际 ' + ccFont + ' @ ' + fontPath)
+    const ccPng = await cc('/assets/map3d/heightmap.png')
+    const ccMapJson = await cc('/assets/map3d/heightmap.json')
+    ok('缓存分层③：assets/map3d 无哈希文件名 → public, max-age=86400，绝不给 immutable',
+      ccPng === 'public, max-age=86400' && ccMapJson === 'public, max-age=86400',
+      '实际 heightmap.png=' + ccPng + ' heightmap.json=' + ccMapJson)
+
+    // 13.6 白名单不回潮（裸 http 复测，与 [1] 互为交叉证据）
+    const deniedCodes = []
+    for (const denied of ['/server/data.db', '/server/question-bank.json', '/.git/config',
+      '/scripts/test-api.js', '/README.md']) {
+      deniedCodes.push((await rawGet(denied)).status)
+    }
+    const allowCodes = []
+    for (const allowed of ['/js/api.js', '/css/style.css', '/index.html', '/favicon.svg']) {
+      allowCodes.push((await rawGet(allowed)).status)
+    }
+    const trav = await rawGet('/../server/data.db')
+    const badEnc = await rawGet('/%zz')
+    ok('白名单不回潮：5 个敏感路径全 404 / 4 个白名单资源全 200 / 穿越 403 / %zz 400',
+      deniedCodes.join(',') === '404,404,404,404,404' && allowCodes.join(',') === '200,200,200,200' &&
+      trav.status === 403 && badEnc.status === 400,
+      '实际 404组=' + deniedCodes.join(',') + ' 200组=' + allowCodes.join(',') +
+      ' 穿越=' + trav.status + ' %zz=' + badEnc.status)
+
+    const headRes = await rawReq('HEAD', '/css/style.css')
+    ok('HEAD 保持改造前语义（405，本次没有新引入 HEAD 分支）', headRes.status === 405, '实际 ' + headRes.status)
+
+
   } finally {
     for (const s of extraServers) {
       try { s.close() } catch (e) { /* 已关闭 */ }

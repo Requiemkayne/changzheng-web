@@ -920,6 +920,59 @@ async function chain() {
     ' @ ' + at('js/views/quiz.js', nQuiz, 'class="result-score"'))
   ok('quiz.js 契约：.result-title 为 <h1>、.review-title / .cert-title 为 <h2>、.result-score 带 role=img + aria-label')
 
+  /* ========== 7. webfont 自托管契约（首屏单文件，构建脚本 scripts/build-fonts.py） ========== */
+  // 只看去注释后的 CSS：注释里会提到 unicode-range 这个词
+  const fontCssRaw = fs.readFileSync(path.join(webRoot, 'fonts', 'noto-serif-sc.css'), 'utf8')
+  const fontCss = fontCssRaw.replace(/\/\*[\s\S]*?\*\//g, '')
+
+  const faceCount = (fontCss.match(/@font-face\s*\{/g) || []).length
+  assert(faceCount > 0 && faceCount <= 2,
+    '期望 fonts/noto-serif-sc.css 去注释后 @font-face 不超过 2 条（700 / 900 各一个全字符集单文件），实际 ' + faceCount)
+  assert(!/unicode-range/i.test(fontCss),
+    '期望不再有 unicode-range 切片（单文件覆盖 fonts/glyphs.txt 全字符集，首屏字体请求 <=2），实际仍命中 ' +
+    JSON.stringify((fontCss.match(/unicode-range[^;]*;/) || ['(无)'])[0]))
+  assert(/font-family:\s*'Noto Serif SC'/.test(fontCss),
+    "期望保留 font-family: 'Noto Serif SC'（css/style.css 的 --font-title 引用的就是这个族名），实际未命中")
+  assert(/font-display:\s*swap/.test(fontCss),
+    '期望保留 font-display: swap（字体未就绪时先显示回退字体），实际未命中')
+  for (const w of [700, 900]) {
+    assert(new RegExp('font-weight:\\s*' + w + '\\b').test(fontCss),
+      '期望有 font-weight: ' + w + ' 的 @font-face（900 是标题纲，缺了会掉到 700 的粗度），实际未命中')
+  }
+  const fontSrcs = (fontCss.match(/url\(([^)]+)\)/g) || [])
+    .map(s => s.replace(/^url\(/, '').replace(/\)$/, '').replace(/['"]/g, '').trim())
+  assert.strictEqual(fontSrcs.length, 2, '期望恰好 2 个 woff2 src，实际 ' + JSON.stringify(fontSrcs))
+  for (const rel of fontSrcs) {
+    const p = path.join(webRoot, 'fonts', rel)
+    assert(fs.existsSync(p), '期望 src 引用的字体文件存在：fonts/' + rel)
+    const size = fs.statSync(p).size
+    assert(size > 100 * 1024, '期望 fonts/' + rel + ' > 100KB（整块中文字形子集），实际 ' + size + ' B')
+  }
+  ok('fonts 自托管契约：@font-face <=2 / 无 unicode-range / 700 与 900 都在 / 两个 woff2 src 均存在且 >100KB')
+
+  const glyphPath = path.join(webRoot, 'fonts', 'glyphs.txt')
+  assert(fs.existsSync(glyphPath), '期望 fonts/glyphs.txt 存在（构建输入：字符集快照）')
+  // 注释行以 "# " 开头；字符行里的 '#' 是单独一行（前面没有空格），因此不会被误当注释
+  const glyphChars = fs.readFileSync(glyphPath, 'utf8').split('\n').filter(l => l && !l.startsWith('# '))
+  assert(glyphChars.length > 1000,
+    '期望 fonts/glyphs.txt 行数 > 1000（ASCII + 中文标点 + 内容扫描字符），实际 ' + glyphChars.length)
+  ok('fonts/glyphs.txt 存在且为逐行字符快照（' + glyphChars.length + ' 个）')
+
+  // 回归锁：后端模式下 /api/quiz 从 SQLite 下发题目/选项/解析正文，种子里每个 >=U+2000 的字符
+  // 都必须进了子集字符集，否则正文会逐字回落到 Songti SC / SimSun（一句话里两种衬线体）。
+  const bankPath = path.join(webRoot, 'server', 'question-bank.json')
+  assert(fs.existsSync(bankPath), '期望 server/question-bank.json 存在（后端题库种子，/api/quiz 的正文来源）')
+  const bankText = fs.readFileSync(bankPath, 'utf8')
+  const glyphSet = new Set(glyphChars)
+  const bankCps = new Set([...bankText].filter(ch => ch.codePointAt(0) >= 0x2000))
+  const bankMissing = [...bankCps].filter(ch => !glyphSet.has(ch))
+  assert.strictEqual(bankMissing.length, 0,
+    '期望 server/question-bank.json 里每个 >=U+2000 的字符都出现在 fonts/glyphs.txt 里（否则 /api/quiz 下发的正文缺字，' +
+    '逐字回落到 Songti SC / SimSun；补字后重跑 scripts/build-fonts.py），实际缺 ' + bankMissing.length + ' 个：' +
+    bankMissing.map(ch => JSON.stringify(ch) + ' U+' + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')).join(' ') +
+    ' @ ' + at('server/question-bank.json', bankText, bankMissing[0] || ''))
+  ok('fonts 覆盖回归：server/question-bank.json 的 ' + bankCps.size + ' 个 >=U+2000 字符全在 fonts/glyphs.txt 里（0 缺失）')
+
   /* ================= 6 END ================= */
 
 }
