@@ -1,6 +1,8 @@
 // 验收：开场流程 —— 首次访问 → journey 开场 → 跳过/结束 → 登录页
 const { spawn } = require('child_process')
 const fs = require('fs')
+const os = require('os')
+const path = require('path')
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
@@ -40,7 +42,7 @@ async function grab() {
   }
   const shot = async name => {
     const r = await send('Page.captureScreenshot', { format: 'png' })
-    fs.writeFileSync(require('path').join(__dirname, '..', '..', '.tokenicode', 'tmp', name), Buffer.from(r.result.data, 'base64'))
+    fs.writeFileSync(path.join(os.tmpdir(), name), Buffer.from(r.result.data, 'base64'))
   }
 
   await send('Page.enable')

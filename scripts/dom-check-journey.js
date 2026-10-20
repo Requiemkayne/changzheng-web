@@ -1,6 +1,8 @@
-// 验收：滚动叙事页 —— 红飘带随滚动延伸 + 节点点亮 + 历史→现代交叉淡化
+// 验收：欢迎页（单屏简版开场）—— 结构、节点速览、两个出口按钮
 const { spawn } = require('child_process')
 const fs = require('fs')
+const os = require('os')
+const path = require('path')
 const EDGE = 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
@@ -9,7 +11,7 @@ async function grab() {
   const url = 'http://localhost:8088/?mock=1&intro=0#/journey'
   const edge = spawn(EDGE, ['--headless', '--disable-gpu', '--no-first-run',
     '--remote-debugging-port=' + port,
-    '--user-data-dir=' + require('os').tmpdir() + '/cdp-journey-' + process.pid,
+    '--user-data-dir=' + os.tmpdir() + '/cdp-journey-' + process.pid,
     url], { stdio: 'ignore' })
   let page = null
   for (let i = 0; i < 40 && !page; i++) {
@@ -40,42 +42,33 @@ async function grab() {
   }
   const shot = async name => {
     const r = await send('Page.captureScreenshot', { format: 'png' })
-    fs.writeFileSync(require('path').join(__dirname, '..', '..', '.tokenicode', 'tmp', name), Buffer.from(r.result.data, 'base64'))
-  }
-  const scrollTo = async y => {
-    await evalJs(`window.scrollTo(0, ${y})`)
-    await sleep(450)
+    fs.writeFileSync(path.join(os.tmpdir(), name), Buffer.from(r.result.data, 'base64'))
+    console.log('截图:', path.join(os.tmpdir(), name))
   }
 
   await send('Page.enable')
   await send('Emulation.setDeviceMetricsOverride', { width: 400, height: 800, deviceScaleFactor: 1, mobile: false })
   for (let i = 0; i < 40 && !loads; i++) await sleep(250)
-  await sleep(1000)
+  await sleep(800)
 
-  console.log('场景数:', await evalJs(`document.querySelectorAll('.j-scene').length`))
-  console.log('节点圆点数:', await evalJs(`document.querySelectorAll('.jr-dot').length`))
+  console.log('hash:', await evalJs('location.hash'))
+  console.log('欢迎页在场:', await evalJs(`document.querySelector('.journey.welcome') ? 'yes' : 'NO'`))
+  console.log('标题:', await evalJs(`document.querySelector('.welcome-title').innerText`))
+  console.log('副标题:', await evalJs(`document.querySelector('.welcome-sub').innerText`))
+  console.log('节点速览数:', await evalJs(`document.querySelectorAll('.welcome-chip').length`))
+  console.log('首/尾节点:', await evalJs(`document.querySelectorAll('.welcome-chip')[0].innerText + ' … ' + document.querySelectorAll('.welcome-chip')[6].innerText`))
+  console.log('旧滚动叙事残留(.j-scene/.jr-dot):', await evalJs(`document.querySelectorAll('.j-scene').length + ' / ' + document.querySelectorAll('.jr-dot').length`))
   console.log('tabbar 隐藏:', await evalJs(`document.getElementById('tabbar').style.display`))
-  console.log('初始 fill dashoffset:', await evalJs(`document.querySelector('.jr-fill').style.strokeDashoffset`))
-  await shot('journey-hero.png')
+  console.log('是否需要滚动:', await evalJs(`document.documentElement.scrollHeight > window.innerHeight ? 'yes' : 'no'`))
+  console.log('横向溢出:', await evalJs(`document.documentElement.scrollWidth > window.innerWidth ? 'yes(' + document.documentElement.scrollWidth + ')' : 'no'`))
+  console.log('胶囊都在视口内:', await evalJs(`Array.prototype.every.call(document.querySelectorAll('.welcome-chip'), el => el.getBoundingClientRect().right <= window.innerWidth + 0.5) ? 'yes' : 'NO'`))
+  await shot('welcome-page.png')
 
-  // 场景 0（于都）：段范围 [800, 2000]，p=(winH-rect.top)/1200，f=(p-0.25)/0.5
-  // f=0 在 scrollY≈300（段顶 rect.top=500），f=1 在 scrollY≈900（rect.top=-100）
-  await scrollTo(300)
-  console.log('场景0 f≈0 hist/mod:', await evalJs(`document.querySelectorAll('.j-scene')[0].querySelector('.j-hist').style.opacity + ' / ' + document.querySelectorAll('.j-scene')[0].querySelector('.j-mod').style.opacity`))
-  await shot('journey-hist.png')
-
-  await scrollTo(900)
-  console.log('场景0 f≈1 hist/mod:', await evalJs(`document.querySelectorAll('.j-scene')[0].querySelector('.j-hist').style.opacity + ' / ' + document.querySelectorAll('.j-scene')[0].querySelector('.j-mod').style.opacity`))
-  console.log('场景0 节点点亮:', await evalJs(`document.querySelectorAll('.jr-dot')[0].className`))
-  console.log('滚动中 dashoffset:', await evalJs(`document.querySelector('.jr-fill').style.strokeDashoffset`))
-  await shot('journey-modern.png')
-
-  // 滚到底：飘带延伸完，尾节点点亮，结尾按钮在
-  await scrollTo(99999)
-  console.log('底部 fill dashoffset:', await evalJs(`document.querySelector('.jr-fill').style.strokeDashoffset`))
-  console.log('尾节点点亮:', await evalJs(`document.querySelectorAll('.jr-dot')[6].className`))
-  console.log('结尾按钮:', await evalJs(`document.querySelector('#journey-start') ? document.querySelector('#journey-start').innerText : 'MISSING'`))
-  await shot('journey-end.png')
+  // 出口：mock 模式点「开始长征」→ 登录页
+  await evalJs(`document.querySelector('#journey-start').click()`)
+  await sleep(700)
+  console.log('点开始长征后 hash:', await evalJs('location.hash'))
+  console.log('登录页在场:', await evalJs(`document.querySelector('.login-card') ? 'yes' : 'NO'`))
 
   ws.close(); edge.kill()
 }
