@@ -9,6 +9,14 @@
   const progressUtil = root.CZ_PROGRESS
   const UI = root.CZ_UI
 
+  // 返回：优先浏览器后退；直接打开的入口页（history 里没有站内上一页，或来自站外）退回首页，别把用户卡在原地
+  function goBack() {
+    const ref = document.referrer || ''
+    const fromOtherSite = ref !== '' && ref.indexOf(location.origin) !== 0
+    if (history.length > 1 && !fromOtherSite) history.back()
+    else location.hash = '#/'
+  }
+
   VIEWS.node = {
     mount(rootEl, params) {
       const code = params.code
@@ -89,7 +97,7 @@
 
     let html =
       '<div class="page">' +
-      '<a class="back-link" href="javascript:history.back()">‹ 返回</a>' +
+      '<button type="button" class="back-link">‹ 返回</button>' +
       '<div class="cover' + (hasImg ? ' has-img' : '') + '">' +
         (hasImg ? '<img src="' + F.escapeHtml(cover) + '" alt="">' : '') +
         '<div class="cover-name">' + F.escapeHtml(node.name) + '</div>' +
@@ -149,6 +157,9 @@
 
   function bind(rootEl, node, st, config) {
     const requireRead = config.requireReadBeforeCheckin
+
+    const backBtn = rootEl.querySelector('.back-link')
+    if (backBtn) backBtn.addEventListener('click', goBack)
 
     // 插图点击放大（fileID 素材交付后同逻辑换新标签页预览）
     rootEl.querySelectorAll('.block-image[data-src]').forEach(el => {

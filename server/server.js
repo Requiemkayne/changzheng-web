@@ -4,7 +4,8 @@
  * 启动：node server/server.js          → http://0.0.0.0:8088（局域网手机可访问）
  * 端口：PORT 环境变量；数据库：DB_PATH 环境变量（迁移服务器时指定）
  * 跨域：CORS_ORIGIN=http://a,http://b（逗号分隔白名单；留空=不回 ACAO，默认关闭）
- * 限速：默认按客户端 IP 限制 /api/login 与 /api/register；RATE_LIMIT=off 关闭（仅供测试）
+ * 限速：默认按客户端 IP 限制 /api/login 与 /api/register；开赛 /api/contest/start 另按「用户 + IP」限次
+ *       （默认 5 次 / 300 秒，RATE_LIMIT_CONTEST_START 可覆盖）；RATE_LIMIT=off 整体关闭（仅供测试）
  *
  * 职责：静态文件服务（web/ 根目录）+ /api/* 账号与业务接口
  */
@@ -76,20 +77,34 @@ function clientIp(req) {
 
 const RATE_OFF = /^(0|off|false|no)$/i.test(String(process.env.RATE_LIMIT || '').trim())
 const RATE_WINDOW_MS = 60 * 1000
+// 开赛用长窗口：一场竞赛几分钟，60 秒窗口拦不住「开一场丢一场」的刷榜
+const RATE_CONTEST_WINDOW_MS = 300 * 1000
 // 取值依据：scripts/test-api.js 一轮跑完共打 8 次 /api/login 与 8 次 /api/register（同一 127.0.0.1），
 // 取 10 留出余量，测试不必改；确需更严/更松用 RATE_LIMIT_LOGIN / RATE_LIMIT_REGISTER 或 RATE_LIMIT=off。
+// 开赛同理：scripts/test-api.js 只打 3 次 /api/contest/start（同一 IP、同一用户最多 2 次），默认 5 留余量。
 const RATE_LIMITS = {
-  login: { max: Number(process.env.RATE_LIMIT_LOGIN) || 10 },
-  register: { max: Number(process.env.RATE_LIMIT_REGISTER) || 10 }
+  login: { max: Number(process.env.RATE_LIMIT_LOGIN) || 10, window: RATE_WINDOW_MS },
+  register: { max: Number(process.env.RATE_LIMIT_REGISTER) || 10, window: RATE_WINDOW_MS },
+  // 开赛两个桶：用户桶防同账号连开，IP 桶防换号绕过；任一超限即 429
+  contestStartUser: { max: Number(process.env.RATE_LIMIT_CONTEST_START) || 5, window: RATE_CONTEST_WINDOW_MS },
+  contestStartIp: { max: Number(process.env.RATE_LIMIT_CONTEST_START) || 5, window: RATE_CONTEST_WINDOW_MS }
 }
 
 const rateHits = new Map()   // 'route|ip' -> [命中时间戳…]（滑动窗口）
 let rateSweptAt = 0
 
+/** 各路由窗口不同（开赛 300s、口令 60s），逐出必须用该 key 自己的窗口，否则长窗口会被短窗口提前清空 */
+function windowOf(route) {
+  const lim = RATE_LIMITS[route]
+  return (lim && lim.window) || RATE_WINDOW_MS
+}
+
 /** 逐出窗口外的时间戳，整桶为空就删 key —— 保证 Map 不无界增长 */
 function sweepRate(now) {
   for (const [key, hits] of rateHits) {
-    const keep = hits.filter(t => now - t < RATE_WINDOW_MS)
+    const sep = key.indexOf('|')
+    const win = windowOf(sep === -1 ? key : key.slice(0, sep))
+    const keep = hits.filter(t => now - t < win)
     if (keep.length) rateHits.set(key, keep)
     else rateHits.delete(key)
   }
@@ -103,7 +118,8 @@ function rateLimited(route, ip) {
   const now = Date.now()
   if (now - rateSweptAt > RATE_WINDOW_MS) sweepRate(now)
   const key = route + '|' + ip
-  const hits = (rateHits.get(key) || []).filter(t => now - t < RATE_WINDOW_MS)
+  const win = lim.window || RATE_WINDOW_MS
+  const hits = (rateHits.get(key) || []).filter(t => now - t < win)
   if (hits.length >= lim.max) {
     rateHits.set(key, hits)
     return true
@@ -242,6 +258,12 @@ async function handleApi(db, req, res, pathname, query) {
     return json(res, 200, contest.getContestStatus(db, user.id))
   }
   if (req.method === 'POST' && pathname === '/api/contest/start') {
+    // 排行榜按 SUM(score) 累计，不限次数等于允许刷榜：用户桶 + IP 桶都记（不短路，两个桶都消耗配额）
+    const overUser = rateLimited('contestStartUser', 'u:' + user.id)
+    const overIp = rateLimited('contestStartIp', clientIp(req))
+    if (overUser || overIp) {
+      return fail(res, 429, 'TOO_MANY_REQUESTS', '开赛过于频繁，请稍后再试')
+    }
     const r = contest.startContest(db, user.id)
     if (!r.ok) return fail(res, 400, r.error, r.message)
     return json(res, 200, r)

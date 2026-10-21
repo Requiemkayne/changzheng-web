@@ -2212,3 +2212,16 @@ a { color: var(--red-mid); text-decoration: none; }
   .login-stars::after { opacity: 0.6; animation-delay: 0s; }
   .login-star { animation: none !important; transform: none; }
 }
+
+/* ---------- 视图层追加：返回按钮（<button class="back-link">）的浏览器默认外观复位 ---------- */
+/* 只复位 UA 外观；排版/颜色/间距仍由上面的 .back-link 规则负责，这里刻意不写 padding/font/color 以免覆盖 */
+.back-link {
+  -webkit-appearance: none;
+  appearance: none;
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  cursor: pointer;
+}

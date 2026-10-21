@@ -365,8 +365,27 @@ async function main() {
       rateBlocked.body.error === 'TOO_MANY_REQUESTS' && rateBlocked.body.message === '请求过于频繁，请稍后再试',
       '实际 ' + rateBlocked.status + ' ' + JSON.stringify(rateBlocked.body) + ' @ server/server.js:169')
 
+    // 11.1b 开赛限流：排行榜按 SUM(score) 累计，不限次数等于允许刷榜
+    const startRl = await startInstance({ RATE_LIMIT_CONTEST_START: '2', CORS_ORIGIN: null })
+    const startTok1 = (await reqRaw(startRl.base, 'POST', '/api/register', { username: '开赛员1', password: 'cs123456' })).body.token
+    const startStatus = []
+    for (let i = 0; i < 3; i++) {
+      startStatus.push((await reqRaw(startRl.base, 'POST', '/api/contest/start', {}, startTok1)).status)
+    }
+    ok('RATE_LIMIT_CONTEST_START=2 生效（阈值来自环境变量）：前 2 次放行到业务校验（400 NOT_GRADUATED），第 3 次 429',
+      startStatus.join(',') === '400,400,429', '实际 ' + startStatus.join(',') + ' @ server/server.js:260-267')
+    const startTok2 = (await reqRaw(startRl.base, 'POST', '/api/register', { username: '开赛员2', password: 'cs123456' })).body.token
+    const startOther = await reqRaw(startRl.base, 'POST', '/api/contest/start', {}, startTok2)
+    ok('开赛限流另带 IP 桶：同 IP 换账号后第一场也被 429（换号绕不开刷榜）',
+      startOther.status === 429 && startOther.body && startOther.body.error === 'TOO_MANY_REQUESTS',
+      '实际 ' + startOther.status + ' ' + JSON.stringify(startOther.body) + ' @ server/server.js:262-266')
+    ok('开赛 429 报文：ok:false / TOO_MANY_REQUESTS / 开赛过于频繁，请稍后再试',
+      startOther.status === 429 && startOther.body.ok === false &&
+      startOther.body.error === 'TOO_MANY_REQUESTS' && startOther.body.message === '开赛过于频繁，请稍后再试',
+      '实际 ' + startOther.status + ' ' + JSON.stringify(startOther.body) + ' @ server/server.js:265')
+
     // 11.2 RATE_LIMIT=off 整体关闭 + 失败计数按「IP + 用户名」
-    const unlocked = await startInstance({ RATE_LIMIT: 'off', RATE_LIMIT_LOGIN: '2', CORS_ORIGIN: null })
+    const unlocked = await startInstance({ RATE_LIMIT: 'off', RATE_LIMIT_LOGIN: '2', RATE_LIMIT_CONTEST_START: '1', CORS_ORIGIN: null })
     await reqRaw(unlocked.base, 'POST', '/api/register', { username: '锁定员', password: 'ok123456' })
     await reqRaw(unlocked.base, 'POST', '/api/register', { username: '旁观员', password: 'ok123456' })
     const wrongRes = []
@@ -389,6 +408,15 @@ async function main() {
       otherUserRes.status === 200 && !!(otherUserRes.body && otherUserRes.body.token),
       '实际 ' + otherUserRes.status + ' ' + JSON.stringify(otherUserRes.body && otherUserRes.body.error) +
       ' @ server/auth.js:76-78')
+
+    const offTok = (await reqRaw(unlocked.base, 'POST', '/api/register', { username: '免限员', password: 'off123456' })).body.token
+    const offStarts = []
+    for (let i = 0; i < 2; i++) {
+      offStarts.push(await reqRaw(unlocked.base, 'POST', '/api/contest/start', {}, offTok))
+    }
+    ok('RATE_LIMIT=off 一并关断开赛限次：RATE_LIMIT_CONTEST_START=1 下连开 2 场也只回 NOT_GRADUATED，不出现 TOO_MANY_REQUESTS',
+      offStarts.every(x => x.body && x.body.error === 'NOT_GRADUATED'),
+      '实际 ' + offStarts.map(x => x.status + '/' + (x.body && x.body.error)).join(',') + ' @ server/server.js:117')
 
     // 11.3 CORS 默认关闭（未设 CORS_ORIGIN，行为与改造前一致）
     const corsOff = await startInstance({ CORS_ORIGIN: null })

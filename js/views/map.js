@@ -547,6 +547,14 @@
       }
     }
 
+    // 3D 状态文案要让读屏播报：map3d 构建成功时会给容器挂 role="img"（子树对读屏隐藏），
+    // 所以写状态前先把容器的图片语义摘掉，状态节点本身带 role=status / aria-live。
+    function set3dStatus(msg) {
+      wrap3d.removeAttribute('role')
+      wrap3d.removeAttribute('aria-label')
+      wrap3d.innerHTML = '<div class="map3d-loading" role="status" aria-live="polite">' + msg + '</div>'
+    }
+
     function applyMode(next) {
       mode = next
       const is3d = next === '3d'
@@ -559,7 +567,7 @@
       modeBar.querySelectorAll('.map-mode-btn[data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === next))
 
       if (is3d && !view3d) {
-        wrap3d.innerHTML = '<div class="map3d-loading">正在加载 3D 沙盘…</div>'
+        set3dStatus('正在加载 3D 沙盘…')
         loadThree().then(() => {
           if (mode !== '3d') return
           wrap3d.innerHTML = ''
@@ -585,11 +593,11 @@
           // 归因分支：设备不支持 WebGL 与"加载失败"是两码事，前者不能提网络
           if (err && err.code === 'WEBGL_UNAVAILABLE') {
             if (mode === '3d') fallbackTo2D('当前设备不支持 3D 显示，已为你切回路线图')
-            else wrap3d.innerHTML = '<div class="map3d-loading">当前设备不支持 3D 显示</div>'
+            else set3dStatus('当前设备不支持 3D 显示')
             return
           }
           console.error('3D 沙盘加载失败', err)
-          wrap3d.innerHTML = '<div class="map3d-loading">3D 沙盘加载失败，请检查网络后重试</div>'
+          set3dStatus('3D 沙盘加载失败，请检查网络后重试')
         })
       }
       if (!is3d && view3d) {

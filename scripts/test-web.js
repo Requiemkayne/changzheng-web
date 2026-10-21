@@ -63,6 +63,144 @@ for (const q of questions) {
 }
 ok('answer 不越界 / 题型格式正确')
 
+/* ================= 1b. 两套题源一致性（js/mock/questions.js ⇄ server/question-bank.json） =================
+ * 两份题库都是手工维护：前端 mock 题库负责判分，后端 question-bank.json 是 /api/quiz 的正文来源。
+ * 一旦漂移，同一道题在两端题干/答案不同，学生按前端判分、后端按另一套算分。
+ * 默认「报告模式」：逐条打印差异并点名 id（两份题库的 id 命名空间是否该合并由调度方裁决）；
+ * BANK_SYNC_STRICT=1 时升级为硬断言，任何一项不一致直接 FAILED。
+ */
+
+const Q_ROOT = path.join(__dirname, '..')
+const MOCK_Q = 'js/mock/questions.js'
+const BANK_Q = 'server/question-bank.json'
+
+/** 用 node:vm 加载题库文件本体（不读 require 缓存：断言的是磁盘上那份文件） */
+function loadMockQuestions(abs) {
+  const src = fs.readFileSync(abs, 'utf8')
+  const mod = { exports: {} }
+  const sandbox = { module: mod, exports: mod.exports, console: console }
+  vm.createContext(sandbox)
+  vm.runInContext(src, sandbox, { filename: abs })
+  return mod.exports
+}
+
+const mockQText = fs.readFileSync(path.join(Q_ROOT, MOCK_Q), 'utf8')
+const bankQText = fs.readFileSync(path.join(Q_ROOT, BANK_Q), 'utf8')
+const mockQ = loadMockQuestions(path.join(Q_ROOT, MOCK_Q))
+const bankQ = JSON.parse(bankQText).questions
+
+/** 断言信息里的「文件:行号」：按字符偏移换算，让每条差异都能跳过去 */
+function qAt(file, src, needle) {
+  if (!needle) return file + ':(未定位到具体字符)'
+  const i = src.indexOf(needle)
+  return i < 0 ? file + ':(未找到 ' + JSON.stringify(needle) + ')' : file + ':' + (src.slice(0, i).split('\n').length)
+}
+
+assert(Array.isArray(mockQ) && mockQ.length > 0, MOCK_Q + ' 应导出非空题目数组，实际 ' + JSON.stringify(mockQ && mockQ.length))
+assert(Array.isArray(bankQ) && bankQ.length > 0, BANK_Q + ' 的 questions 应是非空数组，实际 ' + JSON.stringify(bankQ && bankQ.length))
+ok(MOCK_Q + '（node:vm 加载）' + mockQ.length + ' 题 / ' + BANK_Q + ' ' + bankQ.length + ' 题，两份题源均可解析')
+
+/** 题源自身完整性：id 唯一 / 题干·解析非空 / 选项 >=2 / 答案非空且下标不越界 / 题干不重复 */
+function sourceProblems(file, src, list, idKey) {
+  const out = []
+  const seen = new Set()
+  for (const q of list) {
+    const id = q[idKey]
+    if (!id || typeof id !== 'string') { out.push(file + ' 存在缺 ' + idKey + ' 的题：' + JSON.stringify(q).slice(0, 80)); continue }
+    if (seen.has(id)) out.push(file + ' 的 id 重复：' + id + ' @ ' + qAt(file, src, id))
+    seen.add(id)
+    if (typeof q.question !== 'string' || !q.question.trim()) out.push(id + ' 题干为空 @ ' + qAt(file, src, id))
+    if (typeof q.explanation !== 'string' || !q.explanation.trim()) out.push(id + ' 解析为空 @ ' + qAt(file, src, id))
+    if (!Array.isArray(q.options) || q.options.length < 2) out.push(id + ' 选项不足 2 个，实际 ' + JSON.stringify(q.options))
+    if (!Array.isArray(q.answer) || !q.answer.length) out.push(id + ' answer 应为非空数组，实际 ' + JSON.stringify(q.answer))
+    else for (const a of q.answer) {
+      if (typeof a !== 'number' || a < 0 || a >= (q.options || []).length) {
+        out.push(id + ' 答案下标越界：answer=' + JSON.stringify(q.answer) + ' 但 options 只有 ' + (q.options || []).length + ' 项 @ ' + qAt(file, src, id))
+      }
+    }
+  }
+  const byText = {}
+  for (const q of list) {
+    const t = String(q.question).trim()
+    ;(byText[t] = byText[t] || []).push(q[idKey])
+  }
+  for (const t of Object.keys(byText)) {
+    if (byText[t].length > 1) out.push(file + ' 题干重复：' + JSON.stringify(t.slice(0, 40)) + ' ← ' + byText[t].join(','))
+  }
+  return out
+}
+
+const mockSelf = sourceProblems(MOCK_Q, mockQText, mockQ, '_id')
+const bankSelf = sourceProblems(BANK_Q, bankQText, bankQ, 'id')
+assert.strictEqual(mockSelf.length, 0,
+  '期望 ' + MOCK_Q + ' 自身结构完整，实际 ' + mockSelf.length + ' 项：\n    - ' + mockSelf.join('\n    - '))
+assert.strictEqual(bankSelf.length, 0,
+  '期望 ' + BANK_Q + ' 自身结构完整，实际 ' + bankSelf.length + ' 项：\n    - ' + bankSelf.join('\n    - '))
+ok('题源自检：两份题库 id 唯一 / 题干·解析非空 / 选项 >=2 / 答案下标不越界 / 题干不重复')
+
+const mockIdSet = new Set(mockQ.map(q => q._id))
+const refIds = []
+for (const n of nodes) for (const qid of n.quiz.questionIds) refIds.push({ code: n.code, id: qid })
+const refMissingMock = refIds.filter(x => !mockIdSet.has(x.id))
+assert.strictEqual(refMissingMock.length, 0,
+  '期望 nodes.js 的每个 questionIds 都能在 ' + MOCK_Q + ' 里找到，实际缺 ' + refMissingMock.length + ' 个：' +
+  refMissingMock.map(x => x.id + '（' + x.code + ' 引用）').join(', '))
+assert.strictEqual(refIds.length, nodes.reduce((s, n) => s + n.quiz.questionCount, 0),
+  '期望 questionIds 总数（' + refIds.length + '）等于各节点 questionCount 之和')
+ok('nodes.js 的 ' + refIds.length + ' 个 questionIds 全部命中 ' + MOCK_Q + '，且与 questionCount 之和相符')
+
+/** 跨库同一性四项（工单 ①id 集合 ②题干·选项·答案·解析 ③nodes 引用 ④题数）：只收集问题，断言在下面 */
+function crossProblems() {
+  const out = []
+  const mockIds = mockQ.map(q => q._id)
+  const bankIds = bankQ.map(q => q.id)
+  const bankIdSet = new Set(bankIds)
+  const onlyMock = mockIds.filter(id => !bankIdSet.has(id))
+  const onlyBank = bankIds.filter(id => !mockIdSet.has(id))
+  if (onlyMock.length || onlyBank.length) {
+    out.push('① id 集合不同：仅 ' + MOCK_Q + ' 有 ' + onlyMock.length + ' 个 ' + JSON.stringify(onlyMock) +
+      ' @ ' + qAt(MOCK_Q, mockQText, onlyMock[0] || '') +
+      '；仅 ' + BANK_Q + ' 有 ' + onlyBank.length + ' 个 ' + JSON.stringify(onlyBank) +
+      ' @ ' + qAt(BANK_Q, bankQText, onlyBank[0] || ''))
+  }
+  const FIELDS = [['question', '题干'], ['options', '选项数组'], ['answer', '正确答案数组'], ['explanation', '解析']]
+  for (const id of mockIds) {
+    const m = mockQ.find(q => q._id === id)
+    const b = bankQ.find(q => q.id === id)
+    if (!b) continue
+    for (const f of FIELDS) {
+      if (JSON.stringify(m[f[0]]) !== JSON.stringify(b[f[0]])) {
+        out.push('② ' + id + ' 的' + f[1] + '不一致：' + MOCK_Q + '=' + JSON.stringify(m[f[0]]) +
+          ' / ' + BANK_Q + '=' + JSON.stringify(b[f[0]]) +
+          ' @ ' + qAt(MOCK_Q, mockQText, id) + ' / ' + qAt(BANK_Q, bankQText, id))
+      }
+    }
+  }
+  for (const x of refIds) {
+    if (!mockIdSet.has(x.id)) out.push('③ ' + x.id + '（' + x.code + ' 引用）在 ' + MOCK_Q + ' 里不存在 @ ' + qAt(MOCK_Q, mockQText, x.id))
+    if (!bankIdSet.has(x.id)) out.push('③ ' + x.id + '（' + x.code + ' 引用）在 ' + BANK_Q + ' 里不存在 @ ' + BANK_Q)
+  }
+  if (mockQ.length !== bankQ.length) {
+    out.push('④ 题数不同：' + MOCK_Q + '=' + mockQ.length + ' / ' + BANK_Q + '=' + bankQ.length)
+  }
+  return out
+}
+
+const cross = crossProblems()
+if (process.env.BANK_SYNC_STRICT === '1') {
+  assert.strictEqual(cross.length, 0,
+    'BANK_SYNC_STRICT=1：期望 ' + MOCK_Q + ' 与 ' + BANK_Q + ' 完全一致（① id 集合 / ② 题干·选项·答案·解析 / ③ nodes 引用 / ④ 题数），' +
+    '实际 ' + cross.length + ' 项：\n    - ' + cross.join('\n    - '))
+  ok('题库一致性（BANK_SYNC_STRICT=1 严格模式）：id 集合 / 每题的题干·选项·答案·解析 / nodes.js 引用 / 题数，四项全一致')
+} else {
+  if (cross.length) {
+    console.log('  ⚠ [题库一致性] 报告模式：实测 ' + cross.length + ' 项跨库差异（设 BANK_SYNC_STRICT=1 升级为硬断言）：')
+    for (const p of cross.slice(0, 60)) console.log('      - ' + p)
+    if (cross.length > 60) console.log('      - …（其余 ' + (cross.length - 60) + ' 项同类，略）')
+  }
+  ok('题库一致性扫描已执行（报告模式）：' + MOCK_Q + ' ' + mockQ.length + ' 题 vs ' + BANK_Q + ' ' + bankQ.length + ' 题，实测 ' + cross.length + ' 项差异（BANK_SYNC_STRICT=1 为硬断言）')
+}
+
 /* ================= 2. 全链路 ================= */
 
 async function chain() {
@@ -972,6 +1110,209 @@ async function chain() {
     bankMissing.map(ch => JSON.stringify(ch) + ' U+' + ch.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')).join(' ') +
     ' @ ' + at('server/question-bank.json', bankText, bankMissing[0] || ''))
   ok('fonts 覆盖回归：server/question-bank.json 的 ' + bankCps.size + ' 个 >=U+2000 字符全在 fonts/glyphs.txt 里（0 缺失）')
+
+  /* ========== 8. 批次⑧：返回按钮 / 3D 状态语义 / 超时与坏响应 / 竞赛记录清空 ==========
+   * 反向验证用的来源重定向：把 CZ_TEST_STATIC_ROOT 指向 %TEMP% 下的一份 js/ + index.html 副本，
+   * 就能在「改坏了的产品文件副本」上跑完全相同的断言（无需动仓库里的产品代码）。
+   * 不设该变量时一律读仓库真身，正常跑测试完全不受影响。
+   */
+  console.log('\n[8] 批次⑧：返回按钮 / 3D 状态语义 / 超时与坏响应 / 竞赛记录清空（回归锁）')
+
+  const STATIC_ROOT = process.env.CZ_TEST_STATIC_ROOT || webRoot
+  const relOf = abs => path.relative(STATIC_ROOT, abs).replace(/\\/g, '/')
+  const lineOf = (src, idx) => src.slice(0, idx).split('\n').length
+
+  // 把 js/api.js 源码原样丢进 node:vm 沙箱跑（真行为，不是读源码）：
+  //   timers:'immediate' → setTimeout 回调立刻同步执行，10 秒超时不用真等
+  //   timers:'never'     → 定时器不触发，让请求自己按网络桩结算
+  function makeApiSandbox(env) {
+    env = env || {}
+    const box = Object.assign({}, env.store || {})
+    const cfg = Object.assign({ USE_MOCK: !!env.useMock, API_BASE: 'http://127.0.0.1:9' }, env.config || {})
+    let fetchCount = 0
+    const sandbox = {
+      console,
+      Response,
+      Headers,
+      AbortController,
+      localStorage: {
+        getItem: k => (Object.prototype.hasOwnProperty.call(box, k) ? box[k] : null),
+        setItem: (k, v) => { box[k] = String(v) },
+        removeItem: k => { delete box[k] }
+      },
+      document: { addEventListener() {}, removeEventListener() {}, querySelector: () => null },
+      setTimeout(fn) { if (env.timers === 'immediate') fn(); return 1 },
+      clearTimeout() {},
+      fetch(url, opts) { fetchCount++; return env.fetch ? env.fetch(url, opts) : new Promise(() => {}) }
+    }
+    sandbox.self = sandbox
+    sandbox.CZ_CONFIG = cfg
+    const apiAbs = path.join(STATIC_ROOT, 'js', 'api.js')
+    vm.createContext(sandbox)
+    vm.runInContext(fs.readFileSync(apiAbs, 'utf8'), sandbox, { filename: apiAbs })
+    return { api: sandbox.CZ_API, store: box, fetchCount: () => fetchCount }
+  }
+
+  // 括号配对取出某个函数的源码区域（静态断言要精确到函数体内，避免全文件误判）
+  function fnRegion(src, header) {
+    const start = src.indexOf(header)
+    if (start < 0) return null
+    const open = src.indexOf('{', start)
+    if (open < 0) return null
+    let depth = 0
+    for (let j = open; j < src.length; j++) {
+      if (src[j] === '{') depth++
+      else if (src[j] === '}' && --depth === 0) return { start, end: j, body: src.slice(open, j + 1) }
+    }
+    return null
+  }
+
+  // ①【静态】js/**.js 与 index.html 里不得再出现 javascript: 伪协议。
+  //   当前全仓 0 处（连注释都没有），所以直接按子串断言；将来若注释里出现该词，
+  //   收窄成只查 href="javascript:..." 即可（届时一并核对注释位置）。
+  const jsScan = (function walk(dir, acc) {
+    for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+      const p = path.join(dir, ent.name)
+      if (ent.isDirectory()) walk(p, acc)
+      else if (ent.name.endsWith('.js')) acc.push(p)
+    }
+    return acc
+  })(path.join(STATIC_ROOT, 'js'), []).concat([path.join(STATIC_ROOT, 'index.html')])
+  assert(jsScan.length >= 20, '期望扫描到 >=20 个前端脚本 + index.html（空扫等于没断言），实际 ' + jsScan.length)
+  const jsProtoHits = []
+  for (const f of jsScan) {
+    const src = fs.readFileSync(f, 'utf8')
+    for (let i = src.indexOf('javascript:'); i >= 0; i = src.indexOf('javascript:', i + 11)) {
+      jsProtoHits.push(relOf(f) + ':' + lineOf(src, i))
+    }
+  }
+  assert.strictEqual(jsProtoHits.length, 0,
+    '期望 js/ 与 index.html 里零处 javascript: 伪协议（返回按钮已改 <button>，history 空栈不会死链），实际 ' +
+    jsProtoHits.length + ' 处：' + jsProtoHits.join(' '))
+  ok('js/**.js + index.html 零处 javascript: 伪协议（扫描 ' + jsScan.length + ' 个文件）')
+
+  // ②【静态】3 个视图的 .back-link 必须是 <button type="button">，且同文件定义并绑定了 goBack
+  const backExpect = { 'js/views/contest.js': 1, 'js/views/node-detail.js': 1, 'js/views/quiz.js': 2 }
+  const backReport = []
+  let backTotal = 0
+  for (const rel of Object.keys(backExpect)) {
+    const abs = path.join(STATIC_ROOT, rel)
+    const src = fs.readFileSync(abs, 'utf8')
+    const tags = [...src.matchAll(/<[a-zA-Z][^>]*class="back-link"[^>]*>/g)]
+    assert.strictEqual(tags.length, backExpect[rel],
+      rel + ' 期望 ' + backExpect[rel] + ' 处 class="back-link" 标签（工单 4 处：contest 1 / node-detail 1 / quiz 2），实际 ' + tags.length)
+    for (const m of tags) {
+      const tag = m[0]
+      const where = relOf(abs) + ':' + lineOf(src, m.index)
+      assert(/^<button\b/.test(tag),
+        where + ' 期望 .back-link 是 <button>（<a href="javascript:history.back()"> 在 history 空栈时是死链），实际 ' + JSON.stringify(tag))
+      assert(/\btype="button"/.test(tag),
+        where + ' 期望 .back-link 带 type="button"（否则在 <form> 内会退化成提交按钮），实际 ' + JSON.stringify(tag))
+      backReport.push(where)
+    }
+    assert(/function\s+goBack\s*\(/.test(src),
+      rel + ' 期望同文件定义 goBack()（history.length>1 且无站外 referrer 才 back()，否则回 #/）')
+    assert(/addEventListener\('click',\s*goBack\)/.test(src),
+      rel + ' 期望把 goBack 绑到 .back-link 的 click 上，实际 ' +
+      JSON.stringify((src.match(/\.back-link'\)[\s\S]{0,60}/) || ['(未找到 .back-link 绑定)'])[0]))
+    backTotal += tags.length
+  }
+  assert.strictEqual(backTotal, 4, '工单是 4 处 .back-link，实际 ' + backTotal)
+  ok('.back-link 全为 <button type="button">：共 4 处，且各自定义并绑定 goBack —— ' + backReport.join(' '))
+
+  // ③【静态】map.js 的三条 3D 状态写入全部经过 set3dStatus()，且写前摘掉容器的 role
+  const mapSrc8 = fs.readFileSync(path.join(STATIC_ROOT, 'js', 'views', 'map.js'), 'utf8')
+  const s3 = fnRegion(mapSrc8, 'function set3dStatus(')
+  assert(s3, '期望 js/views/map.js 定义 set3dStatus()（3D 状态文案的唯一出口）')
+  assert(/role="status"/.test(s3.body),
+    '期望 set3dStatus() 写出的状态节点带 role="status"（读屏才会播报状态变化），实际 ' + JSON.stringify(s3.body))
+  assert(/aria-live="polite"/.test(s3.body),
+    '期望 set3dStatus() 写出的状态节点带 aria-live="polite"，实际 ' + JSON.stringify(s3.body))
+  const dropRole = s3.body.indexOf("removeAttribute('role')")
+  const innerWrite = s3.body.indexOf('innerHTML')
+  assert(dropRole >= 0,
+    "期望 set3dStatus() 写状态前先 wrap3d.removeAttribute('role')（map3d 成功后会给容器挂 role=img，子树对读屏隐藏），实际 " + JSON.stringify(s3.body))
+  assert(innerWrite > dropRole,
+    "期望 removeAttribute('role') 在写 innerHTML 之前执行，实际顺序相反：" + JSON.stringify(s3.body))
+  const loadingHits = [...mapSrc8.matchAll(/map3d-loading/g)].map(m => m.index)
+  assert.strictEqual(loadingHits.length, 1,
+    '期望 map.js 里 map3d-loading 只出现 1 次（唯一出口 set3dStatus），实际 ' + loadingHits.length + ' 次：' +
+    loadingHits.map(i => 'js/views/map.js:' + lineOf(mapSrc8, i)).join(' '))
+  assert(loadingHits[0] > s3.start && loadingHits[0] < s3.end,
+    '期望 map3d-loading 的写入落在 set3dStatus() 体内（不许 wrap3d.innerHTML 直接写），实际 @ js/views/map.js:' +
+    lineOf(mapSrc8, loadingHits[0]))
+  const s3Calls = [...mapSrc8.matchAll(/set3dStatus\(/g)]
+  assert.strictEqual(s3Calls.length, 4,
+    '期望 set3dStatus 恰好 1 处定义 + 3 处调用（正在加载 3D / 设备不支持 3D / 加载失败），实际 ' + s3Calls.length + ' 处：' +
+    s3Calls.map(m => 'js/views/map.js:' + lineOf(mapSrc8, m.index)).join(' '))
+  ok('map.js 3D 状态统一走 set3dStatus()（1 定义 + 3 调用；role=status + aria-live=polite；写前摘容器 role）')
+
+  // ④【行为】弱网超时：定时器立刻触发 → 必须以 TIMEOUT 拒绝，且整套用例 < 200ms
+  const tBuild = Date.now()
+  const dBox = makeApiSandbox({ useMock: false, timers: 'immediate' })
+  const buildMs = Date.now() - tBuild
+  const tD = Date.now()
+  let dGuard = null
+  const dRace = await Promise.race([
+    dBox.api.getNodes().then(v => ({ settled: 'resolve', v: v }), e => ({ settled: 'reject', e: e })),
+    new Promise(res => { dGuard = setTimeout(() => res({ settled: 'hang' }), 150) })
+  ])
+  clearTimeout(dGuard)
+  const dMs = Date.now() - tD
+  assert.notStrictEqual(dRace.settled, 'hang',
+    '期望 http 模式弱网（fetch 永不返回）时请求在 200ms 内结算，实际 150ms 兜底到点时仍未结算（超时兜底失效）')
+  assert.strictEqual(dRace.settled, 'reject',
+    '期望 弱网时请求被拒绝，实际 resolve 了：' + JSON.stringify(dRace.v))
+  assert.strictEqual(dRace.e && dRace.e.code, 'TIMEOUT',
+    '期望 超时错误 err.code === "TIMEOUT"（视图层按 code 分支），实际 ' + JSON.stringify(dRace.e && dRace.e.code))
+  assert(/网络超时/.test(String(dRace.e && dRace.e.message)),
+    '期望 超时错误 message 含「网络超时」，实际 ' + JSON.stringify(dRace.e && dRace.e.message))
+  assert(dMs < 200, '期望 该沙箱用例 < 200ms 跑完（定时器回调同步执行，不真等 10 秒），实际 ' + dMs + 'ms')
+  ok('api.js 弱网超时 → reject { code: "TIMEOUT", message 含「网络超时」 }（请求路径实测 ' + dMs +
+    'ms，整套用例含沙箱构建 ' + (buildMs + dMs) + 'ms）')
+
+  // ⑤【行为】后端/反代返回 HTML 错误页（502 + text/html）→ 必须转 BAD_RESPONSE，原始解析异常不外泄
+  const eBox = makeApiSandbox({
+    useMock: false,
+    timers: 'never',
+    fetch: () => Promise.resolve(new Response('<!DOCTYPE html><html><body>502 Bad Gateway</body></html>',
+      { status: 502, headers: { 'content-type': 'text/html' } }))
+  })
+  const eErr = await eBox.api.getNodes().then(() => null, e => e)
+  assert(eErr, "期望 502 + text/html 时请求被拒绝（res.json() 会抛 Unexpected token '<'），实际 resolve 了")
+  assert.strictEqual(eErr.code, 'BAD_RESPONSE',
+    '期望 HTML 错误页错误 err.code === "BAD_RESPONSE"（视图层按 code 分支），实际 ' +
+    JSON.stringify(eErr.code) + ' / message ' + JSON.stringify(eErr.message))
+  assert(/服务器返回异常/.test(String(eErr.message)),
+    '期望 BAD_RESPONSE 的 message 含「服务器返回异常」，实际 ' + JSON.stringify(eErr.message))
+  assert(!/Unexpected token/i.test(String(eErr.message)),
+    '期望 原始 JSON 解析异常（Unexpected token）不外泄给用户，实际 message = ' + JSON.stringify(eErr.message))
+  ok('api.js 坏响应 → reject { code: "BAD_RESPONSE", message 含「服务器返回异常」 }（原始 SyntaxError 不外泄）')
+
+  // ⑥【行为】clearContestRecords()：mock 真删 localStorage 的 cz_contests，http 模式零网络请求
+  const seedContests = { cz_contests: JSON.stringify([{ id: 'c1', status: 'done', score: 80 }]) }
+  const fMock = makeApiSandbox({ useMock: true, timers: 'never', store: seedContests })
+  assert.strictEqual(fMock.store.cz_contests, seedContests.cz_contests, '前置：期望沙箱 localStorage 里先塞进一条 cz_contests')
+  await fMock.api.clearContestRecords()
+  assert(!Object.prototype.hasOwnProperty.call(fMock.store, 'cz_contests'),
+    '期望 mock 模式下 clearContestRecords() 删掉 localStorage 的 cz_contests（否则重置后竞赛记录/排行榜残留），实际仍在：' +
+    JSON.stringify(fMock.store.cz_contests))
+  assert.strictEqual(fMock.fetchCount(), 0, '期望 mock 模式清竞赛记录不发网络请求，实际 fetch ' + fMock.fetchCount() + ' 次')
+  const fHttp = makeApiSandbox({ useMock: false, timers: 'never', store: seedContests })
+  await fHttp.api.clearContestRecords()
+  assert.strictEqual(fHttp.fetchCount(), 0, '期望 http 模式 clearContestRecords() 不发网络请求（成绩在服务端），实际 fetch ' + fHttp.fetchCount() + ' 次')
+  ok('clearContestRecords()：mock 删 cz_contests（fetch 0 次）/ http 零网络请求（fetch 0 次）')
+
+  // ⑦【静态】profile.js 的重置流程里真的调用了 clearContestRecords()
+  const profJs = fs.readFileSync(path.join(STATIC_ROOT, 'js', 'views', 'profile.js'), 'utf8')
+  const ccHits = [...profJs.matchAll(/clearContestRecords\s*\(/g)]
+  assert(ccHits.length >= 1,
+    '期望 js/views/profile.js 的重置流程调用 clearContestRecords()（只清进度不清竞赛记录 → 重置后旧成绩仍在），实际 0 处')
+  assert(/api\.clearContestRecords\s*\(/.test(profJs),
+    '期望 通过数据访问统一层 api.clearContestRecords() 调用，实际 ' +
+    JSON.stringify((profJs.match(/[\s\S]{0,40}clearContestRecords[\s\S]{0,20}/) || ['(无)'])[0]))
+  ok('profile.js 重置流程调用 clearContestRecords()：' +
+    ccHits.map(m => 'js/views/profile.js:' + lineOf(profJs, m.index)).join(' '))
 
   /* ================= 6 END ================= */
 

@@ -8,6 +8,14 @@
   const api = root.CZ_API
   const UI = root.CZ_UI
 
+  // 返回：优先浏览器后退；直接打开的入口页（history 里没有站内上一页，或来自站外）退回首页，别把用户卡在原地
+  function goBack() {
+    const ref = document.referrer || ''
+    const fromOtherSite = ref !== '' && ref.indexOf(location.origin) !== 0
+    if (history.length > 1 && !fromOtherSite) history.back()
+    else location.hash = '#/'
+  }
+
   VIEWS.quiz = {
     mount(rootEl, params) {
       const mode = params.mode === 'final' ? 'final' : 'node'
@@ -54,7 +62,7 @@
 
         rootEl.innerHTML =
           '<div class="page">' +
-          '<a class="back-link" href="javascript:history.back()">‹ 返回</a>' +
+          '<button type="button" class="back-link">‹ 返回</button>' +
           '<div class="quiz-head">' +
             '<div class="quiz-title">' + F.escapeHtml(meta.title) + '</div>' +
             '<div class="quiz-sub">' + F.escapeHtml(meta.subtitle) + '</div>' +
@@ -77,6 +85,9 @@
       }
 
       function bindQuiz() {
+        const backBtn = rootEl.querySelector('.back-link')
+        if (backBtn) backBtn.addEventListener('click', goBack)
+
         const q = questions[step]
         rootEl.querySelectorAll('.option').forEach(el => {
           el.addEventListener('click', () => {
@@ -169,7 +180,7 @@
 
         rootEl.innerHTML =
           '<div class="page">' +
-          '<a class="back-link" href="javascript:history.back()">‹ 返回</a>' +
+          '<button type="button" class="back-link">‹ 返回</button>' +
           '<div class="result-hero ' + (r.passed ? 'hero-passed' : 'hero-failed') + '">' +
             stamp +
             '<h1 class="result-title">' + (r.passed ? '恭喜通关' : '差一点，再试一次') + '</h1>' +
@@ -186,6 +197,9 @@
             '<button class="btn btn-ghost action-gap" id="btn-back">返回</button>' +
           '</div>' +
           '</div>'
+
+        const backBtn2 = rootEl.querySelector('.back-link')
+        if (backBtn2) backBtn2.addEventListener('click', goBack)
 
         rootEl.querySelector('#btn-restart').addEventListener('click', () => {
           step = 0; selected = []; submitting = false

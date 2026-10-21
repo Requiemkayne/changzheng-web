@@ -18,7 +18,7 @@
 
 **模式一：静态预览（默认）**
 - 直接双击 `index.html` 即可运行（Chrome/Edge），进度存浏览器 localStorage
-- **静态托管仅供演示**：mock 模式判分在浏览器端、题库公开；正式考试/竞赛必须走后端（`server/server.js`）
+- **静态托管仅供演示（游客体验）**：无账号、进度存浏览器 localStorage；判分在浏览器端、题库随静态文件公开；**正式考试/竞赛必须走后端**（`server/server.js`），Windows 内网部署见 [docs/DEPLOY-WINDOWS.md](docs/DEPLOY-WINDOWS.md)
 
 **模式二：本地后端 + 账号系统**
 - `js/config.js` 置 `USE_MOCK: false`

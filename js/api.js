@@ -24,6 +24,9 @@
   const STORAGE_TOKEN = 'cz_token'
   const STORAGE_GUEST = 'cz_guest'
 
+  const REQUEST_TIMEOUT = 10000    // 请求超时（ms）
+  const DEFAULT_PASS_SCORE = 60    // meta 缺 passScore 时的回落值
+
   // 答案题库仅在 mock 模式被加载（见 js/mock/loader.js），http 模式下为 undefined：
   // 兜底成空数组，保证任何读取路径都不会因为缺文件而抛异常
   const mockQuestions = mockQuestionsDoc || []
@@ -115,6 +118,13 @@
     return config.USE_MOCK ? isGuest() : !!getToken()
   }
 
+  /** 统一错误构造：视图层按 err.code 分支（TIMEOUT / BAD_RESPONSE / 后端业务码） */
+  function apiError(code, message) {
+    const err = new Error(message)
+    err.code = code
+    return err
+  }
+
   /**
    * 后端请求（USE_MOCK=false 时使用）
    * @param {string} path 接口路径（可带 query，如 'quiz?mode=node&code=x'）
@@ -129,23 +139,48 @@
     const token = getToken()
     if (token) opts.headers['Authorization'] = 'Bearer ' + token
 
-    return fetch(config.API_BASE + '/api/' + path, opts).then(res => {
-      return res.json().then(body => {
-        if (!res.ok || body.ok === false) {
-          const err = new Error(body.message || ('请求失败（' + res.status + '）'))
-          err.code = body.error || ''
-          err.status = res.status
-          if (res.status === 401) {
-            setToken('') // 令牌失效，本地登出
-            if (typeof window !== 'undefined') {
-              window.dispatchEvent(new CustomEvent('cz:unauthorized'))
-            }
-          }
-          throw err
+    // 弱网兜底：超时中止请求并抛 TIMEOUT，避免永久转圈
+    // （无 AbortController 的环境只抛错不中止，保证老浏览器不崩）
+    const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+    if (controller) opts.signal = controller.signal
+    let timer = null
+
+    const timeoutPromise = new Promise((resolve, reject) => {
+      timer = setTimeout(() => {
+        if (controller) {
+          try { controller.abort() } catch (e) { /* 环境不支持中止，忽略 */ }
         }
-        return body
-      })
+        reject(apiError('TIMEOUT', '网络超时，请稍后重试'))
+      }, REQUEST_TIMEOUT)
     })
+
+    const reqPromise = Promise.resolve()
+      .then(() => fetch(config.API_BASE + '/api/' + path, opts))
+      .then(res => {
+        // 后端/反代返回 HTML 错误页时 res.json() 抛 "Unexpected token '<'"，统一转 BAD_RESPONSE
+        return res.json()
+          .catch(() => { throw apiError('BAD_RESPONSE', '服务器返回异常，请稍后重试') })
+          .then(body => {
+            if (!body || typeof body !== 'object') {
+              throw apiError('BAD_RESPONSE', '服务器返回异常，请稍后重试')
+            }
+            if (!res.ok || body.ok === false) {
+              const err = new Error(body.message || ('请求失败（' + res.status + '）'))
+              err.code = body.error || ''
+              err.status = res.status
+              if (res.status === 401) {
+                setToken('') // 令牌失效，本地登出
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('cz:unauthorized'))
+                }
+              }
+              throw err
+            }
+            return body
+          })
+      })
+
+    return Promise.race([reqPromise, timeoutPromise]).finally(() => { clearTimeout(timer) })
   }
 
   function getConfigDoc() {
@@ -333,6 +368,21 @@
   }
 
   /**
+   * 节点通关分：唯一来源是节点 meta（node.quiz.passScore）
+   * 只有 meta 确实缺该字段时才回落 DEFAULT_PASS_SCORE，避免前后端配置不一致
+   */
+  function nodePassScore(node) {
+    const v = node && node.quiz ? node.quiz.passScore : undefined
+    return typeof v === 'number' && isFinite(v) ? v : DEFAULT_PASS_SCORE
+  }
+
+  /** 毕业考通关分：唯一来源是 config.finalExam.passScore，缺字段才回落 */
+  function finalPassScore(cfg) {
+    const v = cfg && cfg.finalExam ? cfg.finalExam.passScore : undefined
+    return typeof v === 'number' && isFinite(v) ? v : DEFAULT_PASS_SCORE
+  }
+
+  /**
    * 取题（答案不下发；解锁校验与后端一致）
    * @returns {Promise<{ok, error?, meta, questions}>}
    */
@@ -350,13 +400,14 @@
             if (st.state === 'open') return { ok: false, error: 'NOT_CHECKED_IN' }
             const node = nodes.find(n => n.code === code)
             const qs = mockQuestions.filter(q => q.nodeCode === code && q.status === 'published')
+            const passScore = nodePassScore(node)
             return {
               ok: true,
               meta: {
                 title: node.name + ' · 答题关卡',
-                subtitle: '共' + qs.length + '题，答对 ' + Math.ceil(qs.length * node.quiz.passScore / 100) + ' 题即通关',
+                subtitle: '共' + qs.length + '题，答对 ' + Math.ceil(qs.length * passScore / 100) + ' 题即通关',
                 questionCount: qs.length,
-                passScore: node.quiz.passScore
+                passScore
               },
               questions: stripAnswers(qs)
             }
@@ -366,13 +417,14 @@
           const pool = mockQuestions.filter(q => q.nodeCode === 'final' && q.status === 'published')
           const n = Math.min(cfg.finalExam.questionCount, pool.length)
           const picked = shuffle(pool).slice(0, n)
+          const passScore = finalPassScore(cfg)
           return {
             ok: true,
             meta: {
               title: cfg.finalExam.title,
-              subtitle: '共' + n + '题，得分 ' + cfg.finalExam.passScore + ' 分以上毕业',
+              subtitle: '共' + n + '题，得分 ' + passScore + ' 分以上毕业',
               questionCount: n,
-              passScore: cfg.finalExam.passScore
+              passScore
             },
             questions: stripAnswers(picked)
           }
@@ -411,7 +463,10 @@
           const correctCount = results.filter(r => r.correct).length
           const total = results.length || 1
           const score = Math.round(correctCount / total * 100)
-          const passScore = mode === 'final' ? cfg.finalExam.passScore : 60
+          // 通关分与 getQuiz 下发的 meta.passScore 同源，配置改动前后端一致
+          const passScore = mode === 'final'
+            ? finalPassScore(cfg)
+            : nodePassScore(nodes.find(n => n.code === code))
           const passed = score >= passScore
           // 学习统计累计（兼容旧数据无 stats 字段）
           p.stats = p.stats || { correctCount: 0, totalCount: 0 }
@@ -456,6 +511,16 @@
 
   function mockContests() {
     return storeGet(STORAGE_CONTESTS) || []
+  }
+
+  /**
+   * 清空竞赛记录（重置进度时调用）
+   * mock：清除本地竞赛记录，竞赛成绩/排行榜随之归零
+   * http：成绩在服务端，本地无缓存需要清理，不发网络请求
+   */
+  function clearContestRecords() {
+    if (config.USE_MOCK) storeRemove(STORAGE_CONTESTS)
+    return Promise.resolve({ ok: true })
   }
 
   function mockContestStats() {
@@ -597,6 +662,7 @@
     contestStatus,
     contestStart,
     contestSubmit,
-    contestLeaderboard
+    contestLeaderboard,
+    clearContestRecords
   }
 })

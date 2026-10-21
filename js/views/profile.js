@@ -230,8 +230,11 @@
                 localStorage.removeItem('cz_web_cache_config')
                 localStorage.removeItem('cz_web_cache_nodes')
               } catch (e) { /* 存储不可用时忽略 */ }
-              UI.toast('已重置')
-              render(rootEl, cfg, nodes, { checkins: {}, quizScores: {}, finalExam: {} }, [], null)
+              // 竞赛记录一并清零（排行榜在 mock 下由竞赛记录派生，同步归零）
+              api.clearContestRecords().then(() => {
+                UI.toast('已重置')
+                render(rootEl, cfg, nodes, { checkins: {}, quizScores: {}, finalExam: {} }, [], null)
+              })
             }}
           ])
         }, 600)

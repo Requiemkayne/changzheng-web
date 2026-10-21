@@ -9,6 +9,14 @@
   const api = root.CZ_API
   const UI = root.CZ_UI
 
+  // 返回：优先浏览器后退；直接打开的入口页（history 里没有站内上一页，或来自站外）退回首页，别把用户卡在原地
+  function goBack() {
+    const ref = document.referrer || ''
+    const fromOtherSite = ref !== '' && ref.indexOf(location.origin) !== 0
+    if (history.length > 1 && !fromOtherSite) history.back()
+    else location.hash = '#/'
+  }
+
   VIEWS.contest = {
     mount(rootEl) {
       rootEl.innerHTML = '<div class="page-center">' + UI.icon('trophy', 'page-center-icon') + '<div>加载中…</div></div>'
@@ -56,7 +64,7 @@
 
     rootEl.innerHTML =
       '<div class="page">' +
-        '<a class="back-link" href="javascript:history.back()">‹ 返回</a>' +
+        '<button type="button" class="back-link">‹ 返回</button>' +
         '<div class="contest-hero">' +
           (root.CZ_SPIRIT && root.CZ_SPIRIT.anniversary
             ? '<div class="contest-hero-badge">' + F.escapeHtml(root.CZ_SPIRIT.anniversary.badge) + '</div>'
@@ -82,6 +90,7 @@
 
     rootEl.querySelector('#contest-start').addEventListener('click', startContest)
     rootEl.querySelector('#contest-lb').addEventListener('click', () => { location.hash = '#/leaderboard' })
+    rootEl.querySelector('.back-link').addEventListener('click', goBack)
   }
 
   /* ---------- 答题态（同 quiz 步进交互） ---------- */
