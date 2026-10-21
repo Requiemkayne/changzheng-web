@@ -61,10 +61,18 @@
       ? '<span class="score-best">' + st.quizBest + '<span class="score-best-unit"> 分</span></span>'
       : badgeHTML(st.state)
 
+    // 历史事件封面：仅当节点配了 cover 才渲染，纯装饰层（不拦截点击）
+    const cover = node.images && node.images.cover ? String(node.images.cover) : ''
+    const coverHTML = cover
+      ? '<div class="tl-photo" aria-hidden="true" style="background-image:url(' +
+        encodeURI(cover).replace(/[)'"]/g, '') + ')"></div>'
+      : ''
+
     return (
       '<div class="' + itemCls + '" id="node-' + node.code + '" data-code="' + node.code + '">' +
         '<span class="' + dotCls + '"></span>' +
-        '<div class="card tl-card' + (o.asCard === false ? '' : '') + '">' +
+        '<div class="card tl-card' + (cover ? ' tl-card-photo' : '') + (o.asCard === false ? '' : '') + '">' +
+          coverHTML +
           '<div class="tl-name-row">' +
             '<span class="tl-name">' + name + '</span>' +
             '<span class="score-right">' + right + icon('chevron', 'tl-arrow') + '</span>' +

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * 节点占位数据（与 miniprogram/mock/nodes.js、cloudfunctions/initData/seed/nodes.js 同构）
  *
  * ⚠ 全部文案为占位内容，待文案组交付后替换。
@@ -35,7 +35,7 @@
           { type: 'dataCard', label: '出发时兵力', value: '8.6万余人' }
         ]
       },
-      images: { cover: '', illustrations: [] },
+      images: { cover: 'assets/route/ruijin.webp', illustrations: [] },
       quiz: { questionIds: ['q-ruijin-1', 'q-ruijin-2', 'q-ruijin-3'], questionCount: 3, passScore: 60 },
       status: 'published'
     },
@@ -58,7 +58,7 @@
           { type: 'dataCard', label: '战后兵力', value: '3万余人' }
         ]
       },
-      images: { cover: '', illustrations: [] },
+      images: { cover: 'assets/route/xiangjiang.webp', illustrations: [] },
       quiz: { questionIds: ['q-xiangjiang-1', 'q-xiangjiang-2', 'q-xiangjiang-3'], questionCount: 3, passScore: 60 },
       status: 'published'
     },
@@ -81,7 +81,7 @@
           { type: 'dataCard', label: '历史意义', value: '确立正确领导' }
         ]
       },
-      images: { cover: '', illustrations: [] },
+      images: { cover: 'assets/route/zunyi.webp', illustrations: [] },
       quiz: { questionIds: ['q-zunyi-1', 'q-zunyi-2', 'q-zunyi-3'], questionCount: 3, passScore: 60 },
       status: 'published'
     },
@@ -110,7 +110,7 @@
           { type: 'dataCard', label: '战役评价', value: '得意之笔' }
         ]
       },
-      images: { cover: '', illustrations: [] },
+      images: { cover: 'assets/route/sidu.webp', illustrations: [] },
       quiz: { questionIds: ['q-sidu-1', 'q-sidu-2', 'q-sidu-3'], questionCount: 3, passScore: 60 },
       status: 'published'
     },
@@ -132,7 +132,7 @@
           { type: 'dataCard', label: '渡江船只', value: '7只小船' }
         ]
       },
-      images: { cover: '', illustrations: [] },
+      images: { cover: 'assets/route/jinsha.webp', illustrations: [] },
       quiz: { questionIds: ['q-jinshajiang-1', 'q-jinshajiang-2', 'q-jinshajiang-3'], questionCount: 3, passScore: 60 },
       status: 'published'
     },
@@ -154,7 +154,7 @@
           { type: 'paragraph', text: '（占位文案）为加快全军渡河速度，红军随即决定飞夺泸定桥。' }
         ]
       },
-      images: { cover: '', illustrations: [] },
+      images: { cover: 'assets/route/dadu.webp', illustrations: [] },
       quiz: { questionIds: ['q-daduhe-1', 'q-daduhe-2', 'q-daduhe-3'], questionCount: 3, passScore: 60 },
       status: 'published'
     },
@@ -177,7 +177,7 @@
           { type: 'dataCard', label: '铁索数量', value: '13根' }
         ]
       },
-      images: { cover: '', illustrations: [] },
+      images: { cover: 'assets/route/luding.webp', illustrations: [] },
       quiz: { questionIds: ['q-luding-1', 'q-luding-2', 'q-luding-3'], questionCount: 3, passScore: 60 },
       status: 'published'
     },
@@ -199,7 +199,7 @@
           { type: 'dataCard', label: '夹金山海拔', value: '4114米' }
         ]
       },
-      images: { cover: '', illustrations: [] },
+      images: { cover: 'assets/route/xueshan.webp', illustrations: [] },
       quiz: { questionIds: ['q-xueshan-1', 'q-xueshan-2', 'q-xueshan-3'], questionCount: 3, passScore: 60 },
       status: 'published'
     },
@@ -224,7 +224,7 @@
           { type: 'dataCard', label: '穿越时间', value: '七天七夜' }
         ]
       },
-      images: { cover: '', illustrations: [] },
+      images: { cover: 'assets/route/caodi.webp', illustrations: [] },
       quiz: { questionIds: ['q-caodi-1', 'q-caodi-2', 'q-caodi-3'], questionCount: 3, passScore: 60 },
       status: 'published'
     },
@@ -245,7 +245,7 @@
           { type: 'dataCard', label: '战役性质', value: '攻坚之战' }
         ]
       },
-      images: { cover: '', illustrations: [] },
+      images: { cover: 'assets/route/lazikou.webp', illustrations: [] },
       quiz: { questionIds: ['q-lazikou-1', 'q-lazikou-2', 'q-lazikou-3'], questionCount: 3, passScore: 60 },
       status: 'published'
     },
@@ -268,7 +268,7 @@
           { type: 'dataCard', label: '历时', value: '两年' }
         ]
       },
-      images: { cover: '', illustrations: [] },
+      images: { cover: 'assets/route/huining.webp', illustrations: [] },
       quiz: { questionIds: ['q-huining-1', 'q-huining-2', 'q-huining-3'], questionCount: 3, passScore: 60 },
       status: 'published'
     }

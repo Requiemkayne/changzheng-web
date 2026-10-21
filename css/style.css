@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    长征 · 重走长征路 —— 设计系统 v3（红色文献装帧 · 革命文物世界）
    世界：苏区出版物与革命文物 —— 铅印宋体大标 / 深红 shell / 烫金状态
    签名动作：打卡 = 盖章（stampIn）
@@ -403,6 +403,61 @@ a { color: var(--red-mid); text-decoration: none; }
   100% { box-shadow: 0 1px 2px -1px rgba(90, 62, 20, 0.45), 0 1px 0 0 rgba(201, 162, 39, 0); }
 }
 .tl-dot-current { animation: tlPulse 2.2s infinite; }
+
+/* ---------- 路线卡片：右侧历史事件封面 ----------
+ * 左 40% 完全透明（alpha 0，文字区干净）→ 中间最实 → 按钮前淡回 0，功能按钮零遮挡
+ * 图片层 pointer-events:none，不接管点击；内容层抬到 z-index 1/2
+ */
+.tl-card-photo {
+  position: relative;
+  overflow: hidden;
+}
+.tl-card-photo .tl-photo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: right center;
+  background-size: cover;
+  -webkit-mask-image: linear-gradient(to right,
+    rgba(0,0,0,0) 0%, rgba(0,0,0,0) 40%,
+    rgba(0,0,0,0.42) 56%, rgba(0,0,0,0.95) 72%,
+    rgba(0,0,0,0.32) 90%, rgba(0,0,0,0) 100%);
+  mask-image: linear-gradient(to right,
+    rgba(0,0,0,0) 0%, rgba(0,0,0,0) 40%,
+    rgba(0,0,0,0.42) 56%, rgba(0,0,0,0.95) 72%,
+    rgba(0,0,0,0.32) 90%, rgba(0,0,0,0) 100%);
+}
+.tl-card-photo > .tl-name-row,
+.tl-card-photo > .tl-sub,
+.tl-card-photo > .tl-meta {
+  position: relative;
+  z-index: 1;
+}
+.tl-card-photo .score-right {
+  position: relative;
+  z-index: 2;
+  /* 纸色托底：深色照片下「待打卡 / 分数 / 箭头」依然清晰 */
+  padding: 2px 0 2px 20px;
+  margin-left: -20px;
+  background: linear-gradient(to right, rgba(255, 252, 244, 0) 0%, rgba(255, 252, 244, 0.88) 42%);
+  border-radius: 6px;
+}
+
+/* 窄屏再收窄图片区，避免压到标题 */
+@media (max-width: 400px) {
+  .tl-card-photo .tl-photo {
+    -webkit-mask-image: linear-gradient(to right,
+      rgba(0,0,0,0) 0%, rgba(0,0,0,0) 52%,
+      rgba(0,0,0,0.45) 66%, rgba(0,0,0,0.9) 78%,
+      rgba(0,0,0,0.28) 92%, rgba(0,0,0,0) 100%);
+    mask-image: linear-gradient(to right,
+      rgba(0,0,0,0) 0%, rgba(0,0,0,0) 52%,
+      rgba(0,0,0,0.45) 66%, rgba(0,0,0,0.9) 78%,
+      rgba(0,0,0,0.28) 92%, rgba(0,0,0,0) 100%);
+  }
+}
 
 .tl-card {
   cursor: pointer;
