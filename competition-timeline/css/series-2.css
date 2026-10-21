@@ -1,0 +1,279 @@
+/* ============================================================
+   【技炫青春 能创未来】系列报道（二）· 把训练当比赛
+   页面级样式（仅 series-2.html 使用，后置于 css/style.css）
+
+   约定
+   · 只复用 css/style.css 的既有令牌与组件（.shell-bar / .hero /
+     .block-title / .phase / .step / .intro / .figure / .roster /
+     .tags / .overview / .comments / .foot），不新增颜色变量；
+   · 颜色只取 var(--*) 与既有令牌的 rgba 组合（金 201,162,39 /
+     亮金 232,200,106 / 深红 74,5,16），不出现新的色值；
+   · 无外部字体 / 图片 / 脚本，无 emoji，无星形字形；
+   · 本页签名动作改为「金线徽标」（方形 1px 金边），无旋转、无 stampIn。
+   ============================================================ */
+
+/* ============================================================
+   1. 顶栏：四个锚点 + 系列（一）回链
+   ============================================================ */
+.shell-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+
+/* 品牌名吃掉整行余量：390 视口下 6 字主标不再被 text-overflow 截断 */
+.shell-bar .brand { flex: 1 1 auto; }
+.shell-bar .brand-text { flex: 1 1 auto; }
+
+.shell-bar .jump { gap: 3px; }
+
+.shell-bar .brand-text strong { letter-spacing: 0.05em; }
+
+/* 五个跳转项在同一条深红 shell 内排开：收窄盒宽与字号 */
+.shell-bar .jump a {
+  min-width: 0;
+  padding: 0 4px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.jump-series {
+  display: grid;
+  place-items: center;
+  min-height: 30px;
+  padding: 0 4px;
+  border: 1px solid rgba(232, 200, 106, 0.7);
+  border-radius: var(--r-sm);
+  color: var(--gold-light);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.jump-series:hover,
+.jump-series:active {
+  background: rgba(245, 233, 200, 0.14);
+  color: var(--gold-pale);
+}
+
+/* ============================================================
+   2. Hero：徽标已下移到「赛中 · 荣获银奖」，此处只做收尾留白
+      （只动内边距与行间距，字号规范与配色一律沿用 style.css）
+   ============================================================ */
+.hero { padding-bottom: 24px; }
+.hero .hero-meta { margin-top: 12px; }
+
+/* ============================================================
+   3. 备赛闭环总览（横向五环条已删，只留标题 / 核心引语 / 原文首句）
+      收口只用既有间距值：区块间距 24px、卡片间距 14px
+   ============================================================ */
+.loop-overview { margin-bottom: 24px; }
+.loop-overview .block-title { margin-bottom: 14px; }
+
+/* 核心引语 */
+.quote {
+  margin: 0 0 14px;
+  background: var(--gold-bg);
+  border: var(--gold-border);
+  border-left: 2px solid var(--gold);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.quote p {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.7;
+  letter-spacing: 1px;
+  color: var(--red-dark);
+}
+
+.quote cite {
+  display: block;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+  font-style: normal;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.loop-caption {
+  margin: 0;
+  padding-left: 12px;
+  border-left: 1px solid var(--gold);
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+/* ============================================================
+   4. 阶段内小节标 / 正文卡：与 .phase 金侧线对齐（缩进 18px）
+   ============================================================ */
+.phase .sub-title { margin: 22px 0 10px 18px; }
+.phase .intro { margin-left: 18px; }
+
+/* ============================================================
+   5. 图片：全宽横幅 / 图文成组 / 竖图限高
+   ============================================================ */
+.figure--wide { margin: 0 0 14px; }
+
+.figure-pair {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin: 0 0 14px 18px;
+}
+
+.figure-pair .figure { margin: 0; }
+
+/* 竖图限高：宽高按比例收缩，超过 560px 时裁切而非拉伸 */
+.figure--limit img {
+  width: 100%;
+  max-height: 560px;
+  object-fit: cover;
+  object-position: center top;
+}
+
+/* ============================================================
+   6. 闭环五环：纵向卡组 + 首尾金线回勾
+   ============================================================ */
+.loop-cards {
+  position: relative;
+  list-style: none;
+  margin: 0 0 12px 18px;
+  padding: 0 14px 0 0;
+}
+
+/* 右侧金线回勾：由 05 再训练折回 01 训练 */
+.loop-cards::after {
+  content: "";
+  position: absolute;
+  top: 24px;
+  bottom: 24px;
+  right: 0;
+  width: 9px;
+  border: 1px solid rgba(201, 162, 39, 0.55);
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+}
+
+/* 折回处的菱形，指向首环 */
+.loop-cards::before {
+  content: "";
+  position: absolute;
+  top: 20px;
+  right: 5px;
+  width: 7px;
+  height: 7px;
+  background: linear-gradient(135deg, var(--gold-light), var(--gold-deep));
+  transform: rotate(45deg);
+}
+
+.loop-card {
+  position: relative;
+  margin-bottom: 14px;
+  background: var(--card);
+  border: var(--gold-border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+}
+
+/* 卡片左侧菱形节点（沿用 .step::before 的既有语言） */
+.loop-card::before {
+  content: "";
+  position: absolute;
+  left: -19px;
+  top: 18px;
+  width: 7px;
+  height: 7px;
+  background: var(--card);
+  border: 1px solid var(--gold);
+  transform: rotate(45deg);
+}
+
+.lc-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.lc-no {
+  font-family: var(--font-title);
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--gold-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+.loop-card h4 {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1.5;
+  letter-spacing: 1px;
+  color: var(--red-dark);
+}
+
+/* 原文依据句 */
+.lc-quote {
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink);
+  padding-left: 9px;
+  border-left: 1px solid var(--gold);
+}
+
+.lc-quote + .lc-quote { margin-top: 8px; }
+
+.loop-return {
+  margin: 0 0 14px 18px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ============================================================
+   7. 留言区沿用 css/style.css 的 .cmt-* 类，本文件不再单独覆盖
+
+   ============================================================ */
+
+/* ============================================================
+   8. 响应式 / 动效偏好 / 打印
+   ============================================================ */
+@media (max-width: 380px) {
+  .shell-bar .jump a { padding: 0 3px; font-size: 10px; }
+  .jump-series { padding: 0 5px; font-size: 10px; }
+  .lc-quote { font-size: 14px; }
+}
+
+/* >520px：竖图成组并排（480px 列宽下仍为上下叠放） */
+@media (min-width: 520px) {
+  .figure-pair { grid-template-columns: 1fr 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loop-card,
+  .jump-series {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media print {
+  .shell-right,
+  .jump-series { display: none; }
+  .loop-card,
+  .quote,
+  .figure-pair { break-inside: avoid; }
+}

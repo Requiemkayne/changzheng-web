@@ -1,0 +1,335 @@
+/* ============================================================
+   【技炫青春 能创未来】系列报道（三）· 灯火长明 · 百次调试
+   页面级样式（仅 series-3.html 使用，后置于 css/style.css）
+
+   约定
+   · 只复用 css/style.css 的既有令牌与组件（.shell-bar / .hero /
+     .block-title / .phase / .step / .intro / .figure / .overview /
+     .badge / .stamp / .foot），不新增颜色变量，不改动 style.css；
+   · 颜色只取 var(--*) 与既有令牌的 rgba 组合
+     （金 201,162,39 / 亮金 232,200,106 / 深红 74,5,16 / 墨褐 110,99,80），
+     本文件不出现任何十六进制色值；
+   · 形状只取 3 / 4 / 6px 与 var(--r-sm) / var(--r-md) / var(--r-lg)，
+     无胶囊形；投影一律带偏移并以深红 74,5,16 着色，无零偏移光晕；
+   · 不写字体声明、无外部字体 / 图片 / 脚本、无 emoji、无星形字形；
+   · 签名动作：赛中结果卡的「银」字印章（62×62 / 倒角 6px / 旋转 -3° /
+     stampIn：scale 1.9→1 + rotate -14°→-3° + blur 3px→0），
+     减弱动效时静止显示。
+   ============================================================ */
+
+/* ============================================================
+   0. 锚点跳转：为吸顶栏留出占位，避免目标标题被深红顶栏压住
+   .shell-bar 高度 = 内容行 33.4px（strong 13×1.3 = 16.9，
+   em 10×1.65 = 16.5）+ 上下 padding 8 + 8 + 底边 1 = 50.4px；
+   取整 51px 再加 8px 余量 → 59px，使滚动落点稳定停在顶栏下方，
+   标题本身及其上沿留白都不被遮挡。
+   ============================================================ */
+html { scroll-padding-top: 59px; }
+
+/* ============================================================
+   1. 顶栏：三个阶段锚点 + 系列（一）（二）回链
+   ============================================================ */
+.shell-right {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+}
+
+/* 三个跳转项在同一条深红 shell 内排开：收窄盒宽与字号 */
+.shell-bar .jump { gap: 4px; }
+
+.shell-bar .jump a {
+  min-width: 0;
+  padding: 0 6px;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.shell-series {
+  display: flex;
+  gap: 4px;
+  flex: none;
+}
+
+.jump-series {
+  display: grid;
+  place-items: center;
+  min-height: 28px;
+  padding: 0 5px;
+  border: 1px solid rgba(232, 200, 106, 0.7);
+  border-radius: var(--r-sm);
+  color: var(--gold-light);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  transition: background-color 0.18s ease, color 0.18s ease;
+}
+
+.jump-series:hover,
+.jump-series:active {
+  background: rgba(245, 233, 200, 0.14);
+  color: var(--gold-pale);
+}
+
+/* ============================================================
+   2. Hero 第四格：比赛日期字串较长，收字号保单行
+   ============================================================ */
+.stat--date dd {
+  font-size: 15px;
+  letter-spacing: 0;
+}
+
+/* Hero 副题：390px 下「实」字不再孤悬成行；不支持 balance 时
+   退回 pretty（同样收掉短尾行），两者都不支持则保持原有的
+   居中自动换行 —— 字号与对齐方式均不改动 */
+.hero-sub {
+  text-wrap: pretty;
+  text-wrap: balance;
+}
+
+/* ============================================================
+   3. 区块间距统一 24px（卡片间距仍为 14px）
+   ============================================================ */
+.intro,
+.overview,
+.sources { margin-bottom: 24px; }
+
+/* ============================================================
+   4. 图片：引言后的通栏横幅 / 阶段内的金框竖排
+   ============================================================ */
+.figure--full { margin-left: 0; }
+
+/* ============================================================
+   5. 步骤卡：序号 + 4 字小标题 + 单段正文
+   ============================================================ */
+.step-no {
+  margin-right: 8px;
+  font-family: var(--font-title);
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--gold-deep);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 卡内金侧线与正文对齐 */
+.step-body { padding-left: 9px; }
+.step-body .stamp-box { margin-left: -9px; }
+
+/* ============================================================
+   6. 赛中结果：银质印章（沿用 .stamp 的 62px / 倒角 6px /
+      -3° 旋转与 stampIn 动画，只改金 / 银令牌配色）
+   ============================================================ */
+.stamp-box {
+  margin-top: 12px;
+  text-align: center;
+}
+
+.stamp-box .stamp { margin: 0; }
+
+.stamp-silver {
+  border-color: var(--muted);
+  color: var(--muted);
+  font-size: 26px;
+  letter-spacing: 0;
+  text-indent: 0;
+  outline: 1px solid rgba(201, 162, 39, 0.45);
+  outline-offset: 3px;
+  box-shadow: 0 4px 12px rgba(74, 5, 16, 0.16);
+  background:
+    radial-gradient(circle at 22% 28%, rgba(110, 99, 80, 0.16) 0 1px, transparent 2px),
+    radial-gradient(circle at 70% 66%, rgba(110, 99, 80, 0.12) 0 1px, transparent 2px),
+    radial-gradient(circle at 44% 16%, rgba(201, 162, 39, 0.14) 0 1.5px, transparent 2.5px);
+  background-size: 9px 9px, 11px 11px, 7px 7px;
+}
+
+/* ============================================================
+   7. 内容来源块
+   ============================================================ */
+.src-card {
+  background: var(--card);
+  border: var(--gold-border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.src-list { display: block; }
+
+.src-row {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 10px;
+  padding: 9px 0;
+  border-top: 1px dashed var(--line);
+}
+
+.src-row:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.src-row dt {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 11px;
+  line-height: 2;
+  letter-spacing: 0.08em;
+  color: var(--gold-deep);
+}
+
+.src-row dd {
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.src-link { overflow-wrap: anywhere; }
+
+.src-note {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+}
+
+/* ============================================================
+   8. 页脚系列归档说明
+   ============================================================ */
+.foot-note {
+  padding: 12px;
+  background: var(--gold-bg);
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  border-radius: var(--r-md);
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--ink);
+}
+
+.foot-links { margin-top: 10px; }
+
+/* ============================================================
+   9. 焦点环：统一深红（本页无 tabBar，不出现金环）
+   ============================================================ */
+a:focus-visible,
+button:focus-visible {
+  outline: 2px solid var(--red-dark);
+  outline-offset: 2px;
+  box-shadow: none;
+  border-radius: 3px;
+}
+
+/* 深红 shell 内改为内描边，并提亮底衬保证深红环可见 */
+.shell-bar a:focus-visible {
+  outline-offset: -2px;
+  background: rgba(245, 233, 200, 0.18);
+}
+
+/* ============================================================
+   10. 响应式
+   ============================================================ */
+@media (max-width: 400px) {
+  .shell-bar .jump a { padding: 0 4px; font-size: 10px; }
+  .shell-series { gap: 3px; }
+  .jump-series { padding: 0 3px; font-size: 9px; }
+  .src-row { grid-template-columns: 52px 1fr; }
+  .stat--date dd { font-size: 14px; }
+}
+
+@media (min-width: 520px) {
+  .src-row { grid-template-columns: 68px 1fr; }
+}
+
+/* ============================================================
+   11. 减弱动效：印章静止显示，不播放 stampIn
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  .jump-series,
+  .step,
+  .figure,
+  .src-card,
+  .foot-note {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .stamp-silver {
+    animation: none !important;
+    transform: rotate(-3deg);
+    opacity: 0.88;
+    filter: none;
+  }
+}
+
+/* ============================================================
+   12. 打印
+   ============================================================ */
+@media print {
+  .shell-right,
+  .jump-series { display: none; }
+
+  .step,
+  .figure,
+  .intro,
+  .src-card,
+  .foot,
+  .table-box {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+
+  .stamp-silver {
+    animation: none !important;
+    transform: rotate(-3deg);
+    opacity: 1;
+    border-color: var(--red-dark);
+    color: var(--red-dark);
+    outline-color: var(--red-dark);
+    background: none;
+    box-shadow: none;
+  }
+
+  .foot-note { background: none; }
+  .src-link { color: var(--ink); }
+}
+
+/* ============================================================
+   13. 系列总览页专用（仅 series.html 使用）
+   卡片整体可点 + 列表左侧金线；不改动上述任何区块样式
+   ============================================================ */
+.series-list::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: -16px;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(201, 162, 39, 0.55), rgba(201, 162, 39, 0.12));
+}
+
+.series-card {
+  display: block;
+  text-decoration: none;
+}
+
+.series-card:hover,
+.series-card:active {
+  border-color: rgba(201, 162, 39, 0.55);
+  background: var(--gold-bg);
+}
+
+.hero-meta {
+  text-wrap: pretty;
+  text-wrap: balance;
+}
+
+.series-note {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}

@@ -1,0 +1,22 @@
+/* Noto Serif SC 子集（仅含站点实际用到的字符，fontTools 生成） */
+@font-face {
+  font-family: 'Noto Serif SC';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(noto-serif-sc-400.woff2?v=4) format('woff2');
+}
+@font-face {
+  font-family: 'Noto Serif SC';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(noto-serif-sc-700.woff2?v=4) format('woff2');
+}
+@font-face {
+  font-family: 'Noto Serif SC';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url(noto-serif-sc-900.woff2?v=4) format('woff2');
+}

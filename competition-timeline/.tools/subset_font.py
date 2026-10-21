@@ -1,0 +1,70 @@
+# 把思源宋体子集化成「只含站点实际用到的字符」的 woff2
+import glob
+import os
+from fontTools import subset
+
+ROOT = r'C:\Users\HP\Desktop\changzheng-web-main\competition-timeline'
+
+# 扫描范围要覆盖所有会渲染中文的地方：
+# 根目录所有 HTML（含后台页与各系列页，新增页面自动纳入）、css/*.css、
+# 以及 JS 里动态生成的文案（如“优秀”印章）
+sources = sorted(glob.glob(os.path.join(ROOT, '*.html')))
+sources += sorted(glob.glob(os.path.join(ROOT, 'css', '*.css')))
+sources += sorted(glob.glob(os.path.join(ROOT, 'js', '*.js')))
+
+print('scanning %d sources' % len(sources))
+chars = set()
+for p in sources:
+    if os.path.exists(p):
+        chars |= set(open(p, encoding='utf-8').read())
+
+# 常用备选（数字、标点、英文字母）
+chars |= set('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
+chars |= set('，。、；：？！“”‘’（）《》〈〉—…·【】％‰+-×÷=±°')
+# 兜底：管理台与印章常用的少量字，避免以后再漏
+chars |= set('优秀置顶取消通过拒绝删除添加修改密码账号昵称留言审核全部')
+
+text = ''.join(sorted(chars))
+print('unique chars:', len(text))
+for must in ['优', '秀']:
+    print('  contains', must, ':', must in chars)
+
+out_dir = os.path.join(ROOT, 'fonts')
+os.makedirs(out_dir, exist_ok=True)
+
+jobs = [
+    ('NotoSerifSC-Regular.otf', 400, 'noto-serif-sc-400.woff2'),
+    ('NotoSerifSC-Bold.otf', 700, 'noto-serif-sc-700.woff2'),
+    ('NotoSerifSC-Black.otf', 900, 'noto-serif-sc-900.woff2'),
+]
+for src, weight, out in jobs:
+    src_path = os.path.join(ROOT, '.tools', 'srcfonts', src)
+    out_path = os.path.join(out_dir, out)
+    opts = subset.Options()
+    opts.flavor = 'woff2'
+    opts.desubroutinize = True
+    opts.layout_features = ['*']
+    opts.name_IDs = ['*']
+    opts.notdef_outline = True
+    opts.recalc_bounds = True
+    font = subset.load_font(src_path, opts)
+    s = subset.Subsetter(options=opts)
+    s.populate(text=text)
+    s.subset(font)
+    subset.save_font(font, out_path, opts)
+    kb = os.path.getsize(out_path) / 1024
+    print(f'{out}: {kb:.0f} KB (weight {weight})')
+
+# 生成精简的 font css（带版本号，避免浏览器缓存旧字体导致字形缺失）
+FONT_VER = '4'  # 4: 扫描范围改为 glob，纳入 series-3 等新页面
+css_lines = ["/* Noto Serif SC 子集（仅含站点实际用到的字符，fontTools 生成） */"]
+for _, weight, out in jobs:
+    css_lines.append(f"""@font-face {{
+  font-family: 'Noto Serif SC';
+  font-style: normal;
+  font-weight: {weight};
+  font-display: swap;
+  src: url({out}?v={FONT_VER}) format('woff2');
+}}""")
+open(os.path.join(out_dir, 'noto-serif-sc.css'), 'w', encoding='utf-8').write('\n'.join(css_lines) + '\n')
+print('font css rewritten (v=%s)' % FONT_VER)

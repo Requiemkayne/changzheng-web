@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#6E0918">
+  <meta name="robots" content="noindex, nofollow">
+  <title>留言管理后台</title>
+  <link rel="stylesheet" href="fonts/noto-serif-sc.css?v=4">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/admin.css">
+  <style>
+    /* 列表里的「所属篇目」小标签；css/admin.css 不在本次改动范围，就地补这一条 */
+    .mod-page {
+      font-size: 11px;
+      letter-spacing: 1px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: var(--gray-bg);
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- ============ 顶栏 ============ -->
+  <header class="shell-bar">
+    <div class="wrap shell-bar-inner">
+      <a class="brand" href="/">
+        <span class="brand-seal" aria-hidden="true">管</span>
+        <span class="brand-text">
+          <strong>留言管理后台</strong>
+          <em>备赛时间线</em>
+        </span>
+      </a>
+      <nav class="jump" id="topbar-actions" hidden>
+        <a href="/" class="tb-link">看前台</a>
+        <button type="button" class="tb-btn" id="btn-logout">退出</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+
+    <!-- ============ 登录 ============ -->
+    <section id="view-login">
+      <h1 class="block-title">管 理 员 登 录</h1>
+      <form class="admin-card login-card" id="login-form" novalidate>
+        <label class="field" for="login-user">
+          <span class="field-label">用户名</span>
+          <input class="cmt-input" id="login-user" type="text" autocomplete="username" required>
+        </label>
+        <label class="field" for="login-pass">
+          <span class="field-label">密码</span>
+          <input class="cmt-input" id="login-pass" type="password" autocomplete="current-password" required>
+        </label>
+        <button class="cmt-submit login-submit" type="submit">登 录</button>
+        <p class="admin-hint" id="login-hint" role="status" aria-live="polite"></p>
+      </form>
+      <p class="admin-tip">首次启动时控制台会打印初始账号，同时写入 <code>server/初始管理员.txt</code>。</p>
+    </section>
+
+    <!-- ============ 后台主体 ============ -->
+    <section id="view-panel" hidden>
+
+      <div class="admin-hello">
+        <span>当前管理员：<b id="whoami">—</b></span>
+        <span class="pending-badge" id="pending-badge" hidden>待审核 <b id="pending-num">0</b></span>
+      </div>
+
+      <!-- 标签栏 -->
+      <nav class="tabs tabs-status" role="tablist" aria-label="留言状态">
+        <button class="tab is-active" data-status="pending" role="tab" aria-selected="true">待审核 <i id="n-pending">0</i></button>
+        <button class="tab" data-status="approved" role="tab" aria-selected="false">已通过 <i id="n-approved">0</i></button>
+        <button class="tab" data-status="rejected" role="tab" aria-selected="false">已拒绝 <i id="n-rejected">0</i></button>
+        <button class="tab" data-status="all" role="tab" aria-selected="false">全部 <i id="n-all">0</i></button>
+      </nav>
+
+      <!-- 按篇筛选 -->
+      <nav class="tabs tabs-page" role="tablist" aria-label="留言所属篇目">
+        <button class="tab is-active" data-page="all" role="tab" aria-selected="true">全部篇目</button>
+        <button class="tab" data-page="series-1" role="tab" aria-selected="false">系列一</button>
+        <button class="tab" data-page="series-2" role="tab" aria-selected="false">系列二</button>
+        <button class="tab" data-page="series-3" role="tab" aria-selected="false">系列三</button>
+      </nav>
+
+      <!-- 批量操作 -->
+      <div class="bulk-bar">
+        <label class="chk-all">
+          <input type="checkbox" id="chk-all"> 全选
+        </label>
+        <span class="bulk-count" id="sel-count">已选 0 条</span>
+        <div class="bulk-actions">
+          <button type="button" class="btn-sm btn-ok" id="btn-approve">通过</button>
+          <button type="button" class="btn-sm btn-warn" id="btn-reject">拒绝</button>
+          <button type="button" class="btn-sm btn-pin" id="btn-pin">置顶</button>
+          <button type="button" class="btn-sm btn-ghost" id="btn-unpin">取消置顶</button>
+          <button type="button" class="btn-sm btn-danger" id="btn-del-sel">删除</button>
+        </div>
+      </div>
+
+      <p class="admin-hint" id="panel-hint" role="status" aria-live="polite"></p>
+
+      <!-- 列表 -->
+      <ul class="mod-list" id="mod-list"></ul>
+      <p class="mod-empty" id="mod-empty" hidden>该分类下暂无留言</p>
+
+      <div class="danger-zone">
+        <h2 class="block-title">危 险 操 作</h2>
+        <div class="admin-card">
+          <p class="dz-text">清空操作不可撤销，请谨慎使用。</p>
+          <div class="dz-actions">
+            <button type="button" class="btn-sm btn-warn" data-clear="rejected">清空已拒绝</button>
+            <button type="button" class="btn-sm btn-danger" data-clear="all">清空全部留言</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 管理员账号 -->
+      <section class="user-section">
+        <h2 class="block-title">管 理 员 账 号</h2>
+        <div class="admin-card">
+          <ul class="user-list" id="user-list"></ul>
+
+          <h3 class="sub-title">新增管理员</h3>
+          <div class="user-form">
+            <input class="cmt-input" id="new-user" type="text" placeholder="用户名（2-20 位）" autocomplete="off">
+            <input class="cmt-input" id="new-pass" type="password" placeholder="密码（至少 6 位）" autocomplete="new-password">
+            <button type="button" class="btn-sm btn-ok" id="btn-add-user">添加</button>
+          </div>
+
+          <h3 class="sub-title">修改我的密码</h3>
+          <div class="user-form">
+            <input class="cmt-input" id="pw-old" type="password" placeholder="当前密码" autocomplete="current-password">
+            <input class="cmt-input" id="pw-new" type="password" placeholder="新密码（至少 6 位）" autocomplete="new-password">
+            <button type="button" class="btn-sm btn-ok" id="btn-change-pw">修改</button>
+          </div>
+
+          <p class="admin-hint" id="user-hint" role="status" aria-live="polite"></p>
+        </div>
+      </section>
+
+    </section>
+  </main>
+</div>
+
+<script src="js/admin.js"></script>
+</body>
+</html>

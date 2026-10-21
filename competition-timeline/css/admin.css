@@ -1,0 +1,375 @@
+/* ============================================================
+   管理后台样式 —— 复用 css/style.css 的设计令牌
+   ============================================================ */
+
+/* 顶栏内的按钮与链接（深红底上） */
+.tb-link,
+.tb-btn {
+  display: grid;
+  place-items: center;
+  min-width: 44px;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid rgba(232, 200, 106, 0.4);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--gold-light);
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+}
+.tb-link:hover,
+.tb-btn:hover {
+  background: rgba(245, 233, 200, 0.14);
+  color: #FFF4DC;
+}
+
+/* ---------- 通用卡片 ---------- */
+.admin-card {
+  background: var(--card);
+  border: var(--gold-border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow);
+  padding: 16px;
+  margin-bottom: 14px;
+}
+
+.login-card { max-width: 100%; }
+.login-submit { width: 100%; margin-top: 4px; }
+
+.admin-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--red);
+  min-height: 0;
+}
+.admin-hint:empty { display: none; }
+.admin-hint.is-ok { color: var(--green); }
+
+.admin-tip {
+  font-size: 11px;
+  line-height: 1.7;
+  color: var(--muted);
+  padding: 0 2px;
+}
+.admin-tip code {
+  font-family: Consolas, Monaco, monospace;
+  background: var(--gold-bg);
+  border: 1px solid rgba(201, 162, 39, 0.3);
+  border-radius: 3px;
+  padding: 0 4px;
+  color: var(--gold-deep);
+}
+
+/* ---------- 当前管理员 ---------- */
+.admin-hello {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.admin-hello b { color: var(--red-dark); font-family: var(--font-title); letter-spacing: 1px; }
+
+.pending-badge {
+  font-size: 12px;
+  color: var(--red-deep);
+  background: var(--gold-pale);
+  border: 1px solid rgba(201, 162, 39, 0.55);
+  border-radius: 3px;
+  padding: 2px 8px;
+  letter-spacing: 1px;
+}
+.pending-badge b { color: var(--red); }
+
+/* ---------- 标签栏 ---------- */
+.tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.tab {
+  flex: none;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-size: 13px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.tab i {
+  font-style: normal;
+  font-size: 11px;
+  margin-left: 4px;
+  color: var(--gold-deep);
+  font-variant-numeric: tabular-nums;
+}
+.tab.is-active {
+  background: linear-gradient(170deg, var(--red-mid), var(--red-dark));
+  border-color: rgba(232, 200, 106, 0.5);
+  color: #FFF4DC;
+}
+.tab.is-active i { color: var(--gold-light); }
+
+/* ---------- 批量操作条 ---------- */
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--card);
+  border: var(--gold-border);
+  border-radius: var(--r-md);
+  padding: 8px 10px;
+  margin-bottom: 12px;
+}
+.chk-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.chk-all input { width: 15px; height: 15px; accent-color: var(--red); }
+.bulk-count {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.bulk-actions { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ---------- 按钮 ---------- */
+.btn-sm {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: filter 0.15s ease, background-color 0.15s ease, transform 0.08s ease;
+}
+.btn-sm:active { transform: scale(0.97); }
+.btn-sm:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-ok {
+  background: linear-gradient(170deg, var(--red-mid), var(--red-dark));
+  border-color: rgba(232, 200, 106, 0.5);
+  color: #FFF4DC;
+}
+.btn-ok:hover:not(:disabled) { filter: brightness(1.08); }
+
+.btn-warn {
+  background: var(--gold-pale);
+  border-color: rgba(201, 162, 39, 0.6);
+  color: var(--gold-deep);
+}
+.btn-warn:hover:not(:disabled) { background: var(--gold-bg); }
+
+.btn-danger {
+  background: #fff;
+  border-color: rgba(168, 24, 44, 0.4);
+  color: var(--red);
+}
+.btn-danger:hover:not(:disabled) { background: var(--red-bg); border-color: var(--red); }
+
+/* ---------- 留言列表 ---------- */
+.mod-list { list-style: none; margin: 0 0 14px; padding: 0; }
+
+.mod-item {
+  background: var(--card);
+  border: var(--gold-border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.mod-item.is-pending { border-left: 3px solid var(--gold); }
+.mod-item.is-approved { border-left: 3px solid var(--green); }
+.mod-item.is-rejected { border-left: 3px solid #C9C0AC; opacity: 0.82; }
+
+/* 已置顶：淡金底 + 金边，与前台“优秀”印章呼应 */
+.mod-item.is-pinned {
+  background: linear-gradient(170deg, rgba(250, 244, 226, 0.95), rgba(245, 233, 200, 0.5));
+  border-color: rgba(201, 162, 39, 0.6);
+  box-shadow: 0 4px 18px rgba(74, 5, 16, 0.08);
+}
+
+/* 已置顶小印（管理列表用，比例缩至 34px，样式同 DESIGN.md 印章规范） */
+.mod-pin-seal {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 2px solid var(--gold-deep);
+  border-radius: 4px;
+  color: var(--gold-deep);
+  font-family: var(--font-title);
+  font-weight: 900;
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-indent: 1px;
+  line-height: 1;
+  transform: rotate(-3deg);
+  opacity: 0.88;
+  user-select: none;
+  background:
+    radial-gradient(circle at 20% 30%, rgba(143, 110, 11, 0.10) 0 1px, transparent 2px),
+    radial-gradient(circle at 70% 65%, rgba(143, 110, 11, 0.08) 0 1px, transparent 2px);
+  background-size: 9px 9px, 11px 11px;
+}
+
+/* 置顶按钮 */
+.btn-pin {
+  background: linear-gradient(170deg, var(--gold), var(--gold-deep));
+  border-color: rgba(143, 110, 11, 0.6);
+  color: #FFF9E8;
+}
+.btn-pin:hover:not(:disabled) { filter: brightness(1.06); }
+
+.btn-pinned {
+  background: var(--gold-pale);
+  border-color: rgba(201, 162, 39, 0.7);
+  color: var(--gold-deep);
+  font-weight: 700;
+}
+.btn-pinned:hover:not(:disabled) { background: var(--gold-bg); }
+
+.btn-ghost {
+  background: var(--card);
+  border-color: var(--line);
+  color: var(--muted);
+}
+.btn-ghost:hover:not(:disabled) { border-color: var(--gold); color: var(--gold-deep); }
+
+.mod-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.mod-chk { width: 16px; height: 16px; accent-color: var(--red); flex: none; }
+
+.mod-name {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 1px;
+  color: var(--red-dark);
+}
+.mod-time {
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.mod-ip {
+  font-size: 11px;
+  color: #9A8F7C;
+  font-family: Consolas, Monaco, monospace;
+}
+.mod-tag {
+  margin-left: auto;
+  font-size: 11px;
+  letter-spacing: 1px;
+  border-radius: 3px;
+  padding: 1px 7px;
+  border: 1px solid;
+}
+.mod-tag.pending { color: var(--gold-deep); border-color: rgba(201, 162, 39, 0.6); background: var(--gold-pale); }
+.mod-tag.approved { color: var(--green); border-color: rgba(62, 124, 68, 0.45); background: var(--green-bg); }
+.mod-tag.rejected { color: var(--muted); border-color: var(--line); background: var(--gray-bg); }
+
+.mod-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #453830;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin-bottom: 8px;
+}
+
+.mod-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.mod-empty,
+.mod-empty[hidden] {
+  padding: 24px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* ---------- 危险区 ---------- */
+.danger-zone { margin-top: 24px; }
+.dz-text { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+.dz-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- 管理员账号 ---------- */
+.user-section { margin-top: 24px; }
+.sub-title {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 2px;
+  color: var(--gold-deep);
+  margin: 16px 0 8px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+.user-list { list-style: none; margin: 0; padding: 0; }
+.user-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.user-list li:last-child { border-bottom: none; }
+.user-list .u-name {
+  font-family: var(--font-title);
+  font-weight: 700;
+  color: var(--red-dark);
+  letter-spacing: 1px;
+}
+.user-list .u-role {
+  font-size: 11px;
+  color: var(--gold-deep);
+  background: var(--gold-bg);
+  border: 1px solid rgba(201, 162, 39, 0.4);
+  border-radius: 3px;
+  padding: 0 6px;
+}
+.user-list .u-me { font-size: 11px; color: var(--green); }
+.user-list .u-del { margin-left: auto; }
+
+.user-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 6px;
+}
+.user-form .cmt-input { padding: 7px 9px; font-size: 13px; }
+
+@media (max-width: 420px) {
+  .user-form { grid-template-columns: 1fr; }
+  .bulk-actions { margin-left: 0; width: 100%; }
+  .bulk-actions .btn-sm { flex: 1; }
+}
