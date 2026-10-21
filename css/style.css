@@ -459,6 +459,55 @@ a { color: var(--red-mid); text-decoration: none; }
   }
 }
 
+/* ---------- 节点点击：封面「右滑入 + 放大 + 快速淡出」 ----------
+ * 舞台覆盖除底部菜单外的区域，位移与缩放全部走 transform（60fps，PPT 推入感）
+ */
+.node-burst {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  pointer-events: none;
+  background: rgba(247, 240, 223, 0);
+  animation: nodeBurstVeil 1.32s linear forwards;
+}
+@keyframes nodeBurstVeil {
+  from { background-color: rgba(247, 240, 223, 0); }
+  to   { background-color: rgba(247, 240, 223, 0.5); }
+}
+.node-burst-stage {
+  position: fixed;
+  left: 10px;
+  right: 10px;
+  top: 10px;
+  border-radius: 16px;
+  overflow: hidden;
+  will-change: transform, opacity;
+  box-shadow: 0 14px 40px rgba(74, 5, 16, 0.28);
+  background: #2A1216;
+}
+.node-burst-img {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.node-burst-cap {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 22px 18px 18px;
+  font-family: var(--font-title);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: #FFF6E2;
+  text-shadow: 0 2px 12px rgba(46, 5, 14, 0.75);
+  background: linear-gradient(180deg, rgba(46, 5, 14, 0), rgba(46, 5, 14, 0.72));
+}
+/* 动效降级：不做滑入，直接跳转（逻辑层已判断） */
+@media (prefers-reduced-motion: reduce) {
+  .node-burst { display: none; }
+}
 .tl-card {
   cursor: pointer;
   transition: transform .12s, box-shadow .12s;
@@ -555,7 +604,8 @@ a { color: var(--red-mid); text-decoration: none; }
 .cover.has-img::after {
   content: '';
   position: absolute; inset: 0;
-  background: linear-gradient(180deg, rgba(74, 5, 16, 0.05), rgba(74, 5, 16, 0.72));
+  /* 封面换成实景/历史照片后整体压暗一档，保证白色标题与元信息可读 */
+  background: linear-gradient(180deg, rgba(74, 5, 16, 0.34), rgba(74, 5, 16, 0.78));
   z-index: 0;
 }
 .cover-name {

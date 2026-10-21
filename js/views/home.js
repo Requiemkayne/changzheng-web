@@ -170,11 +170,91 @@
   }
 
   function bind(rootEl, nodes, states) {
+    // 节点行点击 → 封面「从右滑入 + 放大 + 快速淡出」→ 进入详情（打卡）
+    let bursting = false
+    const reduced = typeof root.matchMedia === 'function' &&
+      root.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    function openNodeWithBurst(row, code) {
+      const go = () => { location.hash = '#/node/' + code }
+      if (reduced || bursting) { go(); return }
+
+      const card = row.querySelector('.tl-card') || row
+      const photo = card.querySelector('.tl-photo')
+      const bg = photo ? root.getComputedStyle(photo).backgroundImage : ''
+      const m = bg && bg.match(/url\(["']?(.+?)["']?\)/)
+      if (!m || !m[1]) { go(); return }
+
+      // 舞台：铺满除底部菜单与安全区之外的区域（类似 PPT 全屏页）
+      const bar = document.getElementById('tabbar')
+      const barH = bar ? bar.getBoundingClientRect().height : 64
+
+      const layer = document.createElement('div')
+      layer.className = 'node-burst'
+
+      const stage = document.createElement('div')
+      stage.className = 'node-burst-stage'
+      stage.style.bottom = Math.round(barH + 10) + 'px'
+
+      const img = document.createElement('div')
+      img.className = 'node-burst-img'
+      img.style.backgroundImage = 'url("' + m[1] + '")'
+
+      // 角标：节点名，跟着舞台一起动
+      const cap = document.createElement('div')
+      cap.className = 'node-burst-cap'
+      const nameEl = card.querySelector('.tl-name')
+      cap.textContent = nameEl ? nameEl.textContent : ''
+
+      stage.appendChild(img)
+      stage.appendChild(cap)
+      layer.appendChild(stage)
+      document.body.appendChild(layer)
+
+      bursting = true
+
+      // 起点 = 节点卡片左侧图片区的左边与中线；舞台缩放后左边缘与之对齐
+      const sr = stage.getBoundingClientRect()
+      const pr = (photo || card).getBoundingClientRect()
+      const s0 = Math.max(0.18, Math.min(0.72, (pr.width / sr.width) * 0.82))
+      // 起点中心 x：让舞台左边缘落在卡片图片区左边缘
+      const startCx = pr.left + (sr.width * s0) / 2
+      const startCy = pr.top + pr.height / 2
+      const dx = startCx - (sr.left + sr.width / 2)
+      const dy = startCy - (sr.top + sr.height / 2)
+
+      // 进入 760ms 不变；到最大后立刻快速透明（约 200ms 降到 12%），同时持续放大直到完全消失
+      const enter = 760, fade = 560
+      const total = enter + fade
+      const at = enter / total
+      const atFast = (enter + fade * 0.36) / total   // 快速透明的落点
+
+      stage.animate([
+        { transform: 'translate(' + dx + 'px,' + dy + 'px) scale(' + s0 + ')', offset: 0, easing: 'cubic-bezier(.4,0,.3,1)' },
+        { transform: 'translate(0,0) scale(1)', offset: at, easing: 'cubic-bezier(.22,.58,.32,1)' },
+        { transform: 'translate(0,0) scale(1.34)', offset: 1 }
+      ], { duration: total, fill: 'forwards' })
+
+      // 透明度：0 → 1 线性递增（进入段不变）；到位后先快速掉到 12%，再收尾归零
+      stage.animate([
+        { opacity: 0, offset: 0, easing: 'linear' },
+        { opacity: 1, offset: at, easing: 'cubic-bezier(.12,.9,.25,1)' },
+        { opacity: 0.12, offset: atFast, easing: 'linear' },
+        { opacity: 0, offset: 1 }
+      ], { duration: total, fill: 'forwards' })
+
+      root.setTimeout(() => {
+        layer.remove()
+        bursting = false
+        go()
+      }, total)
+    }
+
     // 节点行点击 → 详情
     const bindRows = container => {
       container.querySelectorAll('[data-code]').forEach(row => {
         row.addEventListener('click', () => {
-          location.hash = '#/node/' + row.dataset.code
+          openNodeWithBurst(row, row.dataset.code)
         })
       })
     }
