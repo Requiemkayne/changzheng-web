@@ -13,7 +13,7 @@
 <body>
   <div id="app"></div>
 
-  <!-- 底部 tabBar（三 tab：路线 / 地图 / 我的） -->
+  <!-- 底部 tabBar（三 tab：路线 / 地图 / 我的；末位「青春经管」是跨页入口，不带 data-tab，router 不会点亮它） -->
   <nav id="tabbar" aria-label="主导航">
     <a class="tab" href="#/" data-tab="home">
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h11l-2.5 3.5L16 11H5"/></svg>
@@ -26,6 +26,11 @@
     <a class="tab" href="#/profile" data-tab="profile">
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.5-3.6 4.4-5.2 7.5-5.2s6 1.6 7.5 5.2"/></svg>
       <span class="tab-text">我的</span>
+    </a>
+    <!-- 校外/专题入口：指向 competition-timeline 的 index 页（独立页面，非 hash 路由，故无 data-tab） -->
+    <a class="tab" href="competition-timeline/index.html">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-4.5L21 9l-9 4.5L3 9z"/><path d="M6.5 11v4.2c3.5 2 7.5 2 11 0V11"/><path d="M21 9v5"/></svg>
+      <span class="tab-text">青春经管</span>
     </a>
   </nav>
 
