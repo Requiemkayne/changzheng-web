@@ -7,7 +7,7 @@
    字号   hero 32px(900/字距10px) / 页面大标 26px(900) / 区块标 18px(700/字距2px)
           正文 15px/1.65 / 辅助 12px / 微注 11px
    形状   倒角 12 / 8 / 5px；徽章 3px；印章 62px；金线 1px/45%
-   签名   摘金 = 盖章 stampIn（scale1.9→1, rotate−14°→−3°, blur3px→0）
+   签名   优秀留言 = 金印 cmt-stamp（stampIn 动画）
    ============================================================ */
 
 :root {
@@ -499,16 +499,15 @@ b, time, dd { font-variant-numeric: tabular-nums; }
 .roster small { font-size: 11px; color: var(--muted); letter-spacing: 0.02em; }
 
 .coach {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: block;              /* 行内排布：顿号按正常文字间距跟随姓名 */
   font-size: 12px;
+  line-height: 1.9;
   color: var(--muted);
   border-top: 1px dashed var(--line);
   padding-top: 10px;
 }
 .coach b {
+  display: inline-block;
   font-family: var(--font-title);
   font-weight: 700;
   font-size: 13px;
@@ -518,6 +517,14 @@ b, time, dd { font-variant-numeric: tabular-nums; }
   border: 1px solid rgba(201, 162, 39, 0.4);
   border-radius: 3px;
   padding: 1px 7px;
+  vertical-align: 1px;
+}
+
+/* 姓名之间的顿号（行内流，仅微调左右留白） */
+.coach-sep {
+  display: inline-block;
+  margin: 0 0 0 -1px;
+  color: var(--muted);
 }
 
 /* ---- 关键词（方角，非胶囊） ---- */
@@ -537,36 +544,8 @@ b, time, dd { font-variant-numeric: tabular-nums; }
   padding: 2px 8px;
 }
 
-/* ---- 赛中结果：盖章（62px，对齐 .stamp 规范） ---- */
+/* ---- 赛中结果卡 ---- */
 .step-result { background: var(--gold-bg); }
-
-.stamp {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 62px;
-  height: 62px;
-  margin: 14px auto 2px;
-  border: 2.5px solid var(--red-dark);
-  border-radius: 6px;
-  color: var(--red-dark);
-  font-family: var(--font-title);
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: 3px;
-  line-height: 1.25;
-  text-align: center;
-  text-indent: 3px;
-  transform: rotate(-3deg);
-  opacity: 0.88;
-  background:
-    radial-gradient(circle at 20% 30%, rgba(74, 5, 16, 0.10) 0 1px, transparent 2px),
-    radial-gradient(circle at 70% 65%, rgba(74, 5, 16, 0.08) 0 1px, transparent 2px),
-    radial-gradient(circle at 45% 15%, rgba(74, 5, 16, 0.06) 0 1.5px, transparent 2.5px);
-  background-size: 9px 9px, 11px 11px, 7px 7px;
-  animation: stampIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
-  user-select: none;
-}
 
 @keyframes stampIn {
   0%   { transform: scale(1.9) rotate(-14deg); opacity: 0; filter: blur(3px); }

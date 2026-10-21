@@ -8,7 +8,6 @@
   var state = {
     user: null,
     status: 'pending',
-    page: 'all',          // all | series-1 | series-2
     items: [],
     selected: new Set(),
     counts: { all: 0, pending: 0, approved: 0, rejected: 0 },
@@ -62,7 +61,6 @@
   }
 
   var STATUS_TEXT = { pending: '待审核', approved: '已通过', rejected: '已拒绝' };
-  var PAGE_TEXT = { 'series-1': '系列一', 'series-2': '系列二', 'series-3': '系列三' };
 
   /* ---------------- 视图切换 ---------------- */
 
@@ -134,17 +132,10 @@
       tag.className = 'mod-tag ' + m.status;
       tag.textContent = STATUS_TEXT[m.status] || m.status;
 
-      // 所属篇目（老数据迁移后为 series-1）
-      var pageTag = document.createElement('span');
-      pageTag.className = 'mod-page';
-      pageTag.textContent = PAGE_TEXT[m.page] || m.page || '系列一';
-      pageTag.title = '所属篇目：' + pageTag.textContent;
-
       top.appendChild(chk);
       top.appendChild(name);
       top.appendChild(time);
       top.appendChild(ip);
-      top.appendChild(pageTag);
       top.appendChild(tag);
 
       // 已置顶标记（管理员列表里用小印，与前台大印呼应）
@@ -213,8 +204,7 @@
   }
 
   function load() {
-    var qs = '/api/admin/comments?status=' + encodeURIComponent(state.status) +
-      '&page=' + encodeURIComponent(state.page);
+    var qs = '/api/admin/comments?status=' + encodeURIComponent(state.status);
     return api(qs)
       .then(function (d) {
         state.items = d.items || [];
@@ -389,7 +379,7 @@
     api('/api/admin/logout', { method: 'POST' }).finally(function () { showLogin(); });
   });
 
-  // 状态标签栏（只认 .tabs-status 下的 .tab，避免和篇目栏互相干扰）
+  // 状态标签栏（面板上只剩这一排标签）
   Array.prototype.forEach.call(document.querySelectorAll('.tabs-status .tab'), function (tab) {
     tab.addEventListener('click', function () {
       Array.prototype.forEach.call(document.querySelectorAll('.tabs-status .tab'), function (t) {
@@ -399,21 +389,6 @@
       tab.classList.add('is-active');
       tab.setAttribute('aria-selected', 'true');
       state.status = tab.dataset.status;
-      state.selected.clear();
-      load();
-    });
-  });
-
-  // 篇目标签栏
-  Array.prototype.forEach.call(document.querySelectorAll('.tabs-page .tab'), function (tab) {
-    tab.addEventListener('click', function () {
-      Array.prototype.forEach.call(document.querySelectorAll('.tabs-page .tab'), function (t) {
-        t.classList.remove('is-active');
-        t.setAttribute('aria-selected', 'false');
-      });
-      tab.classList.add('is-active');
-      tab.setAttribute('aria-selected', 'true');
-      state.page = tab.dataset.page;
       state.selected.clear();
       load();
     });

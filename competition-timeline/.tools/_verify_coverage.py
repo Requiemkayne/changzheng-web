@@ -3,7 +3,7 @@ import glob
 import os
 from fontTools.ttLib import TTFont
 
-ROOT = r'C:\Users\HP\Desktop\changzheng-web-main\competition-timeline'
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 目录整体移动后仍然可用
 
 sources = [
     'index.html',

@@ -5,7 +5,7 @@
 #   python .tools/build_single.py series-2.html pub/series-2.html
 import base64, os, re, sys
 
-ROOT = r'C:\Users\HP\Desktop\changzheng-web-main\competition-timeline'
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 目录整体移动后仍然可用
 
 # 入口页（相对仓库根）与输出路径（相对仓库根）；输出缺省沿用旧约定 pub/<页面名>
 PAGE = sys.argv[1] if len(sys.argv) > 1 else 'index.html'

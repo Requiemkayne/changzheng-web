@@ -13,49 +13,12 @@
    ============================================================ */
 
 /* ============================================================
-   1. 顶栏：四个锚点 + 系列（一）回链
+   1. 顶栏：只留品牌（跳转 chip 行已按要求删除）
    ============================================================ */
-.shell-right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: none;
-}
-
-/* 品牌名吃掉整行余量：390 视口下 6 字主标不再被 text-overflow 截断 */
+/* 品牌名吃掉整行余量，主标与系列（一）（三）同为「技炫青春 · 能创未来」，
+   字距/字号一律沿用 style.css，不再做页面级覆写 */
 .shell-bar .brand { flex: 1 1 auto; }
 .shell-bar .brand-text { flex: 1 1 auto; }
-
-.shell-bar .jump { gap: 3px; }
-
-.shell-bar .brand-text strong { letter-spacing: 0.05em; }
-
-/* 五个跳转项在同一条深红 shell 内排开：收窄盒宽与字号 */
-.shell-bar .jump a {
-  min-width: 0;
-  padding: 0 4px;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-}
-
-.jump-series {
-  display: grid;
-  place-items: center;
-  min-height: 30px;
-  padding: 0 4px;
-  border: 1px solid rgba(232, 200, 106, 0.7);
-  border-radius: var(--r-sm);
-  color: var(--gold-light);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-}
-
-.jump-series:hover,
-.jump-series:active {
-  background: rgba(245, 233, 200, 0.14);
-  color: var(--gold-pale);
-}
 
 /* ============================================================
    2. Hero：徽标已下移到「赛中 · 荣获银奖」，此处只做收尾留白
@@ -244,7 +207,8 @@
 }
 
 /* ============================================================
-   7. 留言区沿用 css/style.css 的 .cmt-* 类，本文件不再单独覆盖
+   7. 留言区：本文件不再覆盖 .cmt-* 类——留言区全站只在总览页（index.html）
+      沿用 css/style.css 的样式即可
 
    ============================================================ */
 
@@ -252,8 +216,6 @@
    8. 响应式 / 动效偏好 / 打印
    ============================================================ */
 @media (max-width: 380px) {
-  .shell-bar .jump a { padding: 0 3px; font-size: 10px; }
-  .jump-series { padding: 0 5px; font-size: 10px; }
   .lc-quote { font-size: 14px; }
 }
 
@@ -263,16 +225,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .loop-card,
-  .jump-series {
+  .loop-card {
     transition: none !important;
     animation: none !important;
   }
 }
 
 @media print {
-  .shell-right,
-  .jump-series { display: none; }
   .loop-card,
   .quote,
   .figure-pair { break-inside: avoid; }

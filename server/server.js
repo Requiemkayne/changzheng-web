@@ -50,6 +50,16 @@ const MIME = {
  * .git/、*.md、*.db 等一律不对外，命中即 404（不区分存在与否，避免探测）。
  */
 const STATIC_DIRS = new Set(['css', 'js', 'fonts', 'assets'])
+/* 嵌套白名单：主站一并托管专题页 competition-timeline（底部 tabBar「青春经管」入口），
+ * 但只放它的公开页面与静态资源；其 server/（源码 + SQLite）、.draft/、.tools/ 以及
+ * admin.html 后台仍一律 404 —— 单放进 STATIC_DIRS 会把这些一起暴露出去。
+ */
+const STATIC_NESTED = {
+  'competition-timeline': {
+    dirs: new Set(['css', 'js', 'fonts', 'assets', 'pub']),
+    files: new Set(['index.html', 'series-1.html', 'series-2.html', 'series-3.html'])
+  }
+}
 const STATIC_ROOT_FILES = new Set(['index.html', 'favicon.ico', 'favicon.svg'])
 const STATIC_EXT = new Set([
   '.html', '.css', '.js', '.woff', '.woff2',
@@ -167,6 +177,53 @@ function readBody(req) {
     })
     req.on('error', reject)
   })
+}
+
+/* ---------- 留言服务反代 ----------
+ * 专题页 competition-timeline 由本服务在 /competition-timeline/ 下托管，但它的留言前端
+ * 请求的是同源相对路径 /api/comments（competition-timeline/js/comments.js:36-38）。
+ * 留言服务是另一个进程（competition-timeline/server/server.js，默认 8899）：不转发，
+ * 线上留言读写就会落到本服务的 401 兜底；本地两个服务各占一个端口时才「碰巧」正常。
+ * 只转发公开留言接口，/api/admin/* 不转发——与「后台不对外」（admin.html 同样 404）一致。
+ */
+const COMMENTS_UPSTREAM = new URL(process.env.COMMENTS_UPSTREAM || 'http://127.0.0.1:8899')
+const UPSTREAM_HOST = COMMENTS_UPSTREAM.hostname
+const UPSTREAM_PORT = Number(COMMENTS_UPSTREAM.port) || 80
+
+function isCommentsApi(pathname) {
+  return pathname === '/api/comments' || pathname.startsWith('/api/comments/')
+}
+
+// 流式透传：后端已自带 CORS，这里只搬运方法/路径/body 与必要的响应头（含 Set-Cookie）
+function proxyComments(req, res, u) {
+  const headers = {}
+  for (const k of ['content-type', 'content-length', 'accept', 'cookie', 'user-agent']) {
+    if (req.headers[k]) headers[k] = req.headers[k]
+  }
+  const ip = clientIp(req)
+  if (ip) headers['x-forwarded-for'] = ip
+  const upstream = http.request({
+    host: UPSTREAM_HOST,
+    port: UPSTREAM_PORT,
+    method: req.method,
+    path: u.pathname + (u.search || ''),
+    headers,
+    timeout: 5000
+  }, up => {
+    const out = { 'Content-Type': up.headers['content-type'] || 'application/json; charset=utf-8' }
+    if (up.headers['set-cookie']) out['Set-Cookie'] = up.headers['set-cookie']
+    res.writeHead(up.statusCode || 502, out)
+    up.pipe(res)
+  })
+  upstream.on('timeout', () => upstream.destroy(new Error('留言服务响应超时')))
+  upstream.on('error', e => {
+    console.error('留言服务反代失败:', e.message)
+    if (res.headersSent) return res.end()
+    // 给前端一个可诊断的 JSON，避免留言框一直转圈
+    res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' })
+    res.end(JSON.stringify({ ok: false, code: 'COMMENTS_UNAVAILABLE', message: '留言服务暂时不可用' }))
+  })
+  req.pipe(upstream)
 }
 
 /* ---------- 鉴权 ---------- */
@@ -324,12 +381,17 @@ function isAllowedRelPath(rel) {
   for (const s of segs) {
     if (!s || s === '.' || s === '..' || s.startsWith('.')) return false
   }
+  // 第二道：扩展名也必须在白名单内
+  if (!STATIC_EXT.has(path.extname(segs[segs.length - 1]).toLowerCase())) return false
   const top = segs[0].toLowerCase()
+  const nested = STATIC_NESTED[top]
+  if (nested) {
+    // 目录内的文件按「第二段」判：目录进 dirs（可再深一层），根层页面进 files
+    return segs.length === 2 ? nested.files.has(segs[1].toLowerCase()) : nested.dirs.has(segs[1].toLowerCase())
+  }
   const inStaticDir = segs.length > 1 && STATIC_DIRS.has(top)
   const isRootFile = segs.length === 1 && STATIC_ROOT_FILES.has(top)
-  if (!inStaticDir && !isRootFile) return false
-  // 第二道：扩展名也必须在白名单内
-  return STATIC_EXT.has(path.extname(segs[segs.length - 1]).toLowerCase())
+  return inStaticDir || isRootFile
 }
 
 /** 解析静态路径：{ file } | { status: 400|403|404 } */
@@ -618,6 +680,7 @@ function startServer(port) {
         return res.end(JSON.stringify({ v: versionStamp() }))
       }
       if (u.pathname.startsWith('/api/')) {
+        if (isCommentsApi(u.pathname)) return proxyComments(req, res, u)
         const handled = await handleLeaderboard(db, req, res, u.pathname, u.query)
         if (!handled) await handleApi(db, req, res, u.pathname, u.query)
       } else if (req.method === 'GET') {

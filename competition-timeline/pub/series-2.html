@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN" data-page="series-2">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -38,7 +38,7 @@
    字号   hero 32px(900/字距10px) / 页面大标 26px(900) / 区块标 18px(700/字距2px)
           正文 15px/1.65 / 辅助 12px / 微注 11px
    形状   倒角 12 / 8 / 5px；徽章 3px；印章 62px；金线 1px/45%
-   签名   摘金 = 盖章 stampIn（scale1.9→1, rotate−14°→−3°, blur3px→0）
+   签名   优秀留言 = 金印 cmt-stamp（stampIn 动画）
    ============================================================ */
 
 :root {
@@ -530,16 +530,15 @@ b, time, dd { font-variant-numeric: tabular-nums; }
 .roster small { font-size: 11px; color: var(--muted); letter-spacing: 0.02em; }
 
 .coach {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
+  display: block;              /* 行内排布：顿号按正常文字间距跟随姓名 */
   font-size: 12px;
+  line-height: 1.9;
   color: var(--muted);
   border-top: 1px dashed var(--line);
   padding-top: 10px;
 }
 .coach b {
+  display: inline-block;
   font-family: var(--font-title);
   font-weight: 700;
   font-size: 13px;
@@ -549,6 +548,14 @@ b, time, dd { font-variant-numeric: tabular-nums; }
   border: 1px solid rgba(201, 162, 39, 0.4);
   border-radius: 3px;
   padding: 1px 7px;
+  vertical-align: 1px;
+}
+
+/* 姓名之间的顿号（行内流，仅微调左右留白） */
+.coach-sep {
+  display: inline-block;
+  margin: 0 0 0 -1px;
+  color: var(--muted);
 }
 
 /* ---- 关键词（方角，非胶囊） ---- */
@@ -568,36 +575,8 @@ b, time, dd { font-variant-numeric: tabular-nums; }
   padding: 2px 8px;
 }
 
-/* ---- 赛中结果：盖章（62px，对齐 .stamp 规范） ---- */
+/* ---- 赛中结果卡 ---- */
 .step-result { background: var(--gold-bg); }
-
-.stamp {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 62px;
-  height: 62px;
-  margin: 14px auto 2px;
-  border: 2.5px solid var(--red-dark);
-  border-radius: 6px;
-  color: var(--red-dark);
-  font-family: var(--font-title);
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: 3px;
-  line-height: 1.25;
-  text-align: center;
-  text-indent: 3px;
-  transform: rotate(-3deg);
-  opacity: 0.88;
-  background:
-    radial-gradient(circle at 20% 30%, rgba(74, 5, 16, 0.10) 0 1px, transparent 2px),
-    radial-gradient(circle at 70% 65%, rgba(74, 5, 16, 0.08) 0 1px, transparent 2px),
-    radial-gradient(circle at 45% 15%, rgba(74, 5, 16, 0.06) 0 1.5px, transparent 2.5px);
-  background-size: 9px 9px, 11px 11px, 7px 7px;
-  animation: stampIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both;
-  user-select: none;
-}
 
 @keyframes stampIn {
   0%   { transform: scale(1.9) rotate(-14deg); opacity: 0; filter: blur(3px); }
@@ -1019,49 +998,12 @@ tbody td:nth-child(2) {
    ============================================================ */
 
 /* ============================================================
-   1. 顶栏：四个锚点 + 系列（一）回链
+   1. 顶栏：只留品牌（跳转 chip 行已按要求删除）
    ============================================================ */
-.shell-right {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex: none;
-}
-
-/* 品牌名吃掉整行余量：390 视口下 6 字主标不再被 text-overflow 截断 */
+/* 品牌名吃掉整行余量，主标与系列（一）（三）同为「技炫青春 · 能创未来」，
+   字距/字号一律沿用 style.css，不再做页面级覆写 */
 .shell-bar .brand { flex: 1 1 auto; }
 .shell-bar .brand-text { flex: 1 1 auto; }
-
-.shell-bar .jump { gap: 3px; }
-
-.shell-bar .brand-text strong { letter-spacing: 0.05em; }
-
-/* 五个跳转项在同一条深红 shell 内排开：收窄盒宽与字号 */
-.shell-bar .jump a {
-  min-width: 0;
-  padding: 0 4px;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-}
-
-.jump-series {
-  display: grid;
-  place-items: center;
-  min-height: 30px;
-  padding: 0 4px;
-  border: 1px solid rgba(232, 200, 106, 0.7);
-  border-radius: var(--r-sm);
-  color: var(--gold-light);
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-}
-
-.jump-series:hover,
-.jump-series:active {
-  background: rgba(245, 233, 200, 0.14);
-  color: var(--gold-pale);
-}
 
 /* ============================================================
    2. Hero：徽标已下移到「赛中 · 荣获银奖」，此处只做收尾留白
@@ -1250,7 +1192,8 @@ tbody td:nth-child(2) {
 }
 
 /* ============================================================
-   7. 留言区沿用 css/style.css 的 .cmt-* 类，本文件不再单独覆盖
+   7. 留言区：本文件不再覆盖 .cmt-* 类——留言区全站只在总览页（index.html）
+      沿用 css/style.css 的样式即可
 
    ============================================================ */
 
@@ -1258,8 +1201,6 @@ tbody td:nth-child(2) {
    8. 响应式 / 动效偏好 / 打印
    ============================================================ */
 @media (max-width: 380px) {
-  .shell-bar .jump a { padding: 0 3px; font-size: 10px; }
-  .jump-series { padding: 0 5px; font-size: 10px; }
   .lc-quote { font-size: 14px; }
 }
 
@@ -1269,16 +1210,13 @@ tbody td:nth-child(2) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .loop-card,
-  .jump-series {
+  .loop-card {
     transition: none !important;
     animation: none !important;
   }
 }
 
 @media print {
-  .shell-right,
-  .jump-series { display: none; }
   .loop-card,
   .quote,
   .figure-pair { break-inside: avoid; }
@@ -1296,21 +1234,10 @@ tbody td:nth-child(2) {
       <a class="brand" href="#top">
         <span class="brand-seal" aria-hidden="true">技</span>
         <span class="brand-text">
-          <strong>把训练当比赛</strong>
+          <strong>技炫青春 · 能创未来</strong>
           <em>系列报道（二）</em>
         </span>
       </a>
-      <div class="shell-right">
-        <nav class="jump" aria-label="按区块跳转">
-          <a href="#loop">闭环</a>
-          <a href="#pre">赛前</a>
-          <a href="#during">赛中</a>
-          <a href="#post">赛后</a>
-        </nav>
-        <a class="jump-series" href="index.html">总览</a>
-        <a class="jump-series" href="series-1.html">系列（一）</a>
-        <a class="jump-series" href="series-3.html">系列（三）</a>
-      </div>
     </div>
   </header>
 
@@ -1343,7 +1270,7 @@ tbody td:nth-child(2) {
 
         <blockquote class="quote">
           <p>“把训练当成正式比赛，把比赛当成训练”</p>
-          <cite>—— 指导老师 朱艳梅</cite>
+          <cite>—— 指导教师 朱艳梅</cite>
         </blockquote>
 
         <p class="loop-caption">自9月4日进入集中备赛阶段后，在朱艳梅和李联鑫老师的指导下，团队逐步形成了“训练—复盘—指导—修改—再训练”的备赛闭环。</p>
@@ -1353,7 +1280,7 @@ tbody td:nth-child(2) {
       <section class="intro" id="intro" aria-labelledby="intro-title">
         <h2 class="block-title" id="intro-title">引 言</h2>
         <p>近日，2026年世界职业院校技能大赛总决赛争夺赛电子电器与集成电路赛道圆满落幕。来自全国75所学校的选手同台共竞。</p>
-        <p>学校计算机系25008班吴晨雨（班主任：柯宇）、25008班王子淼（班主任：柯宇）、25007班刘博文（班主任：张雄风）、25007班苗森（班主任：张雄风）四名同学组成的参赛团队，在指导老师朱艳梅、李联鑫的带领下，凭借<strong>扎实的专业技能和默契的团队协作</strong>，荣获该赛道<strong>银奖</strong>。此前，团队在上海市市赛中斩获<strong>一等奖</strong>，成功取得总决赛争夺赛资格。</p>
+        <p>学校计算机系吴晨雨、王子淼、刘博文、苗森四名同学组成的参赛团队，在指导教师朱艳梅、李联鑫的带领下，凭借<strong>扎实的专业技能和默契的团队协作</strong>，荣获该赛道<strong>银奖</strong>。此前，团队在上海市市赛中斩获<strong>一等奖</strong>，成功取得总决赛争夺赛资格。</p>
 
         <ul class="roster">
           <li><b>吴晨雨</b><small>25008班 · 班主任 柯宇</small></li>
@@ -1361,9 +1288,8 @@ tbody td:nth-child(2) {
           <li><b>刘博文</b><small>25007班 · 班主任 张雄风</small></li>
           <li><b>苗森</b><small>25007班 · 班主任 张雄风</small></li>
         </ul>
-        <p class="coach">指导老师<b>朱艳梅</b><b>李联鑫</b></p>
+        <p class="coach">指导教师<b>朱艳梅</b><span class="coach-sep">、</span><b>李联鑫</b></p>
 
-        <p class="intro-lead">本篇以<strong>闭环、赛前、赛中、赛后</strong>为线索，还原这段“把训练当比赛”的淬炼历程。</p>
       </section>
 
       <figure class="figure figure--wide">
@@ -1513,72 +1439,6 @@ tbody td:nth-child(2) {
         </figure>
       </section>
 
-      <!-- ============ 8. 速览表 ============ -->
-      <section class="overview" aria-labelledby="overview-title">
-        <h2 class="block-title" id="overview-title">赛 程 速 览</h2>
-        <div class="table-box">
-          <table>
-            <thead>
-              <tr><th scope="col">阶段</th><th scope="col">关键节点</th><th scope="col">核心内容</th></tr>
-            </thead>
-            <tbody>
-              <tr>
-                <th scope="row"><span class="badge">闭环</span></th>
-                <td>9月4日进入集中备赛</td>
-                <td>训练 → 复盘 → 指导 → 修改 → 再训练，如此循环往复，项目完成质量和团队配合逐步趋于稳定</td>
-              </tr>
-              <tr>
-                <th scope="row"><span class="badge badge-checked">赛前</span></th>
-                <td>75所学校同台比拼</td>
-                <td>紧密对接产业发展和真实岗位需求 → 学校统筹安排训练时间、提供专用训练场地和相关资源保障 → 校领导多次到训练场地关心慰问</td>
-              </tr>
-              <tr>
-                <th scope="row"><span class="badge badge-passed">赛中</span></th>
-                <td>总决赛争夺赛现场</td>
-                <td>按照既定分工密切配合 → 围绕项目背景、方案设计、技能实现和成果应用有序展开展示 → 荣获银奖</td>
-              </tr>
-              <tr>
-                <th scope="row"><span class="badge">赛后</span></th>
-                <td>报道 2026-10-19 发布</td>
-                <td>成绩既是对前期努力的肯定，也是继续前行的新起点 → 把专业教学、实践训练与技能竞赛有机衔接</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- ============ 9. 留言区（按篇隔离：<html data-page="series-2">） ============ -->
-      <section class="comments" id="comments" aria-labelledby="comments-title">
-        <h2 class="block-title" id="comments-title">留 言 区</h2>
-
-        <div class="cmt-panel">
-          <form class="cmt-form" id="cmt-form" novalidate>
-            <label class="field" for="cmt-name">
-              <span class="field-label">昵称</span>
-              <input class="cmt-input" id="cmt-name" name="name" type="text" maxlength="16"
-                     placeholder="可不填，默认显示「匿名」" autocomplete="nickname">
-            </label>
-
-            <label class="field" for="cmt-text">
-              <span class="field-label">留言</span>
-              <textarea class="cmt-textarea" id="cmt-text" name="text" rows="3" maxlength="200"
-                        placeholder="写下你对这一篇的观后感、祝福或建议…" required
-                        aria-describedby="cmt-hint"></textarea>
-            </label>
-
-            <div class="cmt-actions">
-              <span class="cmt-count">还可输入 <b id="cmt-left">200</b> 字</span>
-              <button class="cmt-submit" type="submit">发表留言</button>
-            </div>
-          </form>
-
-          <p class="cmt-hint" id="cmt-hint" role="status" aria-live="polite"></p>
-
-          <ul class="cmt-list" id="cmt-list" aria-label="留言列表"></ul>
-          <p class="cmt-empty" id="cmt-empty">还没有留言，来说第一句吧</p>
-        </div>
-      </section>
-
       <!-- ============ 10. 来源与署名 ============ -->
       <footer class="foot">
         <h2 class="block-title">内 容 来 源</h2>
@@ -1595,386 +1455,5 @@ tbody td:nth-child(2) {
 
 </div>
 
-<script>
-/* ============================================================
-   留言区
-   存储策略（自动选择）：
-     1) 服务端 SQLite —— 有 server/server.js 在运行时，留言存数据库、所有人共享
-     2) 浏览器 localStorage —— 没有服务时（直接双击 index.html）降级为本地存储
-   两种模式都支持发表、删除、字数提示；渲染一律用 textContent，天然防 XSS
-   按篇隔离：篇目取自页面 <html data-page="...">，服务端用 ?page= 过滤，
-   本地降级用「前缀:篇目」的存储键；series-1 沿用旧键，历史留言不丢
-   ============================================================ */
-(function () {
-  'use strict';
-
-  var MAX = 200;
-  var LS_NAME = 'tl-comments-name';
-
-  // 归属篇目：由页面在 <html data-page="...">（或 <body data-page>）声明，
-  // 读不到就回退 series-1（与服务端缺省一致），不在这里硬编码某一篇
-  var PAGE = (function () {
-    var v = document.documentElement ? document.documentElement.getAttribute('data-page') : '';
-    if (!v && document.body) v = document.body.getAttribute('data-page') || '';
-    return v || 'series-1';
-  })();
-
-  // 本地存储按篇隔离；series-1 沿用旧键 tl-comments-v1，旧留言照常读得到
-  var LS_KEY = PAGE === 'series-1' ? 'tl-comments-v1' : 'tl-comments-v1:' + PAGE;
-
-  var form = document.getElementById('cmt-form');
-  var nameEl = document.getElementById('cmt-name');
-  var textEl = document.getElementById('cmt-text');
-  var leftEl = document.getElementById('cmt-left');
-  var countEl = document.querySelector('.cmt-count');
-  var hintEl = document.getElementById('cmt-hint');
-  var listEl = document.getElementById('cmt-list');
-  var emptyEl = document.getElementById('cmt-empty');
-  var submitEl = form ? form.querySelector('.cmt-submit') : null;
-
-  if (!form || !textEl || !listEl) return;
-
-  /* ---------------- 存储后端 ---------------- */
-
-  var API = (location.protocol === 'file:')
-    ? 'http://127.0.0.1:8899/api/comments'
-    : '/api/comments';
-
-  var mode = 'local';   // 'server' | 'local'
-  var OWN_KEY = 'tl-comments-own';   // 本机留言的归属令牌 { id: token }
-
-  /* ---------------- 归属令牌（只存本机，用于删自己的留言） ---------------- */
-
-  function ownLoad() {
-    try {
-      var raw = localStorage.getItem(OWN_KEY);
-      var obj = raw ? JSON.parse(raw) : {};
-      return (obj && typeof obj === 'object') ? obj : {};
-    } catch (e) {
-      return {};
-    }
-  }
-
-  function ownSave(map) {
-    try { localStorage.setItem(OWN_KEY, JSON.stringify(map)); } catch (e) { /* 忽略 */ }
-  }
-
-  function ownRemember(id, token) {
-    if (!id || !token) return;
-    var map = ownLoad();
-    map[id] = token;
-    ownSave(map);
-  }
-
-  function ownForget(id) {
-    var map = ownLoad();
-    if (Object.prototype.hasOwnProperty.call(map, id)) {
-      delete map[id];
-      ownSave(map);
-    }
-  }
-
-  function ownToken(id) {
-    var map = ownLoad();
-    return map[id] || null;
-  }
-
-  function apiFetch(url, opts, timeout) {
-    var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    var timer = null;
-    var o = Object.assign({}, opts || {});
-    if (ctrl) {
-      o.signal = ctrl.signal;
-      timer = setTimeout(function () { ctrl.abort(); }, timeout || 4000);
-    }
-    return fetch(url, o).then(function (r) { return r; })['finally'](function () {
-      if (timer) clearTimeout(timer);
-    });
-  }
-
-  /* ---------------- 本地存储实现 ---------------- */
-
-  function lsLoad() {
-    try {
-      var raw = localStorage.getItem(LS_KEY);
-      if (!raw) return [];
-      var arr = JSON.parse(raw);
-      if (!Array.isArray(arr)) return [];
-      return arr.filter(function (m) {
-        return m && typeof m.id === 'string' && typeof m.text === 'string';
-      });
-    } catch (e) {
-      return [];
-    }
-  }
-
-  function lsSave(list) {
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(list));
-      return true;
-    } catch (e) {
-      showHint('保存失败：浏览器存储不可用或已满');
-      return false;
-    }
-  }
-
-  function lsUid() {
-    return 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-  }
-
-  /* ---------------- 统一读写 ---------------- */
-
-  function loadAll() {
-    if (mode === 'server') {
-      return apiFetch(API + '?page=' + encodeURIComponent(PAGE), { method: 'GET' }, 4000)
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          if (!data || !data.ok) throw new Error('BAD');
-          return data.items || [];
-        });
-    }
-    return Promise.resolve(lsLoad());
-  }
-
-  function createOne(name, text) {
-    if (mode === 'server') {
-      return apiFetch(API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name, text: text, page: PAGE })
-      }, 6000).then(function (r) {
-        return r.json().then(function (d) {
-          if (!r.ok || !d.ok) throw new Error((d && d.message) || '提交失败');
-          return d;
-        });
-      });
-    }
-
-    var item = { id: lsUid(), name: name || '匿名', text: text, ts: Date.now() };
-    var list = lsLoad();
-    list.unshift(item);
-    if (!lsSave(list)) throw new Error('保存失败');
-    return Promise.resolve({ ok: true, item: item, pending: false });
-  }
-
-  function deleteOne(id) {
-    if (mode === 'server') {
-      var token = ownToken(id);
-      if (!token) throw new Error('只能删除自己发表的留言');
-      return apiFetch(API + '/' + encodeURIComponent(id), {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token: token })
-      }, 6000).then(function (r) {
-        return r.json().then(function (d) {
-          if (!r.ok || !d.ok) throw new Error((d && d.message) || '删除失败');
-          ownForget(id);
-          return d;
-        });
-      });
-    }
-    var list = lsLoad().filter(function (m) { return m.id !== id; });
-    if (!lsSave(list)) throw new Error('删除失败');
-    return Promise.resolve();
-  }
-
-  /* ---------------- 渲染 ---------------- */
-
-  function fmtTime(ts) {
-    var d = new Date(ts);
-    if (isNaN(d.getTime())) return '';
-    var p = function (n) { return n < 10 ? '0' + n : '' + n; };
-    var now = new Date();
-    var sameDay = d.getFullYear() === now.getFullYear() &&
-      d.getMonth() === now.getMonth() &&
-      d.getDate() === now.getDate();
-    var hm = p(d.getHours()) + ':' + p(d.getMinutes());
-    if (sameDay) return '今天 ' + hm;
-    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + hm;
-  }
-
-  function showHint(msg, ok) {
-    if (!hintEl) return;
-    hintEl.textContent = msg || '';
-    hintEl.classList.toggle('is-ok', !!ok);
-  }
-
-  function renderList(items) {
-    listEl.textContent = '';
-    if (emptyEl) emptyEl.style.display = items.length ? 'none' : '';
-
-    items.forEach(function (m) {
-      var li = document.createElement('li');
-      li.className = 'cmt-item' + (m.pinned ? ' is-pinned' : '');
-      li.dataset.id = m.id;
-
-      // 优秀留言：加盖金印（样式对齐 DESIGN.md 的 .stamp / .stamp-gold）
-      if (m.pinned) {
-        var seal = document.createElement('span');
-        seal.className = 'cmt-stamp';
-        seal.setAttribute('role', 'img');
-        seal.setAttribute('aria-label', '优秀留言');
-        seal.textContent = '优秀';
-        li.appendChild(seal);
-      }
-
-      var head = document.createElement('div');
-      head.className = 'cmt-head';
-
-      var name = document.createElement('span');
-      name.className = 'cmt-name';
-      name.textContent = m.name || '匿名';
-      name.title = name.textContent;
-
-      var time = document.createElement('time');
-      time.className = 'cmt-time';
-      try { time.dateTime = new Date(m.ts).toISOString(); } catch (e) { /* 忽略 */ }
-      time.textContent = fmtTime(m.ts);
-
-      head.appendChild(name);
-      head.appendChild(time);
-
-      // 仅本人的留言显示删除：本地模式下全部是本机数据；
-      // 服务器模式下凭本机保存的归属令牌判定
-      var isMine = (mode === 'local') ? true : !!ownToken(m.id);
-      if (isMine) {
-        var del = document.createElement('button');
-        del.type = 'button';
-        del.className = 'cmt-del';
-        del.textContent = '删除';
-        del.setAttribute('aria-label', '删除我发表的这条留言');
-        del.addEventListener('click', function () { removeComment(m.id, del); });
-        head.appendChild(del);
-      }
-
-      var body = document.createElement('p');
-      body.className = 'cmt-text';
-      body.textContent = m.text;
-
-      li.appendChild(head);
-      li.appendChild(body);
-      listEl.appendChild(li);
-    });
-  }
-
-  function refresh() {
-    return loadAll()
-      .then(renderList)
-      .catch(function () {
-        if (mode === 'server') {
-          mode = 'local';
-          return loadAll().then(renderList);
-        }
-      });
-  }
-
-  /* ---------------- 行为 ---------------- */
-
-  function removeComment(id, btn) {
-    if (!window.confirm('确定删除这条留言？')) return;
-    if (btn) btn.disabled = true;
-    deleteOne(id)
-      .then(function () {
-        showHint('留言已删除', true);
-        return refresh();
-      })
-      .catch(function (e) {
-        if (btn) btn.disabled = false;
-        showHint(e.message || '删除失败');
-      });
-  }
-
-  function updateCount() {
-    var left = MAX - textEl.value.length;
-    if (leftEl) leftEl.textContent = left < 0 ? 0 : left;
-    if (countEl) countEl.classList.toggle('is-warn', left <= 20);
-    if (submitEl) submitEl.disabled = left < 0;
-  }
-
-
-  /* ---------------- 事件 ---------------- */
-
-  textEl.addEventListener('input', function () {
-    updateCount();
-    if (textEl.getAttribute('aria-invalid') === 'true') {
-      textEl.removeAttribute('aria-invalid');
-      showHint('');
-    }
-  });
-
-  form.addEventListener('submit', function (e) {
-    e.preventDefault();
-
-    var text = (textEl.value || '').trim();
-    var name = (nameEl && nameEl.value ? nameEl.value : '').trim();
-
-    if (!text) {
-      textEl.setAttribute('aria-invalid', 'true');
-      showHint('留言内容不能为空');
-      textEl.focus();
-      return;
-    }
-    if (text.length > MAX) {
-      textEl.setAttribute('aria-invalid', 'true');
-      showHint('留言最多 ' + MAX + ' 字');
-      textEl.focus();
-      return;
-    }
-
-    if (submitEl) submitEl.disabled = true;
-
-    createOne(name.slice(0, 16), text)
-      .then(function (res) {
-        if (nameEl) {
-          try { localStorage.setItem(LS_NAME, name); } catch (err) { /* 忽略 */ }
-        }
-        // 记住归属令牌，之后才能删掉自己这条
-        if (res && res.ownerToken && res.item && res.item.id) {
-          ownRemember(res.item.id, res.ownerToken);
-        }
-        textEl.value = '';
-        textEl.removeAttribute('aria-invalid');
-        updateCount();
-
-        if (res && res.pending) {
-          // 审核制：不立即出现在列表里
-          showHint('留言已提交，等待管理员审核', true);
-          return null;
-        }
-        showHint('留言已发布', true);
-        return refresh();
-      })
-      .then(function () { textEl.focus(); })
-      .catch(function (err) {
-        showHint(err.message || '发布失败，请稍后再试');
-      })
-      .then(function () {
-        if (submitEl) submitEl.disabled = false;
-      });
-  });
-
-  /* ---------------- 初始化 ---------------- */
-
-  if (nameEl) {
-    try {
-      var saved = localStorage.getItem(LS_NAME);
-      if (saved) nameEl.value = saved;
-    } catch (e) { /* 忽略 */ }
-  }
-
-  updateCount();
-
-  // 探测服务端（/api/health），据此决定存储模式
-  var health = API.replace(/\/comments$/, '/health');
-  apiFetch(health, { method: 'GET' }, 2500)
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (d) { mode = (d && d.ok) ? 'server' : 'local'; })
-    .catch(function () { mode = 'local'; })
-    .then(function () {
-      return refresh();
-    });
-})();
-
-</script>
 </body>
 </html>

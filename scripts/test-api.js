@@ -110,6 +110,21 @@ async function main() {
     }
     r = await req('GET', '/js/api.js')
     ok('静态白名单：GET /js/api.js → 200（白名单没写成全拒绝）', r.status === 200, '实际 ' + r.status)
+    // 嵌套白名单：专题页 competition-timeline 的公开页面放行（tabBar「青春经管」入口），
+    // 它自己的 server/ 源码、.draft/.tools 草稿、admin.html 后台仍 404
+    for (const allowed of ['/competition-timeline/', '/competition-timeline/index.html',
+      '/competition-timeline/series-1.html', '/competition-timeline/css/style.css',
+      '/competition-timeline/js/comments.js', '/competition-timeline/pub/index.html']) {
+      const a = await req('GET', allowed)
+      ok('嵌套白名单放行：GET ' + allowed + ' → 200', a.status === 200, '实际 ' + a.status + ' ' + JSON.stringify(a.body))
+    }
+    for (const denied of ['/competition-timeline/admin.html', '/competition-timeline/server/server.js',
+      '/competition-timeline/server/data.db', '/competition-timeline/README.md',
+      '/competition-timeline/.draft/236941.html', '/competition-timeline/.tools/serve.py',
+      '/competition-timeline/%2e%2e/server/data.db']) {
+      const d = await req('GET', denied)
+      ok('嵌套白名单拒绝：GET ' + denied + ' → 404', d.status === 404, '实际 ' + d.status + ' ' + JSON.stringify(d.body))
+    }
     r = await req('GET', '/..%2fserver%2fdb.js')
     ok('目录穿越被拒（403/404）', r.status === 403 || r.status === 404)
     r = await req('GET', '/api/health')

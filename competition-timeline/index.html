@@ -24,13 +24,6 @@
           <em>能创未来 · 系列总览</em>
         </span>
       </a>
-      <div class="shell-right">
-        <nav class="jump" aria-label="按系列跳转">
-          <a href="#series-1">系列一</a>
-          <a href="#series-2">系列二</a>
-          <a href="#series-3">系列三</a>
-        </nav>
-      </div>
     </div>
   </header>
 
@@ -47,8 +40,6 @@
       </h1>
 
       <p class="hero-sub">世界职业院校技能大赛 · 系列报道</p>
-
-      <p class="hero-meta">三篇报道对应新一代信息技术、电子电器与集成电路、人工智能三条赛道，均按赛前、赛中、赛后整理已刊发原文的事实。</p>
     </div>
   </section>
 
@@ -92,7 +83,39 @@
         </ol>
       </section>
 
-      <!-- ============ 4. 页脚：系列说明与数据来源 ============ -->
+      <!-- ============ 4. 留言区（全站唯一：总览页汇总三篇的留言） ============ -->
+      <section class="comments" id="comments" aria-labelledby="comments-title">
+        <h2 class="block-title" id="comments-title">留 言 区</h2>
+
+        <div class="cmt-panel">
+          <form class="cmt-form" id="cmt-form" novalidate>
+            <label class="field" for="cmt-name">
+              <span class="field-label">昵称</span>
+              <input class="cmt-input" id="cmt-name" name="name" type="text" maxlength="16"
+                     placeholder="可不填，默认显示「匿名」" autocomplete="nickname">
+            </label>
+
+            <label class="field" for="cmt-text">
+              <span class="field-label">留言</span>
+              <textarea class="cmt-textarea" id="cmt-text" name="text" rows="3" maxlength="200"
+                        placeholder="写下你对这一系列的观后感、祝福或建议…" required
+                        aria-describedby="cmt-hint"></textarea>
+            </label>
+
+            <div class="cmt-actions">
+              <span class="cmt-count">还可输入 <b id="cmt-left">200</b> 字</span>
+              <button class="cmt-submit" type="submit">发表留言</button>
+            </div>
+          </form>
+
+          <p class="cmt-hint" id="cmt-hint" role="status" aria-live="polite"></p>
+
+          <ul class="cmt-list" id="cmt-list" aria-label="留言列表"></ul>
+          <p class="cmt-empty" id="cmt-empty">还没有留言，来说第一句吧</p>
+        </div>
+      </section>
+
+      <!-- ============ 5. 页脚：系列说明与数据来源 ============ -->
       <footer class="foot">
         <h2 class="block-title" id="about-title">关 于 本 系 列</h2>
         <p class="foot-note">本页为【技炫青春 能创未来】系列报道的总览入口。三篇报道均按赛前、赛中、赛后三段重述上海市经济管理学校已刊发原文的事实，不含新增内容；各篇原文链接见该篇页面的「内容来源」块。</p>
@@ -104,5 +127,6 @@
 
 </div>
 
+<script src="js/comments.js"></script>
 </body>
 </html>

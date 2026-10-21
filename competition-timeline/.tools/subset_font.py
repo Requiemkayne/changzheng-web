@@ -3,7 +3,7 @@ import glob
 import os
 from fontTools import subset
 
-ROOT = r'C:\Users\HP\Desktop\changzheng-web-main\competition-timeline'
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 目录整体移动后仍然可用
 
 # 扫描范围要覆盖所有会渲染中文的地方：
 # 根目录所有 HTML（含后台页与各系列页，新增页面自动纳入）、css/*.css、

@@ -1,5 +1,5 @@
 import http.server, socketserver, os, sys, functools
-ROOT = r'C:\Users\HP\Desktop\changzheng-web-main\competition-timeline'
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 目录整体移动后仍然可用
 PORT = 8899
 class H(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *a): pass
