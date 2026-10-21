@@ -9,8 +9,9 @@
   <link rel="stylesheet" href="fonts/noto-serif-sc.css?v=4">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/series-3.css">
+  <link rel="stylesheet" href="css/tabbar.css">
 </head>
-<body>
+<body class="has-tabbar">
 
 <div class="app">
 
@@ -238,6 +239,42 @@
   </main>
 
 </div>
+
+
+  <!-- 底部四栏导航：与长征主站一致，保证随时能回到主站各栏目 -->
+  <nav id="tabbar" aria-label="主导航">
+    <a class="tab" href="../index.html#/">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h11l-2.5 3.5L16 11H5"/></svg>
+      <span class="tab-text">路线</span>
+    </a>
+    <a class="tab" href="../index.html#/map">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19l5-6 4 3 9-9"/><circle cx="12" cy="12" r="1.6"/><path d="M9 20.5l3-1.5 3 1.5"/></svg>
+      <span class="tab-text">地图</span>
+    </a>
+    <a class="tab" href="../index.html#/profile">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.5-3.6 4.4-5.2 7.5-5.2s6 1.6 7.5 5.2"/></svg>
+      <span class="tab-text">我的</span>
+    </a>
+    <a class="tab tab-active" href="index.html" aria-current="page">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-4.5L21 9l-9 4.5L3 9z"/><path d="M6.5 11v4.2c3.5 2 7.5 2 11 0V11"/><path d="M21 9v5"/></svg>
+      <span class="tab-text">青春经管</span>
+    </a>
+  </nav>
+
+
+  <!-- 保留查询参数（?demo=1 / ?live=1）：避免从专题页回主站时被路由守卫弹到登录页 -->
+  <script>
+  (function () {
+    var q = location.search
+    if (!q) return
+    var links = document.querySelectorAll('#tabbar a[href*="index.html"]')
+    for (var i = 0; i < links.length; i++) {
+      var href = links[i].getAttribute('href')
+      var parts = href.split('#')
+      links[i].setAttribute('href', parts[0] + q + (parts[1] ? '#' + parts[1] : ''))
+    }
+  })()
+  </script>
 
 </body>
 </html>

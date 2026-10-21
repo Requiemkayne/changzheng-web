@@ -1,0 +1,52 @@
+/* 专题页底部四栏导航：与主站 tabBar 一致，保证从「青春经管」能随时回到长征栏目 */
+#tabbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: linear-gradient(180deg, #7A0C1C, #5E0713);
+  border-top: 1px solid rgba(232, 200, 106, 0.5);
+  display: flex;
+  max-width: 480px;
+  margin: 0 auto;
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+#tabbar .tab {
+  flex: 1;
+  text-align: center;
+  padding: 9px 0 7px;
+  color: #C9A89E;
+  display: block;
+  position: relative;
+  transition: color .15s;
+  text-decoration: none;
+}
+#tabbar .tab .ic {
+  width: 22px; height: 22px;
+  display: block;
+  margin: 0 auto 1px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#tabbar .tab-text { font-size: 11px; letter-spacing: 2px; }
+#tabbar .tab:active { opacity: 0.8; }
+#tabbar .tab.tab-active { color: #E8C86A; font-weight: 700; }
+#tabbar .tab.tab-active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 30px; height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(90deg, #A8182C, #E8C86A);
+}
+/* 焦点环：与主站一致，tabBar 内用金环 */
+#tabbar .tab:focus-visible {
+  outline: 2px solid #E8C86A;
+  outline-offset: -3px;
+  border-radius: 6px;
+}
+/* 给固定底栏留出空间，避免遮住页脚内容 */
+body.has-tabbar { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }

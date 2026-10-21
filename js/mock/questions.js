@@ -19,79 +19,79 @@
     // ===== 1 瑞金出发 =====
     {
       _id: 'q-ruijin-1', nodeCode: 'ruijin', type: 'single',
-      question: '（占位题）中央红军长征的出发地是哪里？',
-      options: ['江西瑞金', '湖南韶山', '贵州遵义', '陕西延安'],
-      answer: [0],
-      explanation: '（占位解析）1934年10月，中央红军从江西瑞金等地出发开始长征。',
-      difficulty: 1, status: 'published'
+      question: '中央领导机关从哪里出发，开启长征战略转移？',
+      options: ['井冈山', '瑞金', '遵义', '吴起镇'],
+      answer: [1],
+      explanation: '1934年10月10日晚，中共中央、中革军委机关从江西瑞金出发，向于都集结开进。',
+      difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-ruijin-2', nodeCode: 'ruijin', type: 'judge',
-      question: '（占位题）中央红军长征出发时兵力约8.6万余人。',
-      options: ['正确', '错误'],
-      answer: [0],
-      explanation: '（占位解析）长征出发时中央红军约8.6万余人。',
-      difficulty: 1, status: 'published'
+      _id: 'q-ruijin-2', nodeCode: 'ruijin', type: 'single',
+      question: '中央红军长征出发时，红军主力总人数约为？',
+      options: ['3万', '6.8万', '8.6万', '10万'],
+      answer: [2],
+      explanation: '中央红军主力共8.6万余人，陆续从瑞金、兴国等地赶赴于都集结。',
+      difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-ruijin-3', nodeCode: 'ruijin', type: 'multiple',
-      question: '（占位题）下列属于长征出发相关史实的有（多选）：',
-      options: ['1934年10月出发', '从瑞金等地出发', '出发时兵力30万', '第五次反"围剿"失败后转移'],
-      answer: [0, 1, 3],
-      explanation: '（占位解析）出发时兵力约8.6万余人，非30万。',
+      _id: 'q-ruijin-3', nodeCode: 'ruijin', type: 'single',
+      question: '中央红军主力在于都做什么，正式踏上远征？',
+      options: ['召开遵义会议', '夜渡于都河', '翻越夹金山', '四渡赤水'],
+      answer: [1],
+      explanation: '红军在于都架设浮桥、夜渡于都河，从此踏上战略转移的远征之路。',
       difficulty: 2, status: 'published'
     },
 
     // ===== 2 湘江战役 =====
     {
       _id: 'q-xiangjiang-1', nodeCode: 'xiangjiang', type: 'single',
-      question: '（占位题）湘江战役发生在哪一年？',
-      options: ['1934年', '1935年', '1936年', '1937年'],
+      question: '湘江战役发生在哪一年？',
+      options: ['1934年', '1935年', '1936年'],
       answer: [0],
-      explanation: '（占位解析）湘江战役发生于1934年11月底至12月初。',
-      difficulty: 1, status: 'published'
+      explanation: '湘江战役发生于1934年11月25日至12月1日。',
+      difficulty: 2, status: 'published'
     },
     {
       _id: 'q-xiangjiang-2', nodeCode: 'xiangjiang', type: 'single',
-      question: '（占位题）湘江战役后中央红军兵力锐减至约多少？',
-      options: ['8万余人', '6万余人', '3万余人', '1万余人'],
-      answer: [2],
-      explanation: '（占位解析）湘江血战后中央红军由8.6万余人锐减至3万余人。',
-      difficulty: 1, status: 'published'
+      question: '湘江战役是红军长征途中的第几道封锁线？',
+      options: ['第三道', '第四道', '第五道'],
+      answer: [1],
+      explanation: '蒋介石在湘江一带布下第四道封锁线，调集重兵企图围歼红军。',
+      difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-xiangjiang-3', nodeCode: 'xiangjiang', type: 'judge',
-      question: '（占位题）湘江战役是长征途中红军损失最为惨重的一战。',
-      options: ['正确', '错误'],
+      _id: 'q-xiangjiang-3', nodeCode: 'xiangjiang', type: 'single',
+      question: '湘江战役之后，中央红军由出发时8.6万余人锐减到约多少人？',
+      options: ['3万多人', '5万多人', '1万多人'],
       answer: [0],
-      explanation: '（占位解析）湘江战役是中央红军长征中最惨烈的一战。',
-      difficulty: 1, status: 'published'
+      explanation: '湘江血战后，中央红军由8.6万余人锐减至3万余人，是长征途中损失最惨重的一战。',
+      difficulty: 2, status: 'published'
     },
 
     // ===== 3 遵义会议 =====
     {
       _id: 'q-zunyi-1', nodeCode: 'zunyi', type: 'single',
-      question: '（占位题）遵义会议召开于哪一年？',
-      options: ['1934年1月', '1935年1月', '1935年10月', '1936年1月'],
+      question: '遵义会议召开的时间是？',
+      options: ['1934年10月', '1935年1月', '1935年10月', '1936年10月'],
       answer: [1],
-      explanation: '（占位解析）遵义会议于1935年1月15日至17日召开。',
-      difficulty: 1, status: 'published'
+      explanation: '遵义会议于1935年1月在贵州遵义召开。',
+      difficulty: 2, status: 'published'
     },
     {
       _id: 'q-zunyi-2', nodeCode: 'zunyi', type: 'single',
-      question: '（占位题）遵义会议的历史意义是？',
-      options: ['确立毛泽东在红军和党中央的领导地位', '宣布长征胜利结束', '决定强渡大渡河', '提出四渡赤水计划'],
+      question: '遵义会议是中国共产党历史上一个什么性质的转折点？',
+      options: ['生死攸关', '微不足道', '阶段性', '短期调整'],
       answer: [0],
-      explanation: '（占位解析）遵义会议确立了毛泽东在红军和党中央的领导地位，是党的历史上生死攸关的转折点。',
-      difficulty: 1, status: 'published'
+      explanation: '会议在极端危急的历史关头挽救了党、挽救了红军、挽救了中国革命，是生死攸关的转折点。',
+      difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-zunyi-3', nodeCode: 'zunyi', type: 'judge',
-      question: '（占位题）遵义会议是中国共产党历史上一个生死攸关的转折点。',
-      options: ['正确', '错误'],
-      answer: [0],
-      explanation: '（占位解析）遵义会议在危急关头挽救了党、挽救了红军。',
-      difficulty: 1, status: 'published'
+      _id: 'q-zunyi-3', nodeCode: 'zunyi', type: 'single',
+      question: '下列哪一项不属于遵义会议的成果？',
+      options: ['纠正军事上和组织上的错误', '肯定毛泽东的正确军事主张', '决定立刻北上抗日', '改组中央领导机构'],
+      answer: [2],
+      explanation: '遵义会议纠正了“左”倾军事错误、肯定毛泽东的正确主张、改组中央领导机构；“决定立刻北上抗日”不属于会议成果。',
+      difficulty: 2, status: 'published'
     },
 
     // ===== 4 四渡赤水 =====
@@ -123,53 +123,53 @@
     // ===== 5 巧渡金沙江 =====
     {
       _id: 'q-jinshajiang-1', nodeCode: 'jinshajiang', type: 'single',
-      question: '（占位题）红军渡金沙江的主要渡口是？',
-      options: ['皎平渡', '安顺场', '泸定桥', '腊子口'],
+      question: '中央红军主要从哪个渡口渡过金沙江？',
+      options: ['皎平渡', '虎门渡', '大渡河渡口'],
       answer: [0],
-      explanation: '（占位解析）红军主力在云南皎平渡巧渡金沙江。',
-      difficulty: 1, status: 'published'
+      explanation: '中央红军主力从云南禄劝皎平渡渡过金沙江。',
+      difficulty: 2, status: 'published'
     },
     {
       _id: 'q-jinshajiang-2', nodeCode: 'jinshajiang', type: 'single',
-      question: '（占位题）红军渡金沙江依靠的船只是？',
-      options: ['100余只大船', '7只小船', '架设浮桥', '武装泅渡'],
-      answer: [1],
-      explanation: '（占位解析）红军依靠7只小船，历时七天七夜渡过金沙江。',
-      difficulty: 1, status: 'published'
+      question: '红军依靠什么工具在皎平渡渡江？',
+      options: ['小木船', '浮桥', '大型轮船'],
+      answer: [0],
+      explanation: '红军依靠7只小船昼夜摆渡，从容渡过金沙江。',
+      difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-jinshajiang-3', nodeCode: 'jinshajiang', type: 'judge',
-      question: '（占位题）巧渡金沙江使红军摆脱了数十万敌军的围追堵截。',
-      options: ['正确', '错误'],
+      _id: 'q-jinshajiang-3', nodeCode: 'jinshajiang', type: 'single',
+      question: '红军主力在皎平渡渡江一共用时多久？',
+      options: ['七天七夜', '三天三夜', '五天五夜'],
       answer: [0],
-      explanation: '（占位解析）渡过金沙江后红军跳出了敌军包围圈。',
-      difficulty: 1, status: 'published'
+      explanation: '1935年5月3日至9日，红军用七天七夜渡过金沙江。',
+      difficulty: 2, status: 'published'
     },
 
     // ===== 6 强渡大渡河 =====
     {
       _id: 'q-daduhe-1', nodeCode: 'daduhe', type: 'single',
-      question: '（占位题）强渡大渡河的渡口是？',
-      options: ['皎平渡', '安顺场', '泸定', '腊子口'],
+      question: '红军强渡大渡河发生在哪一年？',
+      options: ['1934年', '1935年', '1936年'],
       answer: [1],
-      explanation: '（占位解析）红军先遣队在四川安顺场强渡大渡河。',
-      difficulty: 1, status: 'published'
+      explanation: '1935年5月，中央红军抵达大渡河并组织强渡。',
+      difficulty: 2, status: 'published'
     },
     {
       _id: 'q-daduhe-2', nodeCode: 'daduhe', type: 'single',
-      question: '（占位题）强渡大渡河的勇士共有多少人？',
-      options: ['7名', '13名', '17名', '22名'],
-      answer: [2],
-      explanation: '（占位解析）17名勇士组成渡河奋勇队强渡大渡河。',
-      difficulty: 1, status: 'published'
+      question: '强渡大渡河的突击队一共多少名勇士？',
+      options: ['十七名', '十八名', '十九名'],
+      answer: [0],
+      explanation: '红军挑选十七名勇士组成突击队，驾小船强渡大渡河。',
+      difficulty: 2, status: 'published'
     },
     {
       _id: 'q-daduhe-3', nodeCode: 'daduhe', type: 'judge',
-      question: '（占位题）强渡大渡河发生在1935年5月。',
+      question: '大渡河水势平缓，十分容易渡河。',
       options: ['正确', '错误'],
-      answer: [0],
-      explanation: '（占位解析）强渡大渡河发生于1935年5月。',
-      difficulty: 1, status: 'published'
+      answer: [1],
+      explanation: '大渡河水流湍急、两岸陡峭，敌军企图凭借天险阻挡红军，绝非容易渡河。',
+      difficulty: 2, status: 'published'
     },
 
     // ===== 7 飞夺泸定桥 =====
@@ -201,53 +201,53 @@
     // ===== 8 爬雪山 =====
     {
       _id: 'q-xueshan-1', nodeCode: 'xueshan', type: 'single',
-      question: '（占位题）中央红军翻越的第一座大雪山是？',
-      options: ['岷山', '夹金山', '梦笔山', '玉龙雪山'],
+      question: '中央红军翻越夹金山的时间是？',
+      options: ['1934年10月', '1935年6月', '1935年10月', '1936年1月'],
       answer: [1],
-      explanation: '（占位解析）中央红军翻越的第一座大雪山是夹金山。',
-      difficulty: 1, status: 'published'
+      explanation: '1935年6月，中央红军翻越长征途中第一座大雪山——夹金山。',
+      difficulty: 2, status: 'published'
     },
     {
       _id: 'q-xueshan-2', nodeCode: 'xueshan', type: 'single',
-      question: '（占位题）夹金山海拔约多少米？',
-      options: ['2000余米', '3000余米', '4000余米', '8000余米'],
-      answer: [2],
-      explanation: '（占位解析）夹金山主峰海拔4114米。',
-      difficulty: 1, status: 'published'
+      question: '夹金山的海拔大约是多少米？',
+      options: ['3千米', '4千米', '5千米', '6千米'],
+      answer: [1],
+      explanation: '夹金山海拔4000余米，终年积雪。',
+      difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-xueshan-3', nodeCode: 'xueshan', type: 'judge',
-      question: '（占位题）翻越雪山发生在1935年6月。',
-      options: ['正确', '错误'],
+      _id: 'q-xueshan-3', nodeCode: 'xueshan', type: 'single',
+      question: '夹金山位于我国哪个省份？',
+      options: ['四川', '云南', '甘肃', '青海'],
       answer: [0],
-      explanation: '（占位解析）1935年6月，红军翻越夹金山等大雪山。',
-      difficulty: 1, status: 'published'
+      explanation: '夹金山位于四川省小金县境内。',
+      difficulty: 2, status: 'published'
     },
 
     // ===== 9 过草地 =====
     {
       _id: 'q-caodi-1', nodeCode: 'caodi', type: 'single',
-      question: '（占位题）红军穿越的草地位于哪个省？',
-      options: ['云南省', '贵州省', '四川省', '甘肃省'],
-      answer: [2],
-      explanation: '（占位解析）松潘草地地处四川省西北部。',
-      difficulty: 1, status: 'published'
+      question: '1935年8月，红军过草地分为哪两路？',
+      options: ['东路军、西路军', '右路军、左路军', '南路军、北路军', '先遣军、后卫军'],
+      answer: [1],
+      explanation: '1935年8月，红军分为右路军、左路军，先后踏入松潘草地。',
+      difficulty: 2, status: 'published'
     },
     {
       _id: 'q-caodi-2', nodeCode: 'caodi', type: 'single',
-      question: '（占位题）红军穿越草地用了多长时间？',
-      options: ['一天一夜', '三天三夜', '七天七夜', '一个月'],
+      question: '红军右路军穿越松潘草地后抵达哪里？',
+      options: ['卓克基', '毛儿盖', '班佑', '阿坝'],
       answer: [2],
-      explanation: '（占位解析）红军以顽强意志历时七天七夜走出草地。',
-      difficulty: 1, status: 'published'
+      explanation: '右路军由毛儿盖出发，历经7天跋涉抵达班佑。',
+      difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-caodi-3', nodeCode: 'caodi', type: 'judge',
-      question: '（占位题）草地行军面临沼泽泥潭、缺粮少药等极端困难。',
-      options: ['正确', '错误'],
+      _id: 'q-caodi-3', nodeCode: 'caodi', type: 'single',
+      question: '红军右路军走完松潘草地一共历时大约几天？',
+      options: ['7天', '10天', '15天', '20天'],
       answer: [0],
-      explanation: '（占位解析）草地沼泽遍布、气候恶劣、补给断绝，是长征中最艰难的路段之一。',
-      difficulty: 1, status: 'published'
+      explanation: '右路军由毛儿盖到班佑，历时约7天。',
+      difficulty: 2, status: 'published'
     },
 
     // ===== 10 激战腊子口 =====
@@ -279,27 +279,27 @@
     // ===== 11 会宁会师 =====
     {
       _id: 'q-huining-1', nodeCode: 'huining', type: 'single',
-      question: '（占位题）红军三大主力会师的地点是？',
-      options: ['陕西延安', '甘肃会宁', '宁夏六盘山', '江西瑞金'],
+      question: '三大主力红军会宁会师的时间是？',
+      options: ['1935年9月', '1936年10月', '1934年10月', '1935年10月'],
       answer: [1],
-      explanation: '（占位解析）1936年10月，红军三大主力在甘肃会宁等地会师。',
-      difficulty: 1, status: 'published'
+      explanation: '1936年10月，红一、红二、红四方面军在甘肃会宁等地胜利会师。',
+      difficulty: 2, status: 'published'
     },
     {
       _id: 'q-huining-2', nodeCode: 'huining', type: 'single',
-      question: '（占位题）红军三大主力会师标志着什么？',
-      options: ['长征开始', '长征胜利结束', '抗日战争开始', '解放战争开始'],
-      answer: [1],
-      explanation: '（占位解析）三大主力会师标志着两万五千里长征胜利结束。',
-      difficulty: 1, status: 'published'
+      question: '红军三大主力会师地点会宁属于哪个省？',
+      options: ['陕西', '四川', '甘肃', '宁夏'],
+      answer: [2],
+      explanation: '会宁位于甘肃省，是三大主力红军会师地。',
+      difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-huining-3', nodeCode: 'huining', type: 'judge',
-      question: '（占位题）长征历时两年，途经十余省。',
-      options: ['正确', '错误'],
-      answer: [0],
-      explanation: '（占位解析）长征从1934年10月至1936年10月，历时两年，纵横十余省。',
-      difficulty: 1, status: 'published'
+      _id: 'q-huining-3', nodeCode: 'huining', type: 'single',
+      question: '长征一共历时多久？',
+      options: ['一年', '两年', '三年', '四年'],
+      answer: [1],
+      explanation: '1934年10月出发、1936年10月会师，长征历时两年。',
+      difficulty: 2, status: 'published'
     },
 
     // ===== 总结答题池（final，10 题）=====
