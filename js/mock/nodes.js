@@ -1,4 +1,4 @@
-﻿/**
+/**
  * 节点占位数据（与 miniprogram/mock/nodes.js、cloudfunctions/initData/seed/nodes.js 同构）
  *
  * ⚠ 全部文案为占位内容，待文案组交付后替换。
