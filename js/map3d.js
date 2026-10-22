@@ -361,7 +361,7 @@
           const provGeo = new THREE.BufferGeometry()
           provGeo.setAttribute('position', new THREE.Float32BufferAttribute(pv, 3))
           const provMat = new THREE.LineDashedMaterial({
-            color: new THREE.Color('#FFF3D6').convertSRGBToLinear(),
+            color: new THREE.Color('#A8202F').convertSRGBToLinear(),
             dashSize: 0.55,
             gapSize: 0.42,
             transparent: true,
@@ -497,36 +497,43 @@
         const x = worldX(lngOf(n)), z = worldZ(latOf(n))
         const y = Math.max(groundY(x, z), 0)
 
+        // 定位针：细锥尖端朝下插进地形，头部放序号盘（像沙盘上插的标记）
+        const pinH = 5.2
+        const pin = new THREE.Mesh(
+          new THREE.ConeGeometry(0.55, pinH, 12),
+          new THREE.MeshBasicMaterial({
+            color: new THREE.Color('#B3253A').convertSRGBToLinear(), fog: false
+          })
+        )
+        pin.rotation.x = Math.PI          // 锥尖朝下
+        pin.position.set(x, y + pinH / 2, z)
+        scene.add(pin)
+
         const disc = discSprite(String(n.order), st.fill, st.label)
-        disc.scale.set(3.9, 3.9, 1)
-        disc.position.set(x, y + 2.9, z)
+        disc.scale.set(3.8, 3.8, 1)
+        disc.position.set(x, y + pinH + 0.9, z)
         disc.renderOrder = 10
         scene.add(disc)
 
-        // 节点光晕：让圆点像悬浮的小灯，边缘不发死
+        // 头部光晕：标记顶端微微发光
         const halo = glowSprite(hexToRgba(st.fill, '0.85'), 0.30)
-        halo.scale.set(8.2, 8.2, 1)
+        halo.scale.set(6.4, 6.4, 1)
         halo.position.copy(disc.position)
-        halo.position.y -= 0.1
+        halo.position.y -= 0.15
         scene.add(halo)
 
-        // 立柱：从地面到圆点，弱化处理
-        const pillar = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.09, 0.09, 2.6, 6),
-          new THREE.MeshBasicMaterial({
-            color: new THREE.Color('#8C8475').convertSRGBToLinear(),
-            transparent: true, opacity: 0.55, fog: false
-          })
-        )
-        pillar.position.set(x, y + 1.3, z)
-        scene.add(pillar)
+        // 落点光晕：贴地一圈，交代"针扎在这里"
+        const foot = glowSprite('rgba(232,200,106,0.9)', 0.45)
+        foot.scale.set(3.6, 3.6, 1)
+        foot.position.set(x, y + 0.12, z)
+        scene.add(foot)
 
         // 不可见拾取球（手机上更好点）
         const hit = new THREE.Mesh(
           new THREE.SphereGeometry(2.6, 8, 8),
           new THREE.MeshBasicMaterial({ visible: false })
         )
-        hit.position.set(x, y + 2.6, z)
+        hit.position.set(x, y + pinH + 0.9, z)
         hit.userData = { node: n, index: i }
         scene.add(hit)
         pickables.push(hit)
