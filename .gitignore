@@ -20,3 +20,7 @@ competition-timeline/server/初始管理员.txt
 
 # 手工备份文件
 *.bak
+
+# 本地临时产物：探针脚本、截图、cdp/Edge 用户数据目录（tmp/ 也覆盖 .impeccable/tmp/）
+tmp/
+*.log
