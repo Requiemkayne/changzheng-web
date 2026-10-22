@@ -339,10 +339,29 @@
       // 省界：蓝色管状线（真正有粗细），贴着地形走，不压主路线
       const provData = root.CZ_MAP_PROVINCES
       if (provData && provData.length) {
-        // 不透明单色：相邻省共享边即使画两遍，颜色也不会叠加变深
+        // 虚线纹理：蓝 / 透明交替，贴在管面上形成虚线；管半径不变，只改虚实与透明度
+        const provTex = (() => {
+          const W = 32
+          const H = 4
+          const cv = document.createElement('canvas')
+          cv.width = W
+          cv.height = H
+          const c = cv.getContext('2d')
+          c.fillStyle = '#2F5C8A'
+          c.fillRect(0, 0, 19, H)
+          const tex = new THREE.CanvasTexture(cv)
+          tex.wrapS = THREE.RepeatWrapping
+          tex.wrapT = THREE.ClampToEdgeWrapping
+          tex.encoding = THREE.sRGBEncoding
+          tex.repeat.set(18, 1)
+          return tex
+        })()
         const provMat = new THREE.MeshBasicMaterial({
-          color: new THREE.Color('#2F5C8A').convertSRGBToLinear(),
-          transparent: false,
+          map: provTex,
+          transparent: true,
+          opacity: 0.42,
+          alphaTest: 0.42,
+          depthWrite: false,
           fog: false
         })
         const seen = new Set()

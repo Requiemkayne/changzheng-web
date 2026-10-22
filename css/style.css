@@ -1144,7 +1144,7 @@ a { color: var(--red-mid); text-decoration: none; }
 .map-star-end   { fill: #E8C86A; }
 
 /* 简化地理底图（示意，非精确边界） */
-.map-province { fill: none; stroke: rgba(120, 96, 66, 0.42); stroke-width: 0.85; stroke-linecap: round; stroke-linejoin: round; }
+.map-province { fill: none; stroke: rgba(120, 96, 66, 0.34); stroke-width: 0.85; stroke-dasharray: 3 3.2; stroke-linecap: round; stroke-linejoin: round; }
 .map-prov-name { font-size: 6.8px; letter-spacing: 0.5px; fill: rgba(110, 86, 58, 0.58); text-anchor: middle; font-family: var(--font-title); }
 /* 根据地：淡红斜线块 + 名称 */
 .map-base { fill: rgba(200, 16, 46, 0.06); stroke: rgba(200, 16, 46, 0.28); stroke-width: 0.8; stroke-dasharray: 2.5 2; }
