@@ -673,12 +673,20 @@ a { color: var(--red-mid); text-decoration: none; }
 .block-video video {
   display: block;
   width: 100%;
+  /* 横屏按宽度铺满，竖屏（手机拍摄）按内容比例 + 限高居中，不裁切 */
+  max-height: 68vh;
+  object-fit: contain;
   border-radius: var(--r-md);
   background: #1A1012;
   border: 1px solid rgba(201, 162, 39, 0.35);
   box-shadow: 0 6px 18px rgba(74, 5, 16, 0.18);
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
+}
+
+/* 竖屏视频（手机拍摄）收窄居中，避免在宽屏上过高 */
+.block-video video.portrait {
+  width: auto;
+  max-width: 62%;
+  margin: 0 auto;
 }
 
 .block-video .block-caption {

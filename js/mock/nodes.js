@@ -54,6 +54,7 @@
       summary: '1934年11月底，红军在湘江与数倍敌军血战五日，突破第四道封锁线，兵力锐减至3万余人。',
       detail: {
         blocks: [
+          { type: 'video', src: 'assets/video/xiangjiang.mp4', poster: 'assets/route/xiangjiang.webp' },
           { type: 'heading', text: '历史背景' },
           { type: 'paragraph', text: '1934年10月中央红军开始长征，连续突破国民党三道封锁线后，蒋介石在湘江一带布下第四道封锁线，调集重兵企图围歼红军。' },
           { type: 'paragraph', text: '1934年11月25日至12月1日，中央红军在广西兴安、全州、灌阳一带浴血奋战，拼死掩护中央纵队渡江，最终突破湘江防线，但付出重大伤亡，为之后遵义会议的召开埋下伏笔。' },
@@ -133,6 +134,7 @@
       summary: '1935年5月，红军在皎平渡用7只小船、7天7夜渡过金沙江，跳出数十万敌军的包围圈。',
       detail: {
         blocks: [
+          { type: 'video', src: 'assets/video/jinsha.mp4', poster: 'assets/route/jinsha.webp' },
           { type: 'heading', text: '历史背景' },
           { type: 'paragraph', text: '1935年3月，四渡赤水胜利之后，中央红军成功调动、摆脱国民党重兵。为实现北上抗日的战略目标，红军需要渡过金沙江，跳出国民党军在川、滇、黔布置的包围圈。' },
           { type: 'paragraph', text: '蒋介石派兵封锁金沙江全部渡口，企图把中央红军围歼于金沙江以南地区。中央红军决定抢渡金沙江，1935年5月3日至9日展开巧渡金沙江行动，以7只小船昼夜摆渡，从容过江。' },
@@ -255,6 +257,7 @@
       summary: '（占位文案）红军攻克天险腊子口，打开了北上进入陕甘的大门。',
       detail: {
         blocks: [
+          { type: 'video', src: 'assets/video/lazikou.mp4', poster: 'assets/route/lazikou.webp' },
           { type: 'heading', text: '历史背景' },
           { type: 'paragraph', text: '（占位文案，待文案组替换）腊子口是川甘通道的咽喉，两侧悬崖陡壁，红军正面强攻与侧后迂回结合，一举攻克。' },
           { type: 'dataCard', label: '战役性质', value: '攻坚之战' }

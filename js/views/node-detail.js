@@ -68,11 +68,13 @@
           break
         case 'video': {
           // 影像资料（历史背景上方）：poster 用节点封面，避免加载前黑屏
+          // portrait: 手机竖拍素材，收窄居中显示
           const vsrc = F.escapeHtml(b.src || '')
           const poster = F.escapeHtml(b.poster || '')
           if (!vsrc) break
           html += '<div class="block block-video">' +
             '<video controls playsinline preload="metadata"' +
+            (b.portrait ? ' class="portrait"' : '') +
             (poster ? ' poster="' + poster + '"' : '') +
             ' aria-label="' + F.escapeHtml(b.caption || '历史影像资料') + '">' +
             '<source src="' + vsrc + '" type="video/mp4">' +
