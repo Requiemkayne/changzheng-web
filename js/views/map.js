@@ -157,10 +157,10 @@
 
   /* ---------- 根据地（红色淡块 + 斜线，仅示意范围） ---------- */
   const BASES = [
-    { name: '中央苏区', labelDx: -30, labelDy: 16, ring: [[115.0, 24.9], [116.3, 25.2], [116.4, 26.6], [115.4, 27.0], [114.9, 26.0]] },
-    { name: '川陕苏区', ring: [[105.6, 31.5], [107.6, 32.2], [108.3, 33.0], [106.6, 32.6], [105.4, 32.2]] },
-    { name: '湘鄂川黔', ring: [[109.2, 28.7], [110.5, 29.3], [110.2, 30.3], [109.0, 29.8]] },
-    { name: '陕甘宁', ring: [[107.7, 35.5], [109.6, 36.2], [109.4, 37.2], [107.6, 36.5]] }
+    { name: '中央苏区根据地', labelDx: -30, labelDy: 16, ring: [[115.0, 24.9], [116.3, 25.2], [116.4, 26.6], [115.4, 27.0], [114.9, 26.0]] },
+    { name: '川陕苏区根据地', ring: [[105.6, 31.5], [107.6, 32.2], [108.3, 33.0], [106.6, 32.6], [105.4, 32.2]] },
+    { name: '湘鄂川黔根据地', ring: [[109.2, 28.7], [110.5, 29.3], [110.2, 30.3], [109.0, 29.8]] },
+    { name: '陕甘宁根据地', ring: [[107.7, 35.5], [109.6, 36.2], [109.4, 37.2], [107.6, 36.5]] }
   ].map(b => {
     const pts = b.ring.map(p => geo(p[0], p[1]))
     let cx = 0
@@ -512,8 +512,7 @@
           '</svg>' +
         '</div>' +
         '<div class="map3d-wrap" id="map3d-wrap" hidden></div>' +
-        '</div>' +   // <div class="map-stage"> 结束
-        '<div class="map-replay-wrap"><button class="btn btn-mini btn-mini-ghost" id="map-replay" type="button">' + UI.icon('replay', 'map-replay-ic') + ' 重播行军动画</button></div>' +
+        // 图例：浮在地图右上角、竖排
         '<div class="map-legend">' +
           '<span><i class="legend-route"></i>红一方面军</span>' +
           '<span><i class="legend-ally legend-ally-2"></i>红二方面军</span>' +
@@ -525,6 +524,8 @@
           '<span><i class="legend-passed"></i>已通关</span>' +
           '<span><i class="legend-locked"></i>未解锁</span>' +
         '</div>' +
+        '</div>' +   // <div class="map-stage"> 结束
+        '<div class="map-replay-wrap"><button class="btn btn-mini btn-mini-ghost" id="map-replay" type="button">' + UI.icon('replay', 'map-replay-ic') + ' 重播行军动画</button></div>' +
         '<div class="map-float" id="map-float"></div>' +
         '<div class="map-strip" id="map-strip"></div>' +
         '<div class="map-note">省界为简化边界，仅表方位；路线与节点为示意</div>' +
@@ -616,8 +617,21 @@
       if (overlap > 0) window.scrollBy({ top: Math.ceil(overlap) + 12, behavior: 'smooth' })
     }
 
+    // 天气小景发光：点击节点时该节点的天气图标边缘亮一下（作为点击反馈）
+    function glowWx(nodeG) {
+      const grp = nodeG.querySelector('.map-wxv')
+      if (!grp) return
+      grp.classList.remove('is-glow')
+      void grp.getBoundingClientRect()
+      grp.classList.add('is-glow')
+      window.setTimeout(() => grp.classList.remove('is-glow'), 1300)
+    }
+
     rootEl.querySelectorAll('.map-node').forEach(g => {
-      g.addEventListener('click', () => showFloat(Number(g.dataset.i)))
+      g.addEventListener('click', () => {
+        glowWx(g)
+        showFloat(Number(g.dataset.i))
+      })
       // 键盘：Enter / Space 等价于点击（Space 阻止默认的页面滚动）
       g.addEventListener('keydown', e => {
         if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return

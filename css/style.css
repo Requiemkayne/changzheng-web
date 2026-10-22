@@ -1147,36 +1147,51 @@ a { color: var(--red-mid); text-decoration: none; }
 .map-province { fill: none; stroke: rgba(139, 118, 96, 0.3); stroke-width: 0.8; stroke-linecap: round; stroke-linejoin: round; }
 .map-prov-name { font-size: 6.5px; letter-spacing: 0.5px; fill: rgba(139, 118, 96, 0.45); text-anchor: middle; font-family: var(--font-title); }
 /* 海陆 */
-.map-sea   { fill: rgba(150, 182, 208, 0.4); stroke: none; }
-.map-coast { fill: none; stroke: rgba(92, 122, 150, 0.55); stroke-width: 1.1; }
+.map-sea   { fill: rgba(214, 190, 152, 0.55); stroke: none; }
+.map-coast { fill: none; stroke: rgba(150, 120, 84, 0.6); stroke-width: 1.1; }
 /* 根据地：淡红斜线块 + 名称 */
 .map-base { fill: rgba(200, 16, 46, 0.06); stroke: rgba(200, 16, 46, 0.28); stroke-width: 0.8; stroke-dasharray: 2.5 2; }
 .map-base-name { font-size: 6.5px; letter-spacing: 0.5px; fill: rgba(168, 24, 44, 0.55); text-anchor: middle; font-family: var(--font-title); pointer-events: none; }
 /* 封锁线名称 */
+/* 点击节点时天气小景边缘发光 */
+.map-wxv.is-glow { animation: wxGlow 1.15s ease-out; }
+@keyframes wxGlow {
+  0%   { filter: drop-shadow(0 0 0 rgba(232, 200, 106, 0)); }
+  25%  { filter: drop-shadow(0 0 6px rgba(232, 200, 106, 0.95)) drop-shadow(0 0 12px rgba(198, 163, 67, 0.7)); }
+  100% { filter: drop-shadow(0 0 0 rgba(232, 200, 106, 0)); }
+}
 .map-enemy-name { font-size: 6px; letter-spacing: 0.4px; fill: rgba(47, 74, 107, 0.6); font-family: var(--font-title); pointer-events: none; }
 .map-enemy-zone { fill: rgba(47, 74, 107, 0.1); stroke: rgba(47, 74, 107, 0.18); stroke-width: 0.6; stroke-dasharray: 3 3; }
-.map-route-ally { fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0.58; }
-.map-route-ally.ally-2  { stroke: #D4622A; stroke-width: 1.9; }
-.map-route-ally.ally-4  { stroke: #8E3A6B; stroke-width: 1.9; }
-.map-route-ally.ally-25 { stroke: #A0522D; stroke-width: 1.7; stroke-dasharray: 5 3; }
+.map-route-ally { fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0.72; }
+.map-route-ally.ally-2  { stroke: #E2761B; stroke-width: 2.1; }
+.map-route-ally.ally-4  { stroke: #7B2D8E; stroke-width: 2.1; }
+.map-route-ally.ally-25 { stroke: #8B5A2B; stroke-width: 1.9; stroke-dasharray: 5 3; }
 .map-enemy-line { fill: none; stroke: #2F4A6B; stroke-width: 1.8; stroke-dasharray: 6 3.4; opacity: 0.9; }
 .map-enemy-arrow { stroke: rgba(47, 74, 107, 0.85); stroke-width: 1.4; }
 
 .legend-ally { width: 14px; height: 3px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: middle; }
-.legend-ally-2  { background: #D4622A; }
-.legend-ally-4  { background: #8E3A6B; }
-.legend-ally-25 { background: repeating-linear-gradient(90deg, #A0522D 0 4px, transparent 4px 6px); }
+.legend-ally-2  { background: #E2761B; }
+.legend-ally-4  { background: #7B2D8E; }
+.legend-ally-25 { background: repeating-linear-gradient(90deg, #8B5A2B 0 4px, transparent 4px 6px); }
 .legend-enemy { width: 14px; height: 0; display: inline-block; margin-right: 5px; vertical-align: middle; border-top: 2px dashed #2F4A6B; }
 .map-river    { fill: none; stroke: rgba(120, 112, 98, 0.75); stroke-width: 1.4; stroke-dasharray: 2 3; stroke-linecap: round; }
 .map-mountain { fill: rgba(140, 132, 117, 0.3); stroke: rgba(140, 132, 117, 0.5); stroke-width: 1; stroke-linejoin: round; }
 
 .map-legend {
-  display: flex; gap: 14px;
-  font-size: 11px; color: var(--muted);
-  margin: 13px 2px 0;
-  flex-wrap: wrap;
-  letter-spacing: 1px;
+  position: absolute; top: 46px; right: 8px; z-index: 4;
+  display: flex; flex-direction: column; gap: 5px;
+  font-size: 10px; color: var(--muted);
+  margin: 0;
+  letter-spacing: 0;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: rgba(250, 245, 232, 0.88);
+  border: 1px solid rgba(198, 163, 67, 0.4);
+  box-shadow: 0 4px 12px rgba(90, 62, 20, 0.14);
+  pointer-events: none;
+  max-width: 118px;
 }
+.map-legend span { white-space: nowrap; }
 .map-legend span { display: flex; align-items: center; }
 .map-legend i {
   width: 10px; height: 10px; border-radius: 50%;
