@@ -26,13 +26,16 @@
       let questions = []
       let meta = null
       let submitting = false
+      let isLastNode = false   // 是否 11 节点中的最后一个（完成答题后直达总分结算页）
 
       rootEl.innerHTML = '<div class="page-center">' + UI.icon('lantern', 'page-center-icon') + '<div>正在出题…</div></div>'
 
-      api.getQuiz(mode, code).then(r => {
+      Promise.all([api.getQuiz(mode, code), api.getNodes()]).then(([r, nodes]) => {
         if (!r.ok) return handleUnlockError(rootEl, r.error, mode, code)
         questions = r.questions
         meta = r.meta
+        isLastNode = mode === 'node' && Array.isArray(nodes) && nodes.length > 0 &&
+          nodes[nodes.length - 1].code === code
         renderQuiz()
       }).catch(err => {
         console.error('取题失败', err)
@@ -180,7 +183,7 @@
 
         rootEl.innerHTML =
           '<div class="page">' +
-          '<button type="button" class="back-link">‹ 返回</button>' +
+          '<a class="back-link" href="#/">‹ 返回节点列表</a>' +
           '<div class="result-hero ' + (r.passed ? 'hero-passed' : 'hero-failed') + '">' +
             stamp +
             '<h1 class="result-title">' + (r.passed ? '恭喜通关' : '差一点，再试一次') + '</h1>' +
@@ -193,23 +196,19 @@
             review +
           '</div>' +
           '<div class="quiz-actions">' +
-            '<button class="btn btn-primary" id="btn-restart">重新挑战</button>' +
-            '<button class="btn btn-ghost action-gap" id="btn-back">返回</button>' +
+            (mode === 'node'
+              ? '<a class="btn btn-primary" href="' + (isLastNode ? '#/result' : '#/') + '">' +
+                (isLastNode ? '查看总分结算' : '返回节点列表') + '</a>'
+              : '<a class="btn btn-primary" href="#/">返回首页</a>') +
+            '<button class="btn btn-ghost action-gap" id="btn-restart">重新挑战</button>' +
           '</div>' +
           '</div>'
-
-        const backBtn2 = rootEl.querySelector('.back-link')
-        if (backBtn2) backBtn2.addEventListener('click', goBack)
 
         rootEl.querySelector('#btn-restart').addEventListener('click', () => {
           step = 0; selected = []; submitting = false
           Object.keys(answerMap).forEach(k => delete answerMap[k])
           renderQuiz()
           window.scrollTo(0, 0)
-        })
-        rootEl.querySelector('#btn-back').addEventListener('click', () => {
-          if (mode === 'final') location.hash = '#/'
-          else location.hash = '#/node/' + code
         })
       }
     }

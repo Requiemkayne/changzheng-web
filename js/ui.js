@@ -163,5 +163,110 @@
     toastTimer = setTimeout(() => el.classList.remove('toast-show'), 1800)
   }
 
-  root.CZ_UI = { icon, badgeHTML, nodeRowHTML, dialog, toast, ICON_PATHS }
+  /* ---------- 沙盘地图解锁弹窗（线上答题挑战模块） ---------- */
+
+  const UNLOCK_SEEN_KEY = 'cz_unlock_seen'
+
+  /** 该节点是否已看过解锁弹窗（设备本地记录） */
+  function isUnlockSeen(code) {
+    try {
+      const seen = JSON.parse(localStorage.getItem(UNLOCK_SEEN_KEY) || '{}')
+      return !!seen[code]
+    } catch (e) { return false }
+  }
+
+  /** 标记已看过 */
+  function markUnlockSeen(code) {
+    try {
+      const seen = JSON.parse(localStorage.getItem(UNLOCK_SEEN_KEY) || '{}')
+      seen[code] = 1
+      localStorage.setItem(UNLOCK_SEEN_KEY, JSON.stringify(seen))
+    } catch (e) { /* 存储不可用时忽略，不影响主流程 */ }
+  }
+
+  /**
+   * 沙盘地图弹窗：成功解锁新节点时弹出，三类标记
+   *   - 当前最新解锁节点（五角星特殊标识）
+   *   - 已走过、完成的历史节点（实心圆）
+   *   - 未解锁、未完成的节点（灰空心）
+   * 短暂展示自动关闭 + 【跳过】按钮；关闭后回调 onClose（进入该节点学习页）
+   */
+  function unlockMapDialog(nodes, states, code, onClose) {
+    markUnlockSeen(code)
+
+    const target = nodes.find(n => n.code === code)
+    const W = 340, H = 210
+    const PAD_X = 34, PAD_Y = 42
+    const LNG_MIN = 101.2, LNG_MAX = 117.1
+    const LAT_MIN = 24.6, LAT_MAX = 36.6
+    const px = n => PAD_X + (n.location.longitude - LNG_MIN) / (LNG_MAX - LNG_MIN) * (W - 2 * PAD_X)
+    const py = n => PAD_Y + (LAT_MAX - n.location.latitude) / (LAT_MAX - LAT_MIN) * (H - 2 * PAD_Y)
+
+    const pts = nodes.map(n => ({ node: n, x: px(n), y: py(n), st: states.byCode[n.code] }))
+    const polyline = pts.map(p => p.x + ',' + p.y).join(' ')
+
+    // 节点标记：最新解锁=五角星，历史=实心圆，未解锁=灰空心
+    let nodesHtml = ''
+    pts.forEach(p => {
+      const isCurrent = p.node.code === code
+      const done = p.st && (p.st.state === 'checkedIn' || p.st.state === 'quizPassed')
+      if (isCurrent) {
+        // 五角星特殊标识（最新解锁）
+        nodesHtml +=
+          '<g class="unlock-node">' +
+            '<circle cx="' + p.x + '" cy="' + p.y + '" r="17" fill="rgba(232,200,106,0.18)" stroke="#E8C86A" stroke-width="1.2" stroke-dasharray="3 3"/>' +
+            '<path class="unlock-star" d="M12 2 6.12 20.09 21.51 8.91 2.49 8.91 17.88 20.09Z" transform="translate(' + (p.x - 12) + ',' + (p.y - 12) + ')"/>' +
+            '<text class="unlock-label unlock-label-current" x="' + p.x + '" y="' + (p.y - 24) + '">最新解锁 · ' + F.escapeHtml(p.node.name) + '</text>' +
+          '</g>'
+      } else if (done) {
+        const gold = p.st.state === 'quizPassed'
+        nodesHtml +=
+          '<g class="unlock-node">' +
+            '<circle cx="' + p.x + '" cy="' + p.y + '" r="8" fill="' + (gold ? '#C6A343' : '#821626') + '" stroke="' + (gold ? '#F5E9C8' : '#E8C86A') + '" stroke-width="1.5"/>' +
+            '<text class="unlock-label" x="' + p.x + '" y="' + (p.y + 24) + '">' + F.escapeHtml(p.node.name) + '</text>' +
+          '</g>'
+      } else {
+        nodesHtml +=
+          '<g class="unlock-node">' +
+            '<circle cx="' + p.x + '" cy="' + p.y + '" r="8" fill="#B7AD97" stroke="#F5EFE0" stroke-width="1.5"/>' +
+            '<text class="unlock-label unlock-label-gray" x="' + p.x + '" y="' + (p.y + 24) + '">' + F.escapeHtml(p.node.name) + '</text>' +
+          '</g>'
+      }
+    })
+
+    const mask = document.createElement('div')
+    mask.className = 'unlock-mask'
+    mask.innerHTML =
+      '<div class="unlock-dlg" role="dialog" aria-label="节点解锁">' +
+        '<div class="unlock-head">' +
+          '<div class="unlock-star-badge">' + icon('star') + '</div>' +
+          '<div class="unlock-title">节点解锁成功</div>' +
+          '<div class="unlock-sub">' + F.escapeHtml((target && target.name) || '') + ' · 新节点已开放</div>' +
+        '</div>' +
+        '<div class="unlock-map">' +
+          '<svg viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">' +
+            '<rect x="1" y="1" width="' + (W - 2) + '" height="' + (H - 2) + '" rx="6" class="unlock-map-frame"/>' +
+            '<polyline class="unlock-route" points="' + polyline + '"/>' +
+            nodesHtml +
+          '</svg>' +
+        '</div>' +
+        '<div class="unlock-legend">' +
+          '<span><i class="ul-dot ul-star"></i>最新解锁</span>' +
+          '<span><i class="ul-dot ul-done"></i>已走过</span>' +
+          '<span><i class="ul-dot ul-locked"></i>未解锁</span>' +
+        '</div>' +
+        '<button class="btn btn-ghost unlock-skip" id="unlock-skip" type="button">跳过</button>' +
+      '</div>'
+
+    function close() {
+      clearTimeout(timer)
+      if (mask.parentNode) mask.parentNode.removeChild(mask)
+      if (onClose) onClose()
+    }
+    document.body.appendChild(mask)
+    mask.querySelector('#unlock-skip').addEventListener('click', close)
+    const timer = setTimeout(close, 3500)
+  }
+
+  root.CZ_UI = { icon, badgeHTML, nodeRowHTML, dialog, toast, unlockMapDialog, isUnlockSeen, markUnlockSeen, ICON_PATHS }
 })(typeof self !== 'undefined' ? self : this)

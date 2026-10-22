@@ -619,6 +619,32 @@
     return http('contest/leaderboard?type=' + (type === 'best' ? 'best' : 'total'))
   }
 
+  /* ================= 答题挑战总分榜（11 节点 best 合计；mock 本机单用户） ================= */
+
+  /** 总分榜：全部节点答题 best 之和，前 50 名 + 我的名次 */
+  function challengeLeaderboard() {
+    if (config.USE_MOCK) {
+      return getConfig().then(cfg => {
+        return getNodes().then(nodes => {
+          const p = mockProgress()
+          let total = 0
+          let completed = 0
+          nodes.forEach(n => {
+            const q = p.quizScores && p.quizScores[n.code]
+            if (q && q.best > 0) total += q.best
+            if (q && q.passed) completed++
+          })
+          const name = p.nickname || '我'
+          const list = (total > 0 || completed > 0)
+            ? [{ rank: 1, userId: 'me', name, total, completed }]
+            : []
+          return { ok: true, list, myRank: list.length ? 1 : null, myId: list.length ? 'me' : null }
+        })
+      })
+    }
+    return http('challenge/leaderboard')
+  }
+
   /* ================= 题目工具 ================= */
 
   function stripAnswers(qs) {
@@ -663,6 +689,7 @@
     contestStart,
     contestSubmit,
     contestLeaderboard,
+    challengeLeaderboard,
     clearContestRecords
   }
 })

@@ -21,6 +21,7 @@ const { openDb } = require('./db')
 const auth = require('./auth')
 const game = require('./game')
 const contest = require('./contest')
+const challenge = require('./challenge')
 
 const WEB_ROOT = path.join(__dirname, '..')
 const MAX_BODY = 64 * 1024
@@ -265,6 +266,11 @@ async function handleApi(db, req, res, pathname, query) {
   }
   if (req.method === 'GET' && pathname === '/api/health') {
     return json(res, 200, { ok: true, time: Date.now() })
+  }
+  // 答题挑战总分榜（公开：未登录可看榜，登录附我的名次）
+  if (req.method === 'GET' && pathname === '/api/challenge/leaderboard') {
+    const viewer = auth.getUserByToken(db, getToken(req))
+    return json(res, 200, challenge.challengeLeaderboard(db, viewer ? viewer.id : null))
   }
 
   // 以下接口需要登录（progress 除外：未登录返回 null，游客可浏览首页）

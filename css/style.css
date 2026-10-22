@@ -2474,3 +2474,74 @@ a { color: var(--red-mid); text-decoration: none; }
   color: rgba(110, 99, 80, 0.72) !important;
   letter-spacing: 0.2px;
 }
+
+/* ================= 竞赛模块：沙盘地图解锁弹窗 + 总分结算页 ================= */
+
+/* ---------- 解锁弹窗 ---------- */
+.unlock-mask {
+  position: fixed; inset: 0; z-index: 1200;
+  background: rgba(31, 8, 6, 0.66);
+  display: flex; align-items: center; justify-content: center;
+}
+.unlock-dlg {
+  width: min(92vw, 400px);
+  background: linear-gradient(165deg, #fffdf6 0%, #f7ecd4 100%);
+  border: 1px solid rgba(201, 162, 39, 0.55);
+  border-radius: 14px; padding: 20px 18px 14px; text-align: center;
+  box-shadow: 0 12px 40px rgba(31, 8, 6, 0.4);
+}
+.unlock-head { margin-bottom: 12px; }
+.unlock-star-badge {
+  width: 44px; height: 44px; margin: 0 auto 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 30% 28%, #f7dd8f, #c9a227);
+  border-radius: 50%;
+}
+.unlock-star-badge .ic { font-size: 24px; color: #fff; filter: drop-shadow(0 1px 2px rgba(120, 84, 10, 0.5)); }
+.unlock-title { font-family: var(--font-title); font-size: 20px; font-weight: 900; letter-spacing: 3px; color: var(--red-dark); }
+.unlock-sub { font-size: 12px; color: var(--muted); margin-top: 5px; letter-spacing: 1px; }
+.unlock-map { margin: 4px 0 10px; background: #f4e9cf; border: 1px solid rgba(201, 162, 39, 0.4); border-radius: 8px; padding: 6px; }
+.unlock-map svg { display: block; width: 100%; height: auto; }
+.unlock-map-frame { fill: rgba(255, 253, 246, 0.55); stroke: rgba(201, 162, 39, 0.45); }
+.unlock-route {
+  fill: none; stroke: #b78a2e; stroke-width: 1.6;
+  stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 4 3; opacity: 0.85;
+}
+.unlock-node .unlock-star { fill: #E8C86A; stroke: #A87F1B; stroke-width: 1; }
+.unlock-label { font-size: 8.5px; letter-spacing: 0.5px; fill: #4A3A20; text-anchor: middle; pointer-events: none; }
+.unlock-label-current { fill: var(--red-dark); font-weight: 700; font-size: 9.5px; }
+.unlock-label-gray { fill: #8C8168; }
+.unlock-legend { display: flex; justify-content: center; gap: 14px; font-size: 11px; color: var(--muted); margin-bottom: 13px; }
+.unlock-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.ul-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; }
+.ul-star { width: 10px; height: 10px; border-radius: 2px; transform: rotate(45deg); background: #E8C86A; border: 1px solid #A87F1B; }
+.ul-done { background: var(--red-mid); border: 1px solid var(--gold); }
+.ul-locked { background: #B7AD97; border: 1px solid #F5EFE0; }
+.unlock-skip { margin-top: 2px; }
+
+/* ---------- 总分结算页 ---------- */
+.hero-result { background: linear-gradient(160deg, #8f1220 0%, #4a0510 100%); }
+.hero-result::before { opacity: 0.1; }
+.score-num-big { font-size: 74px; }
+.result-hint {
+  margin-top: 12px; font-size: 11px; opacity: 0.75; letter-spacing: 0.5px;
+  border-top: 1px dashed rgba(232, 200, 106, 0.4); padding-top: 9px;
+}
+.lb-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  font-family: var(--font-title); font-weight: 900; font-size: 16px;
+  letter-spacing: 2px; color: var(--red-dark);
+  padding: 14px 4px 4px;
+}
+.lb-head small { font-family: var(--font-base); font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: 0.5px; }
+.lb-rank-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; margin-right: 10px; flex: none;
+  border-radius: 50%; background: #EDE5D8; color: #6E6350;
+  font-size: 13px; font-weight: 700;
+}
+.rank-gold   { background: linear-gradient(140deg, #F7DD8F, #C9A227); color: #4A3A20; }
+.rank-silver { background: linear-gradient(140deg, #E8EDF3, #9BA3AD); color: #33404D; }
+.rank-bronze { background: linear-gradient(140deg, #E4B98C, #B0764A); color: #fff; }
+.lb-completed { font-size: 11px; color: var(--muted); margin-left: 12px; flex: none; }

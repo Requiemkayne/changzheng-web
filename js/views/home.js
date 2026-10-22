@@ -250,11 +250,17 @@
       }, total)
     }
 
-    // 节点行点击 → 详情
+    // 节点行点击 → 新解锁（open 且未看过弹窗）节点先弹沙盘地图，再进入学习页
     const bindRows = container => {
       container.querySelectorAll('[data-code]').forEach(row => {
         row.addEventListener('click', () => {
-          openNodeWithBurst(row, row.dataset.code)
+          const code = row.dataset.code
+          const st = states.byCode[code]
+          if (st && st.state === 'open' && !UI.isUnlockSeen(code)) {
+            UI.unlockMapDialog(nodes, states, code, () => { location.hash = '#/node/' + code })
+            return
+          }
+          openNodeWithBurst(row, code)
         })
       })
     }
