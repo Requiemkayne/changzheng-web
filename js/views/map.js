@@ -237,8 +237,13 @@
       if (!n) return
       const cx = sx / n
       const cy = sy / n
+      if (n < 90) return   // 太小的省/直辖市不标名，避免文字挤成一片
       if (cx < 26 || cx > W - 26 || cy < 30 || cy > H - 26) return
-      html += '<text class="map-prov-name" x="' + cx.toFixed(1) + '" y="' + cy.toFixed(1) + '">' + F.escapeHtml(p.name) + '</text>'
+      // 省名只留简称：去掉「省/市/自治区/特别行政区」后缀，和课本地图一致
+      const short = String(p.name)
+        .replace(/(壮族|回族|维吾尔|特别)?自治区$/, '')
+        .replace(/(特别行政区|省|市)$/, '')
+      html += '<text class="map-prov-name" x="' + cx.toFixed(1) + '" y="' + cy.toFixed(1) + '">' + F.escapeHtml(short) + '</text>'
     })
     return html
   }
@@ -459,7 +464,10 @@
             '<rect class="map-frame-outer" x="6" y="6" width="' + (W - 12) + '" height="' + (H - 12) + '" rx="8"/>' +
             '<rect class="map-frame-inner" x="13" y="13" width="' + (W - 26) + '" height="' + (H - 26) + '" rx="5"/>' +
             // 简化地理底图（省界 / 河流 / 山脉，示意性）
-            PROVINCE_LINES.map(p => '<path class="map-province" d="' + p.d + '"/>').join('') +
+            // 全省界合并成一条 path：相邻省共享边即使重复，自交处也只描边一次
+            (PROVINCE_LINES.length
+              ? '<path class="map-province" d="' + PROVINCE_LINES.map(p => p.d).join('') + '"/>'
+              : '') +
             // 根据地（很淡的红色斜线块 + 名称）
             '<defs><pattern id="baseHatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
               '<line x1="0" y1="0" x2="0" y2="5" stroke="rgba(200,16,46,0.16)" stroke-width="1.1"/>' +

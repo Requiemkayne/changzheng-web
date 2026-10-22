@@ -339,15 +339,20 @@
       // 省界：蓝色管状线（真正有粗细），贴着地形走，不压主路线
       const provData = root.CZ_MAP_PROVINCES
       if (provData && provData.length) {
+        // 不透明单色：相邻省共享边即使画两遍，颜色也不会叠加变深
         const provMat = new THREE.MeshBasicMaterial({
           color: new THREE.Color('#2F5C8A').convertSRGBToLinear(),
-          transparent: true,
-          opacity: 0.82,
-          depthWrite: false,
+          transparent: false,
           fog: false
         })
+        const seen = new Set()
         provData.forEach(p => {
           p.segs.forEach(seg => {
+            // 同一条边（正反两种走向）只画一次
+            const fwd = seg.map(pt => pt[0] + ',' + pt[1]).join('|')
+            const rev = seg.slice().reverse().map(pt => pt[0] + ',' + pt[1]).join('|')
+            if (seen.has(fwd) || seen.has(rev)) return
+            seen.add(fwd)
             // 抽稀一半，Tube 半径给到 0.16，视觉上明显但仍是细线
             const pts = []
             for (let i = 0; i < seg.length; i += 2) {
