@@ -336,43 +336,44 @@
         transparent: true, opacity: 0.46
       })))
 
-      // 省界虚线：只画长征相关区域（数据已裁剪），贴地形起伏，不压路线
+      // 省界：蓝色管状线（真正有粗细），贴着地形走，不压主路线
       const provData = root.CZ_MAP_PROVINCES
       if (provData && provData.length) {
-        const pv = []
+        const provMat = new THREE.MeshBasicMaterial({
+          color: new THREE.Color('#2F5C8A').convertSRGBToLinear(),
+          transparent: true,
+          opacity: 0.82,
+          depthWrite: false,
+          fog: false
+        })
         provData.forEach(p => {
           p.segs.forEach(seg => {
-            for (let i = 0; i < seg.length - 1; i++) {
-              const a = seg[i]
-              const b = seg[i + 1]
-              const ax = worldX(a[0])
-              const az = worldZ(a[1])
-              const bx = worldX(b[0])
-              const bz = worldZ(b[1])
-              // 抬高一点，避免与地表 z-fighting；海边不画（避免和水面打架）
-              const ay = groundY(ax, az) + 0.09
-              const by = groundY(bx, bz) + 0.09
-              if (ay < 0.05 || by < 0.05) continue
-              pv.push(ax, ay, az, bx, by, bz)
+            // 抽稀一半，Tube 半径给到 0.16，视觉上明显但仍是细线
+            const pts = []
+            for (let i = 0; i < seg.length; i += 2) {
+              const lng = seg[i][0]
+              const lat = seg[i][1]
+              const x = worldX(lng)
+              const z = worldZ(lat)
+              const y = groundY(x, z) + 0.12
+              if (y < 0.06) return
+              pts.push(new THREE.Vector3(x, y, z))
             }
+            const last = seg[seg.length - 1]
+            const lx = worldX(last[0])
+            const lz = worldZ(last[1])
+            const ly = groundY(lx, lz) + 0.12
+            if (ly >= 0.06) pts.push(new THREE.Vector3(lx, ly, lz))
+            if (pts.length < 2) return
+            const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.06)
+            const tube = new THREE.Mesh(
+              new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.16, 4, false),
+              provMat
+            )
+            tube.renderOrder = 2
+            scene.add(tube)
           })
         })
-        if (pv.length) {
-          const provGeo = new THREE.BufferGeometry()
-          provGeo.setAttribute('position', new THREE.Float32BufferAttribute(pv, 3))
-          const provMat = new THREE.LineDashedMaterial({
-            color: new THREE.Color('#A8202F').convertSRGBToLinear(),
-            dashSize: 0.55,
-            gapSize: 0.42,
-            transparent: true,
-            opacity: 0.5,
-            depthWrite: false
-          })
-          const provLines = new THREE.LineSegments(provGeo, provMat)
-          provLines.computeLineDistances()
-          provLines.renderOrder = 2
-          scene.add(provLines)
-        }
       }
 
       // 远景"雾色围裙"：比图幅大得多，任何越界处都落进雾里，而不是露出空白
