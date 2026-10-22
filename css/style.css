@@ -1,5 +1,4 @@
-/* ============================================================
-   长征 · 重走长征路 —— 设计系统 v3（红色文献装帧 · 革命文物世界）
+/* =====================================================   长征 · 重走长征路 —— 设计系统 v3（红色文献装帧 · 革命文物世界）
    世界：苏区出版物与革命文物 —— 铅印宋体大标 / 深红 shell / 烫金状态
    签名动作：打卡 = 盖章（stampIn）
    配色：深红 #4A0510~#C8102E / 烫金 #C9A227 / 宣纸 #F5EFE0
@@ -2545,3 +2544,54 @@ a { color: var(--red-mid); text-decoration: none; }
 .rank-silver { background: linear-gradient(140deg, #E8EDF3, #9BA3AD); color: #33404D; }
 .rank-bronze { background: linear-gradient(140deg, #E4B98C, #B0764A); color: #fff; }
 .lb-completed { font-size: 11px; color: var(--muted); margin-left: 12px; flex: none; }
+=======
+/* ---------- 详情页层次：章节留白与卡片层级 ---------- */
+.page .block { margin-top: 26px; }
+.page .block + .block { margin-top: 18px; }
+.page .block:first-of-type { margin-top: 8px; }
+.page .block-heading { margin-top: 40px !important; }
+.page .block-heading h1,
+.page .block-heading h2 {
+  font-size: 19px;
+  letter-spacing: 1px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.28);
+}
+.page .block-paragraph { font-size: 15.5px; line-height: 1.92; color: #3E3128; }
+.page .block-paragraph p { margin: 0 0 14px; text-indent: 2em; }
+.page .block-paragraph p:last-child { margin-bottom: 0; }
+.page .block-dataGrid { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 20px; }
+.page .block-dataCard {
+  border: 1px solid rgba(201, 162, 39, 0.22);
+  background: rgba(255, 253, 246, 0.6);
+}
+.page .block-quote { margin: 30px 0; padding: 16px 18px; }
+.page .block-timeline { margin-top: 30px; padding-top: 6px; }
+.page .block-video { margin-top: 30px; }
+.page .checkin-area { margin-top: 44px; }
+
+/* 章节小标题：时间线 / 关键数据的独立分隔（层次感） */
+.nsec-h {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 38px 0 16px;
+  font-family: var(--font-title);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 3px;
+  color: var(--red-dark);
+}
+.nsec-h::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, rgba(201, 162, 39, 0.5), rgba(201, 162, 39, 0));
+}
+.nsec-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: linear-gradient(var(--grad-angle), var(--gold), var(--red));
+  flex: 0 0 auto;
+}

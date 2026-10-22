@@ -70,6 +70,7 @@
 
   function renderBlocks(blocks) {
     let html = ''
+    let dataHeaderDone = false
     ;(blocks || []).forEach(b => {
       switch (b.type) {
         case 'heading':
@@ -110,6 +111,8 @@
           break
         }
         case 'timeline': {
+          // 章节标题：让时间线自成一段，不跟正文混在一起
+          html += '<div class="nsec-h"><span class="nsec-dot"></span>事件时间线</div>'
           let items = ''
           ;(b.items || []).forEach(it => {
             const has = !!(it.detail && (it.detail.situation || it.detail.key || it.detail.impact || it.detail.story))
@@ -134,6 +137,10 @@
           break
         }
         case 'dataCard':
+          if (!dataHeaderDone) {
+            dataHeaderDone = true
+            html += '<div class="nsec-h"><span class="nsec-dot"></span>关键数据</div>'
+          }
           html += '<div class="block block-dataGrid">' +
             '<div class="block-dataCard">' +
               '<div class="block-dataCard-label">' + F.escapeHtml(b.label) + '</div>' +

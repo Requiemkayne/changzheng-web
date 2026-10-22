@@ -183,7 +183,7 @@
 
         rootEl.innerHTML =
           '<div class="page">' +
-          '<a class="back-link" href="#/">‹ 返回节点列表</a>' +
+          '<button type="button" class="back-link">‹ 返回节点列表</button>' +
           '<div class="result-hero ' + (r.passed ? 'hero-passed' : 'hero-failed') + '">' +
             stamp +
             '<h1 class="result-title">' + (r.passed ? '恭喜通关' : '差一点，再试一次') + '</h1>' +
@@ -203,6 +203,12 @@
             '<button class="btn btn-ghost action-gap" id="btn-restart">重新挑战</button>' +
           '</div>' +
           '</div>'
+
+        // 返回列表：用 button 而非 <a href>，history 为空时也能正确回跳
+        const backBtnResult = rootEl.querySelector('.back-link')
+        if (backBtnResult) {
+          backBtnResult.addEventListener('click', () => { location.hash = '#/' })
+        }
 
         rootEl.querySelector('#btn-restart').addEventListener('click', () => {
           step = 0; selected = []; submitting = false
