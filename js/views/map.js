@@ -141,13 +141,13 @@
     [[103.0, 33.4], [105.0, 33.7], [107.0, 33.9]]
   ].map(geoPath)
 
-  /* ---------- 根据地（红色淡块 + 斜线，仅示意范围） ---------- */
-  const BASES = [
-    { name: '中央苏区根据地', labelDx: -30, labelDy: 16, ring: [[115.0, 24.9], [116.3, 25.2], [116.4, 26.6], [115.4, 27.0], [114.9, 26.0]] },
-    { name: '川陕苏区根据地', ring: [[105.6, 31.5], [107.6, 32.2], [108.3, 33.0], [106.6, 32.6], [105.4, 32.2]] },
-    { name: '湘鄂川黔根据地', ring: [[109.2, 28.7], [110.5, 29.3], [110.2, 30.3], [109.0, 29.8]] },
-    { name: '陕甘宁根据地', ring: [[107.7, 35.5], [109.6, 36.2], [109.4, 37.2], [107.6, 36.5]] }
-  ].map(b => {
+  /* ---------- 态势数据（与 3D 共用 js/map-factions.js） ---------- */
+  const FACTION = root.CZ_MAP_FACTIONS || {
+    allies: [], enemyLines: [], enemyZones: [], enemyArrows: [], bases: []
+  }
+
+  // 根据地：多边形 d + 名称定位（标签可微调偏移）
+  const BASES = FACTION.bases.map(b => {
     const pts = b.ring.map(p => geo(p[0], p[1]))
     let cx = 0
     let cy = 0
@@ -162,50 +162,24 @@
     }
   })
 
-  /* ---------- 友军各部路线（红军其他主力） ---------- */
-  // 红二方面军：桑植 → 黔东 → 滇东 → 石鼓渡江 → 甘孜 → 北上会宁
-  const ROUTE_2ND = geoPath([
-    [110.2, 29.4], [109.6, 28.6], [108.6, 27.6], [107.4, 26.9], [106.2, 26.4],
-    [104.8, 26.0], [103.6, 26.2], [102.5, 27.0], [101.4, 27.6], [100.2, 28.6],
-    [99.9, 31.6], [101.2, 32.4], [102.4, 33.4], [103.6, 34.4], [104.6, 35.3], [105.1, 35.68]
-  ])
-  // 红四方面军：川陕根据地 → 强渡嘉陵江 → 懋功 → 毛儿盖 → 草地 → 会宁
-  const ROUTE_4TH = geoPath([
-    [107.5, 32.4], [106.6, 32.0], [105.8, 31.8], [104.8, 31.8], [103.9, 31.7],
-    [102.7, 31.0], [102.9, 32.9], [102.5, 33.8], [102.0, 34.5], [103.4, 35.2], [105.1, 35.68]
-  ])
-  // 红二十五军：罗山 → 桐柏山 → 伏牛山 → 陕南 → 陕北永坪
-  const ROUTE_25TH = geoPath([
-    [114.5, 32.2], [113.6, 32.3], [112.6, 32.7], [111.6, 33.3], [110.6, 33.8],
-    [109.6, 34.2], [108.9, 34.5], [109.2, 35.2], [109.9, 36.0]
-  ])
+  // 友军各部路线
+  const ALLY_ROUTES = FACTION.allies.map(a => ({
+    key: a.key,
+    color: a.color,
+    dashed: !!a.dashed,
+    d: geoPath(a.pts)
+  }))
 
-  /* ---------- 国军封锁线与封锁区（蓝色系，压在友军与主线之下） ---------- */
-  // 四道封锁线（1934.10–11）+ 乌江 / 金沙江 / 大渡河 江防
-  const ENEMY_LINES = [
-    { d: geoPath([[115.6, 25.0], [115.1, 25.5], [114.6, 26.0]]), label: '第一道', at: null },
-    { d: geoPath([[113.9, 25.2], [113.4, 25.5], [112.9, 25.8]]), label: '第二道', at: null },
-    { d: geoPath([[113.1, 25.3], [112.8, 25.9], [112.5, 26.4]]), label: '第三道', at: null },
-    { d: geoPath([[111.3, 25.4], [110.9, 25.8], [110.5, 26.3]]), label: '第四道·湘江', at: [110.2, 26.5] },
-    { d: geoPath([[107.6, 26.8], [107.1, 27.2], [106.6, 27.6]]), label: '乌江', at: [106.3, 27.7] },
-    { d: geoPath([[102.2, 26.4], [101.9, 27.2], [101.6, 28.0]]), label: '金沙江', at: [101.2, 28.1] },
-    { d: geoPath([[102.2, 29.0], [102.4, 29.6], [102.6, 30.2]]), label: '大渡河', at: [102.9, 30.0] }
-  ]
+  // 国军封锁线（含可选文字位置）
+  const ENEMY_LINES = FACTION.enemyLines.map(l => ({
+    d: geoPath(l.pts),
+    label: l.short || l.label,   // 2D 空间小，用短名；3D 用全称
+    at: l.at
+  }))
 
-  // 国军重兵合围区（很淡的色块，只暗示包围态势）
-  const ENEMY_ZONES = [
-    // 湘江以东合围区
-    geoPath([[113.6, 25.2], [115.9, 25.3], [115.9, 27.4], [113.4, 27.2], [113.6, 25.2]]),
-    // 川黔边合围区
-    geoPath([[105.4, 27.6], [107.8, 27.6], [107.8, 29.4], [105.2, 29.2], [105.4, 27.6]])
-  ]
-
-  // 追堵方向（箭头起点 → 终点，只画两三处最能说明态势的）
-  const ENEMY_ARROWS = [
-    { from: [113.8, 24.9], to: [112.2, 26.2] },   // 薛岳纵队沿湘江追击
-    { from: [103.2, 30.4], to: [102.4, 29.5] },   // 川军沿大渡河北岸堵截
-    { from: [107.9, 27.0], to: [106.8, 27.4] }    // 黔军扼守乌江
-  ]
+  // 国军合围区 / 追堵箭头
+  const ENEMY_ZONES = FACTION.enemyZones.map(z => geoPath(z))
+  const ENEMY_ARROWS = FACTION.enemyArrows
 
   // 河流示意
   const RIVERS = [
@@ -225,19 +199,11 @@
     if (!PROV_DATA) return ''
     let html = ''
     PROV_DATA.forEach(p => {
-      let sx = 0
-      let sy = 0
-      let n = 0
-      p.segs.forEach(seg => seg.forEach(pt => {
-        const xy = geo(pt[0], pt[1])
-        sx += xy[0]
-        sy += xy[1]
-        n++
-      }))
-      if (!n) return
-      const cx = sx / n
-      const cy = sy / n
-      if (n < 90) return   // 太小的省/直辖市不标名，避免文字挤成一片
+      if (!p.c) return
+      const xy = geo(p.c[0], p.c[1])
+      const cx = xy[0]
+      const cy = xy[1]
+      if ((p.n || 0) < 15) return      // 极小的省/特别行政区不标名
       if (cx < 26 || cx > W - 26 || cy < 30 || cy > H - 26) return
       // 省名只留简称：去掉「省/市/自治区/特别行政区」后缀，和课本地图一致
       const short = String(p.name)
@@ -442,15 +408,11 @@
               '<marker id="arrowEnemy" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto">' +
                 '<path d="M0 0 L10 5 L0 10 Z" fill="rgba(47,74,107,0.85)"/>' +
               '</marker>' +
-              '<marker id="arrowAlly2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto">' +
-                '<path d="M0 0 L10 5 L0 10 Z" fill="#D4622A"/>' +
-              '</marker>' +
-              '<marker id="arrowAlly4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto">' +
-                '<path d="M0 0 L10 5 L0 10 Z" fill="#8E3A6B"/>' +
-              '</marker>' +
-              '<marker id="arrowAlly25" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto">' +
-                '<path d="M0 0 L10 5 L0 10 Z" fill="#A0522D"/>' +
-              '</marker>' +
+              ALLY_ROUTES.map(r =>
+                '<marker id="arrowAlly-' + r.key + '" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto">' +
+                  '<path d="M0 0 L10 5 L0 10 Z" fill="' + r.color + '"/>' +
+                '</marker>'
+              ).join('') +
               '<linearGradient id="mapGloss" x1="0" y1="0" x2="0" y2="1">' +
                 '<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.5"/>' +
                 '<stop offset="0.42" stop-color="#FFFFFF" stop-opacity="0"/>' +
@@ -484,9 +446,12 @@
               '<path class="map-mountain" d="M' + (m[0] - 7) + ' ' + (m[1] + 4) + ' L' + m[0] + ' ' + (m[1] - 6) + ' L' + (m[0] + 7) + ' ' + (m[1] + 4) + ' Z"/>'
             ).join('') +
             // 友军各部路线（暖色细线，压在主路线之下）
-            '<path class="map-route-ally ally-2" d="' + ROUTE_2ND + '" marker-end="url(#arrowAlly2)"/>' +
-            '<path class="map-route-ally ally-4" d="' + ROUTE_4TH + '" marker-end="url(#arrowAlly4)"/>' +
-            '<path class="map-route-ally ally-25" d="' + ROUTE_25TH + '" marker-end="url(#arrowAlly25)"/>' +
+            ALLY_ROUTES.map(r =>
+              '<path class="map-route-ally ally-' + r.key + '" d="' + r.d + '"' +
+              ' stroke="' + r.color + '"' +
+              (r.dashed ? ' stroke-dasharray="5 3"' : '') +
+              ' marker-end="url(#arrowAlly-' + r.key + ')"/>'
+            ).join('') +
             // 国军封锁线与追堵方向
             ENEMY_LINES.map(l => '<path class="map-enemy-line" d="' + l.d + '"/>').join('') +
             ENEMY_LINES.filter(l => l.at).map(l => {

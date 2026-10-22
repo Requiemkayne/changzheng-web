@@ -347,7 +347,7 @@
           cv.width = W
           cv.height = H
           const c = cv.getContext('2d')
-          c.fillStyle = '#2F5C8A'
+          c.fillStyle = '#1E4A78'
           c.fillRect(0, 0, 19, H)
           const tex = new THREE.CanvasTexture(cv)
           tex.wrapS = THREE.RepeatWrapping
@@ -398,6 +398,19 @@
             scene.add(tube)
           })
         })
+
+        // 省名白字：贴地一点的 Sprite，depthTest 关掉保证始终可见
+        provData.forEach(p => {
+          if (!p.c) return
+          const lx = worldX(p.c[0])
+          const lz = worldZ(p.c[1])
+          const ly = groundY(lx, lz)
+          if (ly < 0.05) return        // 海上不标
+          const sp = provinceLabelSprite(p.name)
+          if (!sp) return
+          sp.position.set(lx, ly + 1.4, lz)
+          scene.add(sp)
+        })
       }
 
       // 远景"雾色围裙"：比图幅大得多，任何越界处都落进雾里，而不是露出空白
@@ -441,16 +454,82 @@
       })))
     }
 
+    /* ---------- 节点名称标签 ---------- */
+    function nodeNameSprite(text) {
+      const t = String(text || '')
+      if (!t) return null
+      const FS = 40
+      const PAD = 8
+      const cv = document.createElement('canvas')
+      let c = cv.getContext('2d')
+      c.font = '700 ' + FS + 'px "Noto Serif SC", serif'
+      const tw = Math.ceil(c.measureText(t).width)
+      cv.width = tw + PAD * 2
+      cv.height = FS + PAD * 2
+      c = cv.getContext('2d')
+      c.font = '700 ' + FS + 'px "Noto Serif SC", serif'
+      c.textAlign = 'center'
+      c.textBaseline = 'middle'
+      c.lineWidth = 8
+      c.strokeStyle = 'rgba(52, 8, 14, 0.85)'
+      c.strokeText(t, cv.width / 2, cv.height / 2)
+      c.fillStyle = '#FFF6E2'
+      c.fillText(t, cv.width / 2, cv.height / 2)
+      const tex = new THREE.CanvasTexture(cv)
+      tex.encoding = THREE.sRGBEncoding
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, transparent: true, depthWrite: false, depthTest: false, fog: false
+      }))
+      const hUnit = 2.4
+      sp.scale.set(hUnit * cv.width / cv.height, hUnit, 1)
+      sp.renderOrder = 8
+      return sp
+    }
+
+    /* ---------- 省名标签（白色文字 + 深色描边） ---------- */
+    function provinceLabelSprite(text) {
+      const short = String(text || '')
+        .replace(/(壮族|回族|维吾尔|特别)?自治区$/, '')
+        .replace(/(特别行政区|省|市)$/, '')
+      if (!short) return null
+      const FS = 46
+      const PAD = 10
+      const cv = document.createElement('canvas')
+      let c = cv.getContext('2d')
+      c.font = '700 ' + FS + 'px "Noto Serif SC", serif'
+      const tw = Math.ceil(c.measureText(short).width)
+      cv.width = tw + PAD * 2
+      cv.height = FS + PAD * 2
+      c = cv.getContext('2d')
+      c.font = '700 ' + FS + 'px "Noto Serif SC", serif'
+      c.textAlign = 'center'
+      c.textBaseline = 'middle'
+      c.lineWidth = 9
+      c.strokeStyle = 'rgba(38,28,18,0.8)'
+      c.strokeText(short, cv.width / 2, cv.height / 2)
+      c.fillStyle = '#FFFFFF'
+      c.fillText(short, cv.width / 2, cv.height / 2)
+      const tex = new THREE.CanvasTexture(cv)
+      tex.encoding = THREE.sRGBEncoding
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, transparent: true, depthWrite: false, depthTest: false, fog: false
+      }))
+      const hUnit = 2.6
+      sp.scale.set(hUnit * cv.width / cv.height, hUnit, 1)
+      sp.renderOrder = 6
+      return sp
+    }
+
     /* ---------- 路线 ---------- */
     // 虚线贴图：沿管长方向 62% 实线 + 38% 空隙，形成加粗虚线
-    function dashTexture() {
+    function dashTexture(color) {
       const W = 64
       const H = 8
       const cv = document.createElement('canvas')
       cv.width = W
       cv.height = H
       const c = cv.getContext('2d')
-      c.fillStyle = '#D95555'
+      c.fillStyle = color || '#D95555'
       c.fillRect(0, 0, 40, H)
       const tex = new THREE.CanvasTexture(cv)
       tex.wrapS = THREE.RepeatWrapping
@@ -459,11 +538,29 @@
       return tex
     }
 
+    // 沿曲线摆放方向箭头（锥体朝向切线方向）
+    function addRouteArrows(curve, colorHex, count, yOffsetHint) {
+      if (!curve) return
+      const mat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(colorHex).convertSRGBToLinear(), fog: false
+      })
+      for (let i = 0; i < count; i++) {
+        const t = count === 1 ? 1 : (i + 0.55) / count
+        const p = curve.getPointAt(Math.min(0.999, t))
+        const tan = curve.getTangentAt(Math.min(0.999, t)).normalize()
+        const cone = new THREE.Mesh(new THREE.ConeGeometry(0.46, 1.25, 8), mat)
+        cone.position.copy(p)
+        if (yOffsetHint) cone.position.y += 0.05
+        cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tan)
+        scene.add(cone)
+      }
+    }
+
     function buildRoute() {
       const pts = nodes.map(n => new THREE.Vector3(worldX(lngOf(n)), 0, worldZ(latOf(n))))
       const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35)
       // 固定飞行高度：不再贴着地形起伏走，路线是一条平顺的虚线链
-      const ROUTE_Y = 7.2
+      const ROUTE_Y = 10.6
       const sampled = curve.getPoints(360).map(p => new THREE.Vector3(p.x, ROUTE_Y, p.z))
       const rc = new THREE.CatmullRomCurve3(sampled)
 
@@ -487,6 +584,185 @@
           alphaTest: 0.45, depthWrite: false, fog: false
         })
       ))
+      // 沿途方向箭头（主路线 6 个）
+      addRouteArrows(rc, '#D95555', 6, true)
+    }
+
+    /* ---------- 友军路线 / 国军封锁 / 根据地（数据来自 js/map-factions.js） ---------- */
+    function buildFactions() {
+      const FACTION = root.CZ_MAP_FACTIONS
+      if (!FACTION) return
+
+      // 友军三条路线：略低于主线的固定高度，颜色与 2D 一致
+      ;(FACTION.allies || []).forEach(a => {
+        const pts = a.pts.map(p => new THREE.Vector3(worldX(p[0]), 9.8, worldZ(p[1])))
+        if (pts.length < 2) return
+        const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35)
+        const tex = dashTexture(a.color)
+        tex.repeat.set(Math.max(12, Math.round(curve.getLength() / 2.2)), 1)
+        scene.add(new THREE.Mesh(
+          new THREE.TubeGeometry(curve, 200, 0.24, 6, false),
+          new THREE.MeshBasicMaterial({
+            map: tex, transparent: true, opacity: 0.62,
+            alphaTest: 0.42, depthWrite: false, fog: false
+          })
+        ))
+        addRouteArrows(curve, a.color, 3, true)
+      })
+
+      // 国军封锁：竖直半透明光墙，沿每条封锁线立起来
+      const wallMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color('#2F5C8A').convertSRGBToLinear(),
+        transparent: true, opacity: 0.46, side: THREE.DoubleSide,
+        depthWrite: false, fog: false
+      })
+      ;(FACTION.enemyLines || []).forEach(l => {
+        for (let i = 0; i < l.pts.length - 1; i++) {
+          const p1 = l.pts[i]
+          const p2 = l.pts[i + 1]
+          const ax = worldX(p1[0])
+          const az = worldZ(p1[1])
+          const bx = worldX(p2[0])
+          const bz = worldZ(p2[1])
+          const ay = groundY(ax, az) + 0.04
+          const by = groundY(bx, bz) + 0.04
+          if (ay < 0.05 || by < 0.05) continue
+          const H = 2.8
+          const pos = new Float32Array([
+            ax, ay, az, bx, by, bz, bx, by + H, bz,
+            ax, ay, az, bx, by + H, bz, ax, ay + H, az
+          ])
+          const geo = new THREE.BufferGeometry()
+          geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+          geo.computeVertexNormals()
+          scene.add(new THREE.Mesh(geo, wallMat))
+        }
+      })
+
+      // 根据地：贴地的红色三角扇（顶点采样地形高度，跟着地形起伏）
+      const baseMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color('#C8102E').convertSRGBToLinear(),
+        transparent: true, opacity: 0.2, side: THREE.DoubleSide,
+        depthWrite: false, fog: false
+      })
+      ;(FACTION.bases || []).forEach(b => {
+        const ring = b.ring
+        if (!ring || ring.length < 3) return
+        let cx = 0
+        let cz = 0
+        ring.forEach(p => { cx += worldX(p[0]); cz += worldZ(p[1]) })
+        cx /= ring.length
+        cz /= ring.length
+        const cy = groundY(cx, cz) + 0.16
+        const pos = []
+        for (let i = 0; i < ring.length; i++) {
+          const p = ring[i]
+          const q = ring[(i + 1) % ring.length]
+          const px = worldX(p[0])
+          const pz = worldZ(p[1])
+          const qx = worldX(q[0])
+          const qz = worldZ(q[1])
+          pos.push(cx, cy, cz)
+          pos.push(px, groundY(px, pz) + 0.16, pz)
+          pos.push(qx, groundY(qx, qz) + 0.16, qz)
+        }
+        const geo = new THREE.BufferGeometry()
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
+        geo.computeVertexNormals()
+        scene.add(new THREE.Mesh(geo, baseMat))
+
+        // 根据地：插一面红旗 + 名称
+        const fy = groundY(cx, cz)
+        if (fy >= 0.05) buildFlag(cx, fy, cz, b.name)
+      })
+
+      // 国军封锁区：有标注位置的加文字
+      ;(FACTION.enemyLines || []).forEach(l => {
+        if (!l.at) return
+        // 前三道在瑞金附近太密，3D 只标四条关键防线（2D 里全部有）
+        if (/第[一二三]道/.test(l.label)) return
+        const lx = worldX(l.at[0])
+        const lz = worldZ(l.at[1])
+        const ly = groundY(lx, lz)
+        if (ly < 0.05) return
+        const sp = factionLabel(l.label, '#E8F0FA', 'rgba(18, 38, 62, 0.85)')
+        if (!sp) return
+        sp.position.set(lx, ly + 2.4, lz)
+        scene.add(sp)
+      })
+    }
+
+    /* ---------- 根据地红旗 ---------- */
+    function buildFlag(x, groundYv, z, name) {
+      const POLE_H = 4.6
+      const poleMat = new THREE.MeshBasicMaterial({
+        color: new THREE.Color('#6E5A3E').convertSRGBToLinear(), fog: false
+      })
+      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, POLE_H, 6), poleMat)
+      pole.position.set(x, groundYv + POLE_H / 2, z)
+      scene.add(pole)
+
+      // 旗面：一个小平面，红底
+      const flagGeo = new THREE.PlaneGeometry(1.7, 1.05)
+      const flag = new THREE.Mesh(flagGeo, new THREE.MeshBasicMaterial({
+        color: new THREE.Color('#C8102E').convertSRGBToLinear(),
+        side: THREE.DoubleSide, fog: false
+      }))
+      flag.position.set(x + 1.3, groundYv + POLE_H - 0.8, z)
+      flag.rotation.y = -0.35
+      scene.add(flag)
+
+      // 旗面小金边
+      const edge = new THREE.Mesh(
+        new THREE.PlaneGeometry(2.5, 1.55),
+        new THREE.MeshBasicMaterial({
+          color: new THREE.Color('#E8C86A').convertSRGBToLinear(),
+          transparent: true, opacity: 0.9, side: THREE.DoubleSide, fog: false
+        })
+      )
+      edge.position.set(x + 1.3, groundYv + POLE_H - 0.8, z - 0.01)
+      edge.rotation.y = -0.35
+      edge.scale.set(1.06, 1.1, 1)
+      scene.add(edge)
+
+      // 旗杆下的名称（红底白字更醒目）
+      const sp = factionLabel(name, '#FFF3DC', 'rgba(120, 12, 26, 0.9)')
+      if (sp) {
+        sp.position.set(x, groundYv + POLE_H + 2.6, z)
+        scene.add(sp)
+      }
+    }
+
+    /* ---------- 通用小字标签（可指定文字色与描边色） ---------- */
+    function factionLabel(text, fill, stroke) {
+      const t = String(text || '')
+      if (!t) return null
+      const FS = 40
+      const PAD = 9
+      const cv = document.createElement('canvas')
+      let c = cv.getContext('2d')
+      c.font = '700 ' + FS + 'px "Noto Serif SC", serif'
+      const tw = Math.ceil(c.measureText(t).width)
+      cv.width = tw + PAD * 2
+      cv.height = FS + PAD * 2
+      c = cv.getContext('2d')
+      c.font = '700 ' + FS + 'px "Noto Serif SC", serif'
+      c.textAlign = 'center'
+      c.textBaseline = 'middle'
+      c.lineWidth = 8
+      c.strokeStyle = stroke || 'rgba(40, 30, 20, 0.85)'
+      c.strokeText(t, cv.width / 2, cv.height / 2)
+      c.fillStyle = fill || '#FFFFFF'
+      c.fillText(t, cv.width / 2, cv.height / 2)
+      const tex = new THREE.CanvasTexture(cv)
+      tex.encoding = THREE.sRGBEncoding
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, transparent: true, depthWrite: false, depthTest: false, fog: false
+      }))
+      const hUnit = 1.7
+      sp.scale.set(hUnit * cv.width / cv.height, hUnit, 1)
+      sp.renderOrder = 7
+      return sp
     }
 
     /* ---------- 数字圆点（Sprite，省几何） ---------- */
@@ -531,9 +807,72 @@
       tex.encoding = THREE.sRGBEncoding
       tex.anisotropy = 4
       return new THREE.Sprite(new THREE.SpriteMaterial({
-        map: tex, transparent: true, depthWrite: false, depthTest: false, fog: false
+        map: tex, transparent: true, opacity: 0.88,
+        depthWrite: false, depthTest: false, fog: false
       }))
     }
+
+    // 序号牌：左侧编号圆 + 右侧站名，远景隐藏、放大后替代小圆盘
+    function plateSprite(order, name, fill, color) {
+      const FS = 42
+      const PAD = 14
+      const R = 30
+      const cv = document.createElement('canvas')
+      let c = cv.getContext('2d')
+      c.font = '700 ' + FS + 'px "Noto Serif SC", serif'
+      const nameW = Math.ceil(c.measureText(name).width)
+      const W = PAD * 2 + R * 2 + 14 + nameW
+      const H = R * 2 + PAD * 2
+      cv.width = W
+      cv.height = H
+      c = cv.getContext('2d')
+      const rr = H / 2
+      c.beginPath()
+      c.moveTo(rr, 0)
+      c.lineTo(W - rr, 0)
+      c.arcTo(W, 0, W, rr, rr)
+      c.lineTo(W, H - rr)
+      c.arcTo(W, H, W - rr, H, rr)
+      c.lineTo(rr, H)
+      c.arcTo(0, H, 0, H - rr, rr)
+      c.lineTo(0, rr)
+      c.arcTo(0, 0, rr, 0, rr)
+      c.closePath()
+      c.fillStyle = fill
+      c.fill()
+      c.lineWidth = 5
+      c.strokeStyle = 'rgba(255,252,244,0.9)'
+      c.stroke()
+      // 左侧编号圆
+      c.beginPath()
+      c.arc(PAD + R, H / 2, R, 0, Math.PI * 2)
+      c.fillStyle = 'rgba(255,252,244,0.92)'
+      c.fill()
+      c.fillStyle = fill
+      c.font = '900 ' + Math.round(FS * 1.0) + 'px "Noto Serif SC", serif'
+      c.textAlign = 'center'
+      c.textBaseline = 'middle'
+      c.fillText(order, PAD + R, H / 2 + 2)
+      // 右侧站名
+      c.fillStyle = color
+      c.font = '700 ' + FS + 'px "Noto Serif SC", serif'
+      c.textAlign = 'left'
+      c.fillText(name, PAD + R * 2 + 14, H / 2 + 2)
+
+      const tex = new THREE.CanvasTexture(cv)
+      tex.encoding = THREE.sRGBEncoding
+      tex.anisotropy = 4
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: tex, transparent: true, opacity: 0.94,
+        depthWrite: false, depthTest: false, fog: false
+      }))
+      // 世界单位高度 2.2，宽度按比例
+      sp.scale.set(2.2 * W / H, 2.2, 1)
+      sp.renderOrder = 11
+      return sp
+    }
+
+    const nodePlates = []   // { disc, plate }，按缩放级别切换
 
     function buildNodes() {
       nodes.forEach((n, i) => {
@@ -558,6 +897,14 @@
         disc.position.set(x, y + pinH + 0.9, z)
         disc.renderOrder = 10
         scene.add(disc)
+
+        // 序号牌：远景隐藏；放大后替代圆盘
+        const plate = plateSprite(String(n.order), n.name, st.fill, st.label)
+        plate.position.copy(disc.position)
+        plate.position.y += 0.15
+        plate.visible = false
+        scene.add(plate)
+        nodePlates.push({ disc, plate })
 
         // 头部光晕：标记顶端微微发光
         const halo = glowSprite(hexToRgba(st.fill, '0.85'), 0.30)
@@ -806,6 +1153,13 @@
         FOCUS.z + Math.cos(yaw) * Math.cos(pitch) * d
       )
       camera.lookAt(FOCUS.x, 0.6, FOCUS.z)
+
+      // 缩放联动：zoom 越小＝相机越近（放大）。放大到 0.95 以下切序号牌（带站名）
+      const near = zoom <= 0.95
+      for (let i = 0; i < nodePlates.length; i++) {
+        nodePlates[i].disc.visible = !near
+        nodePlates[i].plate.visible = near
+      }
     }
 
     /* ---------- 交互 ---------- */
@@ -919,6 +1273,7 @@
       try {
         buildTerrain()
         buildRoute()
+    buildFactions()
         buildNodes()
         buildWeather()
         resize()
