@@ -125,13 +125,20 @@
   const geo = (lng, lat) => [px({ location: { longitude: lng, latitude: lat } }), py({ location: { longitude: lng, latitude: lat } })]
   const geoPath = segs => 'M' + segs.map(s => geo(s[0], s[1]).join(',')).join('L')
 
-  // 省界示意（虚线淡金，仅表方位，不表精确边界）
-  const PROVINCE_LINES = [
-    [[114.0, 25.6], [113.8, 26.8], [114.2, 28.4]],        // 赣湘界
-    [[109.6, 26.2], [109.2, 27.2], [108.9, 28.4]],        // 湘黔界
-    [[104.8, 25.8], [104.4, 26.8], [103.8, 27.8]],        // 黔滇界
-    [[102.8, 27.8], [103.2, 28.3], [103.9, 28.6]],        // 川滇界
-    [[103.0, 33.4], [105.0, 33.7], [107.0, 33.9]]         // 川甘界
+  // 省界：优先用 js/map-provinces.js 的真实边界（裁剪 + 简化），缺失时退回手绘示意线
+  const PROV_DATA = root.CZ_MAP_PROVINCES
+  const PROVINCE_LINES = PROV_DATA && PROV_DATA.length
+    ? PROV_DATA.map(p => ({
+      name: p.name,
+      d: p.segs.map(seg => 'M' + seg.map(pt => geo(pt[0], pt[1]).join(',')).join('L')).join('')
+    }))
+    : []
+  const PROVINCE_FALLBACK = PROV_DATA && PROV_DATA.length ? [] : [
+    [[114.0, 25.6], [113.8, 26.8], [114.2, 28.4]],
+    [[109.6, 26.2], [109.2, 27.2], [108.9, 28.4]],
+    [[104.8, 25.8], [104.4, 26.8], [103.8, 27.8]],
+    [[102.8, 27.8], [103.2, 28.3], [103.9, 28.6]],
+    [[103.0, 33.4], [105.0, 33.7], [107.0, 33.9]]
   ].map(geoPath)
 
   // 河流示意
@@ -146,6 +153,29 @@
     [102.7, 31.2], [103.6, 30.8], [104.2, 32.0],        // 夹金山 / 岷山
     [106.2, 35.2], [105.8, 34.6]                          // 六盘山
   ].map(m => geo(m[0], m[1]))
+
+  /** 省名：取各省所有点的均值定位，超出图框就不标；字号小、颜色淡，不压路线 */
+  function provinceLabels() {
+    if (!PROV_DATA) return ''
+    let html = ''
+    PROV_DATA.forEach(p => {
+      let sx = 0
+      let sy = 0
+      let n = 0
+      p.segs.forEach(seg => seg.forEach(pt => {
+        const xy = geo(pt[0], pt[1])
+        sx += xy[0]
+        sy += xy[1]
+        n++
+      }))
+      if (!n) return
+      const cx = sx / n
+      const cy = sy / n
+      if (cx < 26 || cx > W - 26 || cy < 30 || cy > H - 26) return
+      html += '<text class="map-prov-name" x="' + cx.toFixed(1) + '" y="' + cy.toFixed(1) + '">' + F.escapeHtml(p.name) + '</text>'
+    })
+    return html
+  }
 
   /* ---------- 渲染 ---------- */
 
@@ -337,7 +367,9 @@
             '<rect class="map-frame-outer" x="6" y="6" width="' + (W - 12) + '" height="' + (H - 12) + '" rx="8"/>' +
             '<rect class="map-frame-inner" x="13" y="13" width="' + (W - 26) + '" height="' + (H - 26) + '" rx="5"/>' +
             // 简化地理底图（省界 / 河流 / 山脉，示意性）
-            PROVINCE_LINES.map(d => '<path class="map-province" d="' + d + '"/>').join('') +
+            PROVINCE_LINES.map(p => '<path class="map-province" d="' + p.d + '"/>').join('') +
+            PROVINCE_FALLBACK.map(d => '<path class="map-province" d="' + d + '"/>').join('') +
+            (PROV_DATA && PROV_DATA.length ? provinceLabels() : '') +
             RIVERS.map(d => '<path class="map-river" d="' + d + '"/>').join('') +
             MOUNTAINS.map(m =>
               '<path class="map-mountain" d="M' + (m[0] - 7) + ' ' + (m[1] + 4) + ' L' + m[0] + ' ' + (m[1] - 6) + ' L' + (m[0] + 7) + ' ' + (m[1] + 4) + ' Z"/>'
@@ -371,7 +403,7 @@
         '</div>' +
         '<div class="map-float" id="map-float"></div>' +
         '<div class="map-strip" id="map-strip"></div>' +
-        '<div class="map-note">路线示意图（省界河流为示意，非精确边界）</div>' +
+        '<div class="map-note">省界为简化边界，仅表方位；路线与节点为示意</div>' +
       '</div>'
 
     // 行军动画：初始播放一次，可重播（prefers-reduced-motion 时直接静态）

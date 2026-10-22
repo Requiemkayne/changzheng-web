@@ -74,6 +74,7 @@ js/api.js               ★ 数据访问统一层（mock 分支 + http 分支 + 
 js/ui.js                共享组件：自绘 SVG 图标集 / 徽章 / 节点行 / 弹窗 / toast（含 ARIA）
 js/router.js            hash 路由 + tabBar + 路由守卫 + 首访欢迎页
 js/map3d.js             3D 沙盘（three.js；高程图 assets/map3d/heightmap.png）
+js/map-provinces.js     省级边界数据（长征 12 省，裁剪+简化，2D 路线图与 3D 省界虚线共用）
 js/weather.js           页面级天气特效（canvas，尊重 reduced-motion）
 js/live-reload.js       ?live=1 时的开发自动刷新
 js/mock/nodes.js        11 节点（9 篇文案已交付，泸定桥/腊子口仍为占位；含经纬度/阶段/detail 块/quiz 关联）；8 个节点的 detail.blocks 首块是 video（assets/video/<code>.mp4，位于「历史背景」标题上方）
@@ -149,6 +150,7 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 - **内容交付后字体子集没重建（现存）**：`ea84a48` 填充了 9 个节点文案与全部题目，但 `fonts/glyphs.txt` / woff2 未更新；扫描 `js/**`（除 `vendor`）+ `server/**` + `index.html` 实测有 **80 个 ≥U+2000 字符不在子集内**（如 苏/晚/委/赶/赴/援/捐/灌/浴…），这些字会逐字回落系统宋体。`test-web` 的覆盖断言只查 `server/question-bank.json`，**测试全绿 ≠ 字形齐全**；重建须在有原始切片的机器上跑 `python scripts/build-fonts.py`，再把 `fonts/glyphs.txt` 与两个 woff2 一起提交。
 - 浏览器验收脚本硬编码 Edge 路径 `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`；`scripts/dom-check-*` 与 `scripts/play-*` 还硬编码 `http://localhost:8088/?mock=1`——必须先起后端，换机器要改路径。
 - **视频依赖 Range**：静态服务对 `.mp4` 返回 `206 Partial Content` + `Content-Range`（iOS Safari 不拿到 206 就不播，拖进度条也依赖它），其他扩展名仍是整文件 200。改 `serveStatic` 时别把这段删了；新增视频用 `ffmpeg -c:v libx264 -crf 30 -preset medium -movflags +faststart -c:a aac -b:a 64k`（源素材 228 MB → 产出 71 MB）。
+- **省界数据是生成物**：`js/map-provinces.js` 由 `samples/build_provinces.py` 从公开 GeoJSON 裁剪 + 简化生成（只留赣/湘/桂/黔/滇/川/甘/陕/宁/渝/鄂/青 12 省，范围 99–119°E / 22.5–38.5°N，容差 0.02°）。改范围或精度就改脚本重跑，不要手改这个文件；2D 与 3D 读的是同一份数据。
 - 静态响应按扩展名分层：html/css/js/json 走 `no-cache` + ETag（可拿 304），图片/字体给 1 天；文本类按 `Accept-Encoding` 返回 gzip 并带 `Vary`。**HEAD 请求仍是 405**（测试锁定为「保持改造前语义」），不要顺手加 HEAD 分支。
 - `/__version` 忽略 `js/vendor/`，改其他 js/css 会触发 `?live=1` 重载。
 - 用 pwsh 读中文文件请走 read 工具或显式 `-Encoding utf8`：本机 PowerShell 的 `Get-Content` 会把无 BOM 的 UTF-8 中文读成乱码（文件本身没问题，`server/server.js` 带 BOM，其余无 BOM，保持现状）。

@@ -336,6 +336,45 @@
         transparent: true, opacity: 0.46
       })))
 
+      // 省界虚线：只画长征相关区域（数据已裁剪），贴地形起伏，不压路线
+      const provData = root.CZ_MAP_PROVINCES
+      if (provData && provData.length) {
+        const pv = []
+        provData.forEach(p => {
+          p.segs.forEach(seg => {
+            for (let i = 0; i < seg.length - 1; i++) {
+              const a = seg[i]
+              const b = seg[i + 1]
+              const ax = worldX(a[0])
+              const az = worldZ(a[1])
+              const bx = worldX(b[0])
+              const bz = worldZ(b[1])
+              // 抬高一点，避免与地表 z-fighting；海边不画（避免和水面打架）
+              const ay = groundY(ax, az) + 0.09
+              const by = groundY(bx, bz) + 0.09
+              if (ay < 0.05 || by < 0.05) continue
+              pv.push(ax, ay, az, bx, by, bz)
+            }
+          })
+        })
+        if (pv.length) {
+          const provGeo = new THREE.BufferGeometry()
+          provGeo.setAttribute('position', new THREE.Float32BufferAttribute(pv, 3))
+          const provMat = new THREE.LineDashedMaterial({
+            color: new THREE.Color('#FFF3D6').convertSRGBToLinear(),
+            dashSize: 0.55,
+            gapSize: 0.42,
+            transparent: true,
+            opacity: 0.5,
+            depthWrite: false
+          })
+          const provLines = new THREE.LineSegments(provGeo, provMat)
+          provLines.computeLineDistances()
+          provLines.renderOrder = 2
+          scene.add(provLines)
+        }
+      }
+
       // 远景"雾色围裙"：比图幅大得多，任何越界处都落进雾里，而不是露出空白
       const apron = new THREE.Mesh(
         new THREE.PlaneGeometry(SIZE_X * 4, SIZE_Z * 4),
