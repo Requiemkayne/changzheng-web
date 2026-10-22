@@ -141,20 +141,6 @@
     [[103.0, 33.4], [105.0, 33.7], [107.0, 33.9]]
   ].map(geoPath)
 
-  /* ---------- 海陆：海岸线（大致轮廓，用于区分陆海，不作测绘依据） ---------- */
-  // 只取图幅东南角那一段海岸（闽南—粤东），用来区分海陆
-  const COAST = [
-    [116.4, 23.8], [116.9, 23.9], [117.3, 24.1], [117.8, 24.35], [118.3, 24.55], [118.8, 24.7]
-  ]
-  // 海域多边形：海岸线 → 右下角闭合
-  const SEA_PATH = (() => {
-    const pts = COAST.map(p => geo(p[0], p[1]))
-    const rightBottom = geo(LNG_MAX, LAT_MIN)
-    return 'M' + pts.map(p => p.join(',')).join('L') +
-      'L' + rightBottom.join(',') + 'L' + geo(COAST[0][0], LAT_MIN).join(',') + 'Z'
-  })()
-  const COAST_LINE = 'M' + COAST.map(p => geo(p[0], p[1]).join(',')).join('L')
-
   /* ---------- 根据地（红色淡块 + 斜线，仅示意范围） ---------- */
   const BASES = [
     { name: '中央苏区根据地', labelDx: -30, labelDy: 16, ring: [[115.0, 24.9], [116.3, 25.2], [116.4, 26.6], [115.4, 27.0], [114.9, 26.0]] },
@@ -429,6 +415,18 @@
           '<div class="map-frame">' +
           '<svg class="map-svg" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="xMidYMid meet">' +
             '<defs>' +
+              // 旧纸颗粒：细点 + 极淡的褐色斑
+              '<pattern id="paperGrain" width="9" height="9" patternUnits="userSpaceOnUse">' +
+                '<circle cx="1.2" cy="1.6" r="0.45" fill="rgba(120,92,52,0.13)"/>' +
+                '<circle cx="5.4" cy="3.1" r="0.35" fill="rgba(120,92,52,0.10)"/>' +
+                '<circle cx="7.6" cy="6.8" r="0.4" fill="rgba(120,92,52,0.09)"/>' +
+                '<circle cx="3.1" cy="7.4" r="0.3" fill="rgba(255,250,238,0.16)"/>' +
+              '</pattern>' +
+              // 暗角：边缘微微压暗，像老地图被翻旧
+              '<radialGradient id="mapVignette" cx="50%" cy="46%" r="74%">' +
+                '<stop offset="58%" stop-color="rgba(122,88,40,0)"/>' +
+                '<stop offset="100%" stop-color="rgba(122,88,40,0.17)"/>' +
+              '</radialGradient>' +
               '<pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">' +
                 '<path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(201,162,39,0.10)" stroke-width="1"/>' +
               '</pattern>' +
@@ -454,10 +452,9 @@
                 '<stop offset="1" stop-color="#6E0918" stop-opacity="0.07"/>' +
               '</linearGradient>' +
             '</defs>' +
-            // 陆地底色 + 海域（先陆后海，再叠网格）
-            '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="10" fill="#F8F2E2"/>' +
-            '<path class="map-sea" d="' + SEA_PATH + '"/>' +
-            '<path class="map-coast" d="' + COAST_LINE + '"/>' +
+            // 旧纸底：加深的黄褐底 + 细颗粒 + 网格
+            '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="10" fill="#EFE3C6"/>' +
+            '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="10" fill="url(#paperGrain)"/>' +
             '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="10" fill="url(#grid)"/>' +
             '<rect class="map-frame-outer" x="6" y="6" width="' + (W - 12) + '" height="' + (H - 12) + '" rx="8"/>' +
             '<rect class="map-frame-inner" x="13" y="13" width="' + (W - 26) + '" height="' + (H - 26) + '" rx="5"/>' +
@@ -507,6 +504,8 @@
               '</animateMotion>' +
             '</circle>' +
             nodesHtml +
+            // 做旧暗角（很淡，只压边角）
+            '<rect x="6" y="6" width="' + (W - 12) + '" height="' + (H - 12) + '" rx="8" fill="url(#mapVignette)" pointer-events="none"/>' +
             // 顶面高光：整幅图微微"上釉"
             '<rect x="13" y="13" width="' + (W - 26) + '" height="' + (H - 26) + '" rx="5" fill="url(#mapGloss)" pointer-events="none"/>' +
           '</svg>' +

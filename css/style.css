@@ -1144,14 +1144,11 @@ a { color: var(--red-mid); text-decoration: none; }
 .map-star-end   { fill: #E8C86A; }
 
 /* 简化地理底图（示意，非精确边界） */
-.map-province { fill: none; stroke: rgba(139, 118, 96, 0.3); stroke-width: 0.8; stroke-linecap: round; stroke-linejoin: round; }
-.map-prov-name { font-size: 6.5px; letter-spacing: 0.5px; fill: rgba(139, 118, 96, 0.45); text-anchor: middle; font-family: var(--font-title); }
-/* 海陆 */
-.map-sea   { fill: rgba(214, 190, 152, 0.55); stroke: none; }
-.map-coast { fill: none; stroke: rgba(150, 120, 84, 0.6); stroke-width: 1.1; }
+.map-province { fill: none; stroke: rgba(120, 96, 66, 0.42); stroke-width: 0.85; stroke-linecap: round; stroke-linejoin: round; }
+.map-prov-name { font-size: 6.8px; letter-spacing: 0.5px; fill: rgba(110, 86, 58, 0.58); text-anchor: middle; font-family: var(--font-title); }
 /* 根据地：淡红斜线块 + 名称 */
 .map-base { fill: rgba(200, 16, 46, 0.06); stroke: rgba(200, 16, 46, 0.28); stroke-width: 0.8; stroke-dasharray: 2.5 2; }
-.map-base-name { font-size: 6.5px; letter-spacing: 0.5px; fill: rgba(168, 24, 44, 0.55); text-anchor: middle; font-family: var(--font-title); pointer-events: none; }
+.map-base-name { font-size: 6.2px; letter-spacing: 0.3px; fill: rgba(150, 20, 38, 0.62); text-anchor: middle; font-family: var(--font-title); pointer-events: none; }
 /* 封锁线名称 */
 /* 点击节点时天气小景边缘发光 */
 .map-wxv.is-glow { animation: wxGlow 1.15s ease-out; }
@@ -1160,7 +1157,7 @@ a { color: var(--red-mid); text-decoration: none; }
   25%  { filter: drop-shadow(0 0 6px rgba(232, 200, 106, 0.95)) drop-shadow(0 0 12px rgba(198, 163, 67, 0.7)); }
   100% { filter: drop-shadow(0 0 0 rgba(232, 200, 106, 0)); }
 }
-.map-enemy-name { font-size: 6px; letter-spacing: 0.4px; fill: rgba(47, 74, 107, 0.6); font-family: var(--font-title); pointer-events: none; }
+.map-enemy-name { font-size: 6.2px; letter-spacing: 0.4px; fill: rgba(40, 62, 92, 0.72); font-family: var(--font-title); pointer-events: none; }
 .map-enemy-zone { fill: rgba(47, 74, 107, 0.1); stroke: rgba(47, 74, 107, 0.18); stroke-width: 0.6; stroke-dasharray: 3 3; }
 .map-route-ally { fill: none; stroke-linecap: round; stroke-linejoin: round; opacity: 0.72; }
 .map-route-ally.ally-2  { stroke: #E2761B; stroke-width: 2.1; }
@@ -1185,9 +1182,9 @@ a { color: var(--red-mid); text-decoration: none; }
   letter-spacing: 0;
   padding: 8px 10px;
   border-radius: 7px;
-  background: rgba(250, 245, 232, 0.88);
-  border: 1px solid rgba(198, 163, 67, 0.4);
-  box-shadow: 0 4px 12px rgba(90, 62, 20, 0.14);
+  background: rgba(243, 233, 208, 0.94);
+  border: 1px solid rgba(168, 132, 58, 0.45);
+  box-shadow: 0 4px 12px rgba(90, 62, 20, 0.18);
   pointer-events: none;
   max-width: 118px;
 }
