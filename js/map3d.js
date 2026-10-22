@@ -417,32 +417,51 @@
     }
 
     /* ---------- 路线 ---------- */
+    // 虚线贴图：沿管长方向 62% 实线 + 38% 空隙，形成加粗虚线
+    function dashTexture() {
+      const W = 64
+      const H = 8
+      const cv = document.createElement('canvas')
+      cv.width = W
+      cv.height = H
+      const c = cv.getContext('2d')
+      c.fillStyle = '#D95555'
+      c.fillRect(0, 0, 40, H)
+      const tex = new THREE.CanvasTexture(cv)
+      tex.wrapS = THREE.RepeatWrapping
+      tex.wrapT = THREE.ClampToEdgeWrapping
+      tex.encoding = THREE.sRGBEncoding
+      return tex
+    }
+
     function buildRoute() {
       const pts = nodes.map(n => new THREE.Vector3(worldX(lngOf(n)), 0, worldZ(latOf(n))))
       const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35)
-      const sampled = curve.getPoints(360).map(p =>
-        new THREE.Vector3(p.x, Math.max(groundY(p.x, p.z), 0) + 2.4, p.z))
+      // 固定飞行高度：不再贴着地形起伏走，路线是一条平顺的虚线链
+      const ROUTE_Y = 7.2
+      const sampled = curve.getPoints(360).map(p => new THREE.Vector3(p.x, ROUTE_Y, p.z))
       const rc = new THREE.CatmullRomCurve3(sampled)
-      // 辉光层：比主线粗一圈、加法混合，像路线本身在发光
-      const glowRoute = new THREE.Mesh(
-        new THREE.TubeGeometry(rc, 520, 1.15, 8, false),
+
+      const tex = dashTexture()
+      tex.repeat.set(Math.max(14, Math.round(curve.getLength() / 2.0)), 1)
+
+      // 半透明底衬：让虚线在深色地形上也有体积感
+      scene.add(new THREE.Mesh(
+        new THREE.TubeGeometry(rc, 420, 0.5, 8, false),
         new THREE.MeshBasicMaterial({
           color: new THREE.Color('#C8102E').convertSRGBToLinear(),
-          transparent: true, opacity: 0.11, depthWrite: false,
-          blending: THREE.AdditiveBlending, fog: false
+          transparent: true, opacity: 0.12, depthWrite: false, fog: false
         })
-      )
-      scene.add(glowRoute)
-      scene.add(new THREE.Mesh(
-        new THREE.TubeGeometry(rc, 520, 0.52, 10, false),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color('#C8102E').convertSRGBToLinear(), fog: false })
       ))
-      const gold = new THREE.Mesh(
-        new THREE.TubeGeometry(rc, 520, 0.18, 8, false),
-        new THREE.MeshBasicMaterial({ color: new THREE.Color('#E8C86A').convertSRGBToLinear(), fog: false })
-      )
-      gold.position.y = 0.14
-      scene.add(gold)
+
+      // 主体：加粗虚线（管半径 0.34，纹理控制虚实），颜色比定位针浅一档
+      scene.add(new THREE.Mesh(
+        new THREE.TubeGeometry(rc, 420, 0.44, 8, false),
+        new THREE.MeshBasicMaterial({
+          map: tex, color: 0xFFFFFF, transparent: true, opacity: 0.82,
+          alphaTest: 0.45, depthWrite: false, fog: false
+        })
+      ))
     }
 
     /* ---------- 数字圆点（Sprite，省几何） ---------- */
@@ -814,7 +833,7 @@
       yawVel = !REDUCED && Math.abs(dx) > 5 ? -dx * k * 0.68 : 0
       // 鼠标还可以用纵向拖拽调俯仰；触摸的纵向留给页面滚动
       if (e.pointerType !== 'touch') {
-        pitch = Math.max(0.72, Math.min(1.10, pitch + dy * 0.0026))
+        pitch = Math.max(0.72, Math.min(1.38, pitch + dy * 0.0026))
       }
       updateCamera()
     })
@@ -857,7 +876,7 @@
         if (twoPrev.dist > 10 && dist > 10) {
           zoom = Math.max(0.7, Math.min(1.55, zoom * (twoPrev.dist / dist)))
         }
-        pitch = Math.max(0.72, Math.min(1.10, pitch - (midY - twoPrev.midY) * 0.0038))
+        pitch = Math.max(0.72, Math.min(1.38, pitch - (midY - twoPrev.midY) * 0.0038))
         updateCamera()
       }
       twoPrev = { dist, midY }
