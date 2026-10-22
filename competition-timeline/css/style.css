@@ -986,6 +986,188 @@ tbody td:nth-child(2) {
 }
 
 /* ============================================================
+   赛场图集（错落堆叠 · 悬停扶正放大）
+   —— 遵守设计系统：方形倒角、金线 1px/45%、投影一律带偏移且红调
+      （禁零偏移光晕）、不用胶囊、无 emoji。旋转仅作「相册摊开」的表达。
+   ============================================================ */
+.gallery { margin-bottom: 24px; }
+
+.gal-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1.06;
+  margin-top: 20px;
+}
+
+.gal-card {
+  position: absolute;
+  margin: 0;
+  width: 46%;
+  padding: 4px;
+  background: var(--card);
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  border-radius: var(--r-sm);
+  box-shadow: 0 10px 24px rgba(74, 5, 16, 0.18);
+  transform: rotate(var(--r, 0deg));
+  transform-origin: 50% 60%;
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.28s ease;
+  z-index: var(--z, 1);
+}
+
+.gal-card img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 3px;
+  background: var(--gray-bg);
+}
+
+/* 浅景深：远层轻微降清晰度与饱和，近层保持锐利 */
+.gal-stage .g1,
+.gal-stage .g2 { filter: saturate(0.94) blur(0.4px); }
+.gal-stage .g4,
+.gal-stage .g5 { filter: saturate(0.97); }
+
+/* 照片内缘暗角，模拟镜头收束（不改变页面配色令牌） */
+.gal-card::after {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: 3px;
+  background: radial-gradient(115% 95% at 50% 42%, transparent 58%, rgba(74, 5, 16, 0.16) 100%);
+  pointer-events: none;
+}
+
+/* 悬停 / 键盘聚焦：扶正并放大，置于最前 */
+.gal-card:hover,
+.gal-card:focus-visible {
+  transform: rotate(0deg) scale(1.07);
+  box-shadow: 0 16px 34px rgba(74, 5, 16, 0.26);
+  z-index: 30;
+  outline: none;
+  filter: none;
+}
+.gal-card:focus-visible {
+  box-shadow: 0 16px 34px rgba(74, 5, 16, 0.26),
+              0 0 0 3px rgba(201, 162, 39, 0.55);
+}
+
+/* 五张错落定位：上层两张、中心主图、下层两张，互相轻微叠压 */
+.g1 { left: 0;    top: 1%;   --r: -7deg;  --z: 3; width: 44%; }
+.g2 { left: 47%;  top: 4%;   --r: 6deg;   --z: 2; width: 50%; }
+.g3 { left: 21%;  top: 25%;  --r: -1.5deg; --z: 6; width: 55%; }
+.g4 { left: 1%;   top: 51%;  --r: 5deg;   --z: 4; width: 46%; }
+.g5 { left: 51%;  top: 55%;  --r: -5deg;  --z: 5; width: 47%; }
+
+/* 窄屏：整体收拢，旋转与位移减小，避免溢出 */
+@media (max-width: 420px) {
+  .gal-stage { aspect-ratio: 1 / 1.06; }
+  .g1 { --r: -6deg; width: 45%; }
+  .g2 { --r: 5deg;  width: 50%; left: 48%; }
+  .g3 { --r: -1deg; width: 56%; }
+  .g4 { --r: 4deg;  width: 47%; }
+  .g5 { --r: -4deg; width: 48%; }
+}
+
+/* 减弱动效：不位移不缩放，仅加描边提示 */
+@media (prefers-reduced-motion: reduce) {
+  .gal-card { transition: box-shadow 0.2s ease; }
+  .gal-card:hover,
+  .gal-card:focus-visible { transform: rotate(var(--r, 0deg)); }
+}
+
+/* 打印：摊平为单列，避免叠压 */
+@media print {
+  .gal-stage { aspect-ratio: auto; }
+  .gal-card {
+    position: static;
+    width: 100%;
+    margin-bottom: 10px;
+    transform: none;
+    box-shadow: none;
+    filter: none;
+  }
+}
+
+/* ---- 点击放大灯箱（层级需高于底部导航的 100） ---- */
+.gal-card { cursor: zoom-in; }
+
+.gal-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: none;
+}
+.gal-modal.is-open { display: block; }
+
+.gal-modal-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(18, 5, 9, 0.88);
+  opacity: 0;
+}
+
+.gal-modal-figure {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+}
+
+.gal-modal-img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 88vw;
+  max-height: 80vh;
+  border: 1px solid rgba(201, 162, 39, 0.45);
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  will-change: transform;
+  transform-origin: 50% 50%;
+  transition: border-color .28s ease, box-shadow .28s ease;
+}
+
+/* 唯一文字：关闭提示（辅助字号 12px，黑体栈，金调半透明） */
+.gal-modal-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  padding: 0 18px;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.6;
+  letter-spacing: 0.08em;
+  color: rgba(232, 200, 106, 0.82);
+  opacity: 0;
+  transition: opacity 0.32s ease;
+  pointer-events: none;
+}
+.gal-modal.is-open .gal-modal-hint { opacity: 1; }
+
+/* 灯箱本身不显示焦点框（无按钮可聚焦，焦点仅用于接管键盘事件） */
+.gal-modal:focus { outline: none; }
+
+/* 收起最后阶段：淡掉金线相框与投影，与卡片画面无缝贴合 */
+.gal-modal.is-closing .gal-modal-img {
+  border-color: transparent;
+  box-shadow: none;
+}
+.gal-modal.is-closing .gal-modal-hint { opacity: 0; }
+
+/* 灯箱打开时锁住页面滚动 */
+html.gal-lock,
+html.gal-lock body { overflow: hidden; }
+
+@media print { .gal-modal { display: none !important; } }
+
+/* ============================================================
    响应式
    ============================================================ */
 @media (max-width: 380px) {

@@ -32,3 +32,13 @@
   letter-spacing: 0.02em;
   color: var(--muted);
 }
+
+/* 步骤序号（壹/贰/叁）：金棕，区别于标题深红 */
+.step-no {
+  margin-right: 8px;
+  font-family: var(--font-title);
+  font-weight: 900;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  color: var(--gold-deep);
+}

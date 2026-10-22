@@ -28,7 +28,7 @@
 | 专题站单文件构建（离线发布） | `python competition-timeline/.tools/build_single.py <入口页> <输出>`（产物入库到 `competition-timeline/pub/`） |
 | 专题站字体子集重建 | `python competition-timeline/.tools/subset_font.py`（之后把各页 `?v=` 递增，当前统一 `?v=4`） |
 | 数据库备份（SQLite 三件套 + SHA256 清单 + 轮转） | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-db.ps1 -All`（默认只备主站库，`-All` 连留言库一起备；`-ServiceName` 配合 nssm 停服取一致快照） |
-| 字体重建（内容新增汉字后） | `python scripts/build-fonts.py`（见「已知坑」，本机缺输入） |
+| 字体重建（内容新增汉字后） | `python scripts/build-fonts.py`（输入已全部入库，只缺 fonttools + brotli，见「已知坑」） |
 | 截图（Edge headless，CDP） | `node scripts/cdp-shot.js "<url>" out.png 390 844 3000` |
 | 手机视口截图 | `node tools/mobile-shot.js "<url>" out.png 390 844` |
 | 公网演示（cloudflared 隧道） | 双击 `启动外网演示.bat`，或 `powershell -NoProfile -ExecutionPolicy Bypass -File tools/start-public-demo.ps1` |
@@ -74,7 +74,8 @@ js/api.js               ★ 数据访问统一层（mock 分支 + http 分支 + 
 js/ui.js                共享组件：自绘 SVG 图标集 / 徽章 / 节点行 / 弹窗 / toast（含 ARIA）
 js/router.js            hash 路由 + tabBar + 路由守卫 + 首访欢迎页
 js/map3d.js             3D 沙盘（three.js；高程图 assets/map3d/heightmap.png）
-js/map-provinces.js     省级边界数据（长征 12 省，裁剪+简化，2D 路线图与 3D 省界虚线共用）
+js/map-provinces.js     省级边界数据（全国 35 省，范围 73–136°E / 3–54.5°N，简化容差 0.04°；2D 路线图与 3D 省界虚线共用）
+js/map-factions.js      长征态势数据（友军路线 / 国军封锁线 / 合围区 / 追堵箭头 / 根据地；2D 与 3D 共用，均为示意坐标）
 js/weather.js           页面级天气特效（canvas，尊重 reduced-motion）
 js/live-reload.js       ?live=1 时的开发自动刷新
 js/mock/nodes.js        11 节点（9 篇文案已交付，泸定桥/腊子口仍为占位；含经纬度/阶段/detail 块/quiz 关联）；8 个节点的 detail.blocks 首块是 video（assets/video/<code>.mp4，位于「历史背景」标题上方）
@@ -146,11 +147,11 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 - `scripts/test-web.js` 在运行时把 `config.USE_MOCK` 改 true，验证的是 mock 分支；`js/api.js` 在 Node 下用内存存储兜底（无 localStorage）。
 - `scripts/test-api.js` 在 `require('../server/server')` **之前**设置 `DB_PATH` 指向临时库；测试自己负责清理，别指向 `server/data.db`（SQLite 还会留下 `-wal`/`-shm`，只删 `data.db` 删不干净）。
 - `README.md`（主站）有两处过期描述：开头「地图用 Leaflet CDN」（实际内联 SVG，零联网）与测试断言数「19 / 71 项」（实际 61 / 132）；另外根 README 完全没提 `competition-timeline` 专题站。以代码、测试与 `competition-timeline/README.md` 为准。
-- `scripts/build-fonts.py` 需要 fonttools + brotli，并读取 `fonts/urls.txt`（**该文件未入库**）与 101 个原始切片；因此本仓库无法直接重建字体。没有原始切片来源时，改动文案只能接受回落到系统宋体，不要伪造 woff2。
-- **内容交付后字体子集没重建（现存）**：`ea84a48` 填充了 9 个节点文案与全部题目，但 `fonts/glyphs.txt` / woff2 未更新；扫描 `js/**`（除 `vendor`）+ `server/**` + `index.html` 实测有 **80 个 ≥U+2000 字符不在子集内**（如 苏/晚/委/赶/赴/援/捐/灌/浴…），这些字会逐字回落系统宋体。`test-web` 的覆盖断言只查 `server/question-bank.json`，**测试全绿 ≠ 字形齐全**；重建须在有原始切片的机器上跑 `python scripts/build-fonts.py`，再把 `fonts/glyphs.txt` 与两个 woff2 一起提交。
+- `scripts/build-fonts.py` 需要 fonttools + brotli；输入已全部入库（`fonts/urls.txt` 记录 101 个切片的来源，切片本身也在 `fonts/`），缺的只是这两个 Python 包（本机 runtime 未装）。装好后即可离线重建 `glyphs.txt` + 两个 woff2，不需要原始素材机；不要手写 @font-face 或伪造 woff2。
+- **内容交付后字体子集没重建（现存）**：`ea84a48` 填充了 9 个节点文案与全部题目，`43db922` 又加了省界与敌我态势文本，但 `fonts/glyphs.txt` / woff2 未更新；扫描 `js/**`（除 `vendor`）+ `server/**` + `index.html`（去 BOM）实测有 **118 个 ≥U+2000 字符不在子集内**（苏/晚/委/赶/赴/援/捐…，以及省名 京/津/蒙/辽/吉/浙/疆/港/澳 等），这些字会逐字回落系统宋体。`test-web` 的覆盖断言只查 `server/question-bank.json`，**测试全绿 ≠ 字形齐全**；重建后把 `fonts/glyphs.txt` 与两个 woff2 一起提交。
 - 浏览器验收脚本硬编码 Edge 路径 `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`；`scripts/dom-check-*` 与 `scripts/play-*` 还硬编码 `http://localhost:8088/?mock=1`——必须先起后端，换机器要改路径。
 - **视频依赖 Range**：静态服务对 `.mp4` 返回 `206 Partial Content` + `Content-Range`（iOS Safari 不拿到 206 就不播，拖进度条也依赖它），其他扩展名仍是整文件 200。改 `serveStatic` 时别把这段删了；新增视频用 `ffmpeg -c:v libx264 -crf 30 -preset medium -movflags +faststart -c:a aac -b:a 64k`（源素材 228 MB → 产出 71 MB）。
-- **省界数据是生成物**：`js/map-provinces.js` 由 `samples/build_provinces.py` 从公开 GeoJSON 裁剪 + 简化生成（只留赣/湘/桂/黔/滇/川/甘/陕/宁/渝/鄂/青 12 省，范围 99–119°E / 22.5–38.5°N，容差 0.02°）。改范围或精度就改脚本重跑，不要手改这个文件；2D 与 3D 读的是同一份数据。
+- **省界/态势数据是生成物**：`js/map-provinces.js` 头部注明由 `samples/build_provinces_all.py` 从公开 GeoJSON 裁剪 + 简化生成（35 省，73–136°E / 3–54.5°N，容差 0.04°），但**该脚本未入库**——不要手改这份坐标，需要调整范围/精度时先补回生成脚本再重跑；`js/map-factions.js` 是手工维护的示意数据（坐标仅表走向，不作测绘依据），改它不算改生成物。
 - 静态响应按扩展名分层：html/css/js/json 走 `no-cache` + ETag（可拿 304），图片/字体给 1 天；文本类按 `Accept-Encoding` 返回 gzip 并带 `Vary`。**HEAD 请求仍是 405**（测试锁定为「保持改造前语义」），不要顺手加 HEAD 分支。
 - `/__version` 忽略 `js/vendor/`，改其他 js/css 会触发 `?live=1` 重载。
 - 用 pwsh 读中文文件请走 read 工具或显式 `-Encoding utf8`：本机 PowerShell 的 `Get-Content` 会把无 BOM 的 UTF-8 中文读成乱码（文件本身没问题，`server/server.js` 带 BOM，其余无 BOM，保持现状）。
@@ -170,7 +171,7 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 3. 动了 UI：`node server/server.js` 后浏览 `http://localhost:8088/?mock=1#/`（建议带 `?live=1`），用 `scripts/cdp-shot.js` 或 `tools/mobile-shot.js` 出 390×844 截图自查首屏、tabBar 不遮挡、四态颜色、无横向滚动、焦点环可见。
 4. 动了判分/账号/竞赛：两种模式都要走一遍真实流程（打卡 → 取题 → 交卷 → 毕业 → 竞赛），不能只跑单测。
 5. 动了专题站/托管：同时起主站 8088 与留言 8899，验证 `/competition-timeline/` 页面可开、`/competition-timeline/admin.html` 与 `/competition-timeline/server/server.js` 均 404、留言可读写、停掉 8899 后 `/api/comments` 返回 503。
-6. 改了文案/题目：确认新增汉字都在 `fonts/glyphs.txt` 里（不在就会回落系统宋体，见「已知坑」）；有原始切片的机器上重跑 `scripts/build-fonts.py`，把 `glyphs.txt` 与两个 woff2 一起提交。
+6. 改了文案/题目：确认新增汉字都在 `fonts/glyphs.txt` 里（不在就会回落系统宋体，见「已知坑」）；装好 fonttools + brotli 后重跑 `scripts/build-fonts.py`，把 `glyphs.txt` 与两个 woff2 一起提交。
 7. **不得为了让测试通过而删断言、放宽断言或改测试预期**；测试是行为契约（例如静态白名单 404、答案不下发、字体 ≤2 个 @font-face）。
 
 ## 提交

@@ -56,7 +56,7 @@ for src, weight, out in jobs:
     print(f'{out}: {kb:.0f} KB (weight {weight})')
 
 # 生成精简的 font css（带版本号，避免浏览器缓存旧字体导致字形缺失）
-FONT_VER = '4'  # 4: 扫描范围改为 glob，纳入 series-3 等新页面
+FONT_VER = '5'  # 5: 纳入「百炼成器 · 笃行致远」等新文案（v4 子集缺 32 字）
 css_lines = ["/* Noto Serif SC 子集（仅含站点实际用到的字符，fontTools 生成） */"]
 for _, weight, out in jobs:
     css_lines.append(f"""@font-face {{
