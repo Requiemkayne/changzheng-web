@@ -1,8 +1,8 @@
 /**
  * 题目占位数据（与 miniprogram/mock/questions.js、cloudfunctions/initData/seed/questions.js 同构）
  *
- * ⚠ 全部题目为占位题（基于公开常识编写，供框架联调用），
- * 待出题组交付正式题库后替换。结构说明见 data/questions.example.json。
+ * ⚠ 题目已按文案组 Word 交付填充（11 节点正式题库，含答案与解析）；
+ * 激战腊子口 3 题于 2026-10-23 补全。结构说明见 data/questions.example.json。
  *
  * type: single 单选 | multiple 多选 | judge 判断
  * answer 恒为数组（选项下标，0 起）；multiple 判分时集合相等、顺序无关。
