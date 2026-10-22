@@ -899,6 +899,88 @@ tbody td:nth-child(2) {
 }
 
 /* ============================================================
+   分页导航：页内「返回」与页底「下一篇」
+   · 四个前台页（总览 + 系列一/二/三）统一，形成
+     总览 → 一 → 二 → 三 → 总览 的闭环；返回链固定在内容区顶部，
+     下一篇入口固定在页脚之后
+   · 尺寸沿用 .jump（36px 触控高度）与 .foot / .step 的卡片语言：
+     两枚入口都用浅色底，焦点环继续交给全局 a:focus-visible（深红），
+     不在深红底上放交互元素，就不需要为焦点环另开金环例外
+   ============================================================ */
+.page-nav { margin: 0 0 14px; }
+.page-nav-foot { margin: 20px 0 0; }
+
+.page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 36px;
+  padding: 0 12px 0 8px;
+  border: var(--gold-border);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--red-dark);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+.page-back:hover { background: var(--gold-pale); }
+.page-back:active { transform: scale(0.985); }
+
+.page-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: var(--gold-border);
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  transition: box-shadow 0.2s ease, transform 0.08s ease;
+}
+.page-next:hover { box-shadow: var(--shadow-hover); }
+.page-next:active { transform: scale(0.995); }
+
+.page-next-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.page-next-kicker {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--gold-deep);
+}
+.page-next-title {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  color: var(--red-dark);
+}
+
+/* 箭头：返回朝左、下一篇朝右，均用自绘 SVG（禁 emoji 与字形图标） */
+.page-back .ic,
+.page-next .ic {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.page-back .ic { width: 13px; height: 13px; }
+.page-next .ic {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  color: var(--gold-deep);
+}
+
+/* ============================================================
    响应式
    ============================================================ */
 @media (max-width: 380px) {
@@ -941,7 +1023,7 @@ tbody td:nth-child(2) {
 
 /* 打印 */
 @media print {
-  .shell-bar, .jump { display: none; }
+  .shell-bar, .jump, .page-nav { display: none; }
   body { background: #fff; }
   .app { max-width: none; border: none; box-shadow: none; }
   .hero { background: none; color: var(--ink); box-shadow: none; }

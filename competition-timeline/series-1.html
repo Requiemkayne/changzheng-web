@@ -53,6 +53,14 @@
 
   <main class="page">
     <div class="wrap">
+      <!-- 分页导航（页顶）：回到专题站总览；固定入口，不依赖浏览器历史栈 -->
+      <nav class="page-nav" aria-label="分页导航">
+        <a class="page-back" href="index.html" data-keep-search>
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+          <span>返回总览</span>
+        </a>
+      </nav>
+
 
       <!-- ========== 引言 ========== -->
       <section class="intro">
@@ -228,13 +236,16 @@
         </ol>
       </section>
 
-      <!-- ========== 来源 ========== -->
-      <footer class="foot">
-        <h2 class="block-title">内 容 来 源</h2>
-        <p>上海市经济管理学校 · <a href="https://www.shems.edu.cn/P/C/236940.htm" target="_blank" rel="noopener">《【技炫青春 能创未来】系列报道（一）日夜磨一剑 鹭岛摘金奖｜新一代信息技术赛道金奖团队备赛攻坚纪实》</a></p>
-        <p class="small">发布时间：2026-10-19　供稿：计算机系 25001班 魏楚禾　指导教师：计算机系 黄士彬　摄影：孔庆苹、叶胤翔、24003班张芾源</p>
-        <p class="small">本页为原文内容的时间线整理与可视化，文字与图片版权归原文作者及上海市经济管理学校所有。</p>
-      </footer>
+      <!-- 分页导航（页底）：系列（一）之后接系列（二） -->
+      <nav class="page-nav page-nav-foot" aria-label="分页导航">
+        <a class="page-next" href="series-2.html" data-keep-search>
+          <span class="page-next-body">
+            <span class="page-next-kicker">下一篇</span>
+            <span class="page-next-title">系列报道（二）· 把训练当比赛 闭环淬炼</span>
+          </span>
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg>
+        </a>
+      </nav>
 
     </div>
   </main>
@@ -263,17 +274,35 @@
   </nav>
 
 
-  <!-- 保留查询参数（?demo=1 / ?live=1）：避免从专题页回主站时被路由守卫弹到登录页 -->
+  <!-- 1) 保留查询参数（?demo=1 / ?live=1），避免回主站被路由守卫弹到登录页；
+        顶部分页返回链与页底下一篇入口同样带 data-keep-search，走同一段改写
+       2) 已在专题站内点「青春经管」不再重载当页（同页只滚回顶部），跨页（系列页→总览）仍照常跳转 -->
   <script>
   (function () {
     var q = location.search
-    if (!q) return
-    var links = document.querySelectorAll('#tabbar a[href*="index.html"]')
+    var links = document.querySelectorAll('#tabbar a[href*="index.html"], a[data-keep-search]')
     for (var i = 0; i < links.length; i++) {
       var href = links[i].getAttribute('href')
       var parts = href.split('#')
-      links[i].setAttribute('href', parts[0] + q + (parts[1] ? '#' + parts[1] : ''))
+      if (q) links[i].setAttribute('href', parts[0] + q + (parts[1] ? '#' + parts[1] : ''))
     }
+    // /dir/index.html 与 /dir/ 是同一页：按规范化后的路径判，避免凭写法差异漏判
+    function samePage(href) {
+      var norm = function (p) { return p.replace(/\/index\.html$/, '/') }
+      try {
+        return norm(new URL(href, location.href).pathname) === norm(location.pathname)
+      } catch (e) {
+        return false
+      }
+    }
+    var self = document.querySelector('#tabbar .tab[aria-current="page"]')
+    if (!self) return
+    self.addEventListener('click', function (e) {
+      if (!samePage(self.getAttribute('href'))) return
+      e.preventDefault()
+      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+    })
   })()
   </script>
 

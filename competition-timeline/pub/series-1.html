@@ -930,6 +930,88 @@ tbody td:nth-child(2) {
 }
 
 /* ============================================================
+   分页导航：页内「返回」与页底「下一篇」
+   · 四个前台页（总览 + 系列一/二/三）统一，形成
+     总览 → 一 → 二 → 三 → 总览 的闭环；返回链固定在内容区顶部，
+     下一篇入口固定在页脚之后
+   · 尺寸沿用 .jump（36px 触控高度）与 .foot / .step 的卡片语言：
+     两枚入口都用浅色底，焦点环继续交给全局 a:focus-visible（深红），
+     不在深红底上放交互元素，就不需要为焦点环另开金环例外
+   ============================================================ */
+.page-nav { margin: 0 0 14px; }
+.page-nav-foot { margin: 20px 0 0; }
+
+.page-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 36px;
+  padding: 0 12px 0 8px;
+  border: var(--gold-border);
+  border-radius: var(--r-sm);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--red-dark);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+}
+.page-back:hover { background: var(--gold-pale); }
+.page-back:active { transform: scale(0.985); }
+
+.page-next {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border: var(--gold-border);
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  transition: box-shadow 0.2s ease, transform 0.08s ease;
+}
+.page-next:hover { box-shadow: var(--shadow-hover); }
+.page-next:active { transform: scale(0.995); }
+
+.page-next-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.page-next-kicker {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--gold-deep);
+}
+.page-next-title {
+  font-family: var(--font-title);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  color: var(--red-dark);
+}
+
+/* 箭头：返回朝左、下一篇朝右，均用自绘 SVG（禁 emoji 与字形图标） */
+.page-back .ic,
+.page-next .ic {
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.page-back .ic { width: 13px; height: 13px; }
+.page-next .ic {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+  color: var(--gold-deep);
+}
+
+/* ============================================================
    响应式
    ============================================================ */
 @media (max-width: 380px) {
@@ -972,7 +1054,7 @@ tbody td:nth-child(2) {
 
 /* 打印 */
 @media print {
-  .shell-bar, .jump { display: none; }
+  .shell-bar, .jump, .page-nav { display: none; }
   body { background: #fff; }
   .app { max-width: none; border: none; box-shadow: none; }
   .hero { background: none; color: var(--ink); box-shadow: none; }
@@ -982,8 +1064,63 @@ tbody td:nth-child(2) {
 }
 
 </style>
+  <style>
+/* 专题页底部四栏导航：与主站 tabBar 一致，保证从「青春经管」能随时回到长征栏目 */
+#tabbar {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: linear-gradient(180deg, #7A0C1C, #5E0713);
+  border-top: 1px solid rgba(232, 200, 106, 0.5);
+  display: flex;
+  max-width: 480px;
+  margin: 0 auto;
+  z-index: 100;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+#tabbar .tab {
+  flex: 1;
+  text-align: center;
+  padding: 9px 0 7px;
+  color: #C9A89E;
+  display: block;
+  position: relative;
+  transition: color .15s;
+  text-decoration: none;
+}
+#tabbar .tab .ic {
+  width: 22px; height: 22px;
+  display: block;
+  margin: 0 auto 1px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#tabbar .tab-text { font-size: 11px; letter-spacing: 2px; }
+#tabbar .tab:active { opacity: 0.8; }
+#tabbar .tab.tab-active { color: #E8C86A; font-weight: 700; }
+#tabbar .tab.tab-active::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  width: 30px; height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: linear-gradient(90deg, #A8182C, #E8C86A);
+}
+/* 焦点环：与主站一致，tabBar 内用金环 */
+#tabbar .tab:focus-visible {
+  outline: 2px solid #E8C86A;
+  outline-offset: -3px;
+  border-radius: 6px;
+}
+/* 给固定底栏留出空间，避免遮住页脚内容 */
+body.has-tabbar { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+
+</style>
 </head>
-<body>
+<body class="has-tabbar">
 
 <div class="app">
 
@@ -1026,6 +1163,14 @@ tbody td:nth-child(2) {
 
   <main class="page">
     <div class="wrap">
+      <!-- 分页导航（页顶）：回到专题站总览；固定入口，不依赖浏览器历史栈 -->
+      <nav class="page-nav" aria-label="分页导航">
+        <a class="page-back" href="index.html" data-keep-search>
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+          <span>返回总览</span>
+        </a>
+      </nav>
+
 
       <!-- ========== 引言 ========== -->
       <section class="intro">
@@ -1201,18 +1346,75 @@ tbody td:nth-child(2) {
         </ol>
       </section>
 
-      <!-- ========== 来源 ========== -->
-      <footer class="foot">
-        <h2 class="block-title">内 容 来 源</h2>
-        <p>上海市经济管理学校 · <a href="https://www.shems.edu.cn/P/C/236940.htm" target="_blank" rel="noopener">《【技炫青春 能创未来】系列报道（一）日夜磨一剑 鹭岛摘金奖｜新一代信息技术赛道金奖团队备赛攻坚纪实》</a></p>
-        <p class="small">发布时间：2026-10-19　供稿：计算机系 25001班 魏楚禾　指导教师：计算机系 黄士彬　摄影：孔庆苹、叶胤翔、24003班张芾源</p>
-        <p class="small">本页为原文内容的时间线整理与可视化，文字与图片版权归原文作者及上海市经济管理学校所有。</p>
-      </footer>
+      <!-- 分页导航（页底）：系列（一）之后接系列（二） -->
+      <nav class="page-nav page-nav-foot" aria-label="分页导航">
+        <a class="page-next" href="series-2.html" data-keep-search>
+          <span class="page-next-body">
+            <span class="page-next-kicker">下一篇</span>
+            <span class="page-next-title">系列报道（二）· 把训练当比赛 闭环淬炼</span>
+          </span>
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg>
+        </a>
+      </nav>
 
     </div>
   </main>
 
 </div>
+
+
+  <!-- 底部四栏导航：与长征主站一致，保证随时能回到主站各栏目 -->
+  <nav id="tabbar" aria-label="主导航">
+    <a class="tab" href="../index.html#/">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4"/><path d="M5 4h11l-2.5 3.5L16 11H5"/></svg>
+      <span class="tab-text">路线</span>
+    </a>
+    <a class="tab" href="../index.html#/map">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19l5-6 4 3 9-9"/><circle cx="12" cy="12" r="1.6"/><path d="M9 20.5l3-1.5 3 1.5"/></svg>
+      <span class="tab-text">地图</span>
+    </a>
+    <a class="tab" href="../index.html#/profile">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.5-3.6 4.4-5.2 7.5-5.2s6 1.6 7.5 5.2"/></svg>
+      <span class="tab-text">我的</span>
+    </a>
+    <a class="tab tab-active" href="index.html" aria-current="page">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-4.5L21 9l-9 4.5L3 9z"/><path d="M6.5 11v4.2c3.5 2 7.5 2 11 0V11"/><path d="M21 9v5"/></svg>
+      <span class="tab-text">青春经管</span>
+    </a>
+  </nav>
+
+
+  <!-- 1) 保留查询参数（?demo=1 / ?live=1），避免回主站被路由守卫弹到登录页；
+        顶部分页返回链与页底下一篇入口同样带 data-keep-search，走同一段改写
+       2) 已在专题站内点「青春经管」不再重载当页（同页只滚回顶部），跨页（系列页→总览）仍照常跳转 -->
+  <script>
+  (function () {
+    var q = location.search
+    var links = document.querySelectorAll('#tabbar a[href*="index.html"], a[data-keep-search]')
+    for (var i = 0; i < links.length; i++) {
+      var href = links[i].getAttribute('href')
+      var parts = href.split('#')
+      if (q) links[i].setAttribute('href', parts[0] + q + (parts[1] ? '#' + parts[1] : ''))
+    }
+    // /dir/index.html 与 /dir/ 是同一页：按规范化后的路径判，避免凭写法差异漏判
+    function samePage(href) {
+      var norm = function (p) { return p.replace(/\/index\.html$/, '/') }
+      try {
+        return norm(new URL(href, location.href).pathname) === norm(location.pathname)
+      } catch (e) {
+        return false
+      }
+    }
+    var self = document.querySelector('#tabbar .tab[aria-current="page"]')
+    if (!self) return
+    self.addEventListener('click', function (e) {
+      if (!samePage(self.getAttribute('href'))) return
+      e.preventDefault()
+      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+    })
+  })()
+  </script>
 
 </body>
 </html>

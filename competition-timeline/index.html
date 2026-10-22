@@ -46,6 +46,14 @@
 
   <main class="page">
     <div class="wrap">
+      <!-- 分页导航（页顶）：总览页的上一级是长征主站「路线」页；固定入口，不依赖浏览器历史栈 -->
+      <nav class="page-nav" aria-label="分页导航">
+        <a class="page-back" href="../index.html#/" data-keep-search>
+          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+          <span>返回长征主站</span>
+        </a>
+      </nav>
+
 
       <!-- ============ 3. 三篇系列报道入口 ============ -->
       <section class="series" id="list" aria-labelledby="list-title">
@@ -119,7 +127,7 @@
       <!-- ============ 5. 页脚：系列说明与数据来源 ============ -->
       <footer class="foot">
         <h2 class="block-title" id="about-title">关 于 本 系 列</h2>
-        <p class="foot-note">本页为【技炫青春 能创未来】系列报道的总览入口。三篇报道均按赛前、赛中、赛后三段重述上海市经济管理学校已刊发原文的事实，不含新增内容；各篇原文链接见该篇页面的「内容来源」块。</p>
+        <p class="foot-note">本页为【技炫青春 能创未来】系列报道的总览入口。三篇报道均按赛前、赛中、赛后三段重述上海市经济管理学校已刊发原文的事实，不含新增内容。</p>
         <p class="small foot-links">数据来源：上海市经济管理学校官网。</p>
       </footer>
 
@@ -151,17 +159,35 @@
   </nav>
 
 
-  <!-- 保留查询参数（?demo=1 / ?live=1）：避免从专题页回主站时被路由守卫弹到登录页 -->
+  <!-- 1) 保留查询参数（?demo=1 / ?live=1），避免回主站被路由守卫弹到登录页；
+        页内返回链同样带 data-keep-search，走同一段改写
+       2) 已在专题站内点「青春经管」不再重载当页（同页只滚回顶部），跨页（系列页→总览）仍照常跳转 -->
   <script>
   (function () {
     var q = location.search
-    if (!q) return
-    var links = document.querySelectorAll('#tabbar a[href*="index.html"]')
+    var links = document.querySelectorAll('#tabbar a[href*="index.html"], a[data-keep-search]')
     for (var i = 0; i < links.length; i++) {
       var href = links[i].getAttribute('href')
       var parts = href.split('#')
-      links[i].setAttribute('href', parts[0] + q + (parts[1] ? '#' + parts[1] : ''))
+      if (q) links[i].setAttribute('href', parts[0] + q + (parts[1] ? '#' + parts[1] : ''))
     }
+    // /dir/index.html 与 /dir/ 是同一页：按规范化后的路径判，避免凭写法差异漏判
+    function samePage(href) {
+      var norm = function (p) { return p.replace(/\/index\.html$/, '/') }
+      try {
+        return norm(new URL(href, location.href).pathname) === norm(location.pathname)
+      } catch (e) {
+        return false
+      }
+    }
+    var self = document.querySelector('#tabbar .tab[aria-current="page"]')
+    if (!self) return
+    self.addEventListener('click', function (e) {
+      if (!samePage(self.getAttribute('href'))) return
+      e.preventDefault()
+      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+    })
   })()
   </script>
 
