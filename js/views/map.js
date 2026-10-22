@@ -58,8 +58,8 @@
   const W = 360, H = 520            // viewBox 尺寸
   const PAD_X = 42, PAD_Y = 56      // 边距（给标签留空间）
   // 实际范围：lng 102.23~116.03，lat 25.53~35.68（含留白放大）
-  const LNG_MIN = 101.2, LNG_MAX = 117.1
-  const LAT_MIN = 24.6, LAT_MAX = 36.6
+  const LNG_MIN = 98.6, LNG_MAX = 117.6
+  const LAT_MIN = 23.8, LAT_MAX = 38.2
 
   function px(n) {
     return PAD_X + (n.location.longitude - LNG_MIN) / (LNG_MAX - LNG_MIN) * (W - 2 * PAD_X)
@@ -140,6 +140,51 @@
     [[102.8, 27.8], [103.2, 28.3], [103.9, 28.6]],
     [[103.0, 33.4], [105.0, 33.7], [107.0, 33.9]]
   ].map(geoPath)
+
+  /* ---------- 友军各部路线（红军其他主力） ---------- */
+  // 红二方面军：桑植 → 黔东 → 滇东 → 石鼓渡江 → 甘孜 → 北上会宁
+  const ROUTE_2ND = geoPath([
+    [110.2, 29.4], [109.6, 28.6], [108.6, 27.6], [107.4, 26.9], [106.2, 26.4],
+    [104.8, 26.0], [103.6, 26.2], [102.5, 27.0], [101.4, 27.6], [100.2, 28.6],
+    [99.9, 31.6], [101.2, 32.4], [102.4, 33.4], [103.6, 34.4], [104.6, 35.3], [105.1, 35.68]
+  ])
+  // 红四方面军：川陕根据地 → 强渡嘉陵江 → 懋功 → 毛儿盖 → 草地 → 会宁
+  const ROUTE_4TH = geoPath([
+    [107.5, 32.4], [106.6, 32.0], [105.8, 31.8], [104.8, 31.8], [103.9, 31.7],
+    [102.7, 31.0], [102.9, 32.9], [102.5, 33.8], [102.0, 34.5], [103.4, 35.2], [105.1, 35.68]
+  ])
+  // 红二十五军：罗山 → 桐柏山 → 伏牛山 → 陕南 → 陕北永坪
+  const ROUTE_25TH = geoPath([
+    [114.5, 32.2], [113.6, 32.3], [112.6, 32.7], [111.6, 33.3], [110.6, 33.8],
+    [109.6, 34.2], [108.9, 34.5], [109.2, 35.2], [109.9, 36.0]
+  ])
+
+  /* ---------- 国军封锁线与封锁区（蓝色系，压在友军与主线之下） ---------- */
+  // 四道封锁线（1934.10–11）+ 乌江 / 金沙江 / 大渡河 江防
+  const ENEMY_LINES = [
+    { d: geoPath([[115.6, 25.0], [115.1, 25.5], [114.6, 26.0]]), label: '第一道' },
+    { d: geoPath([[113.9, 25.2], [113.4, 25.5], [112.9, 25.8]]), label: '第二道' },
+    { d: geoPath([[113.1, 25.3], [112.8, 25.9], [112.5, 26.4]]), label: '第三道' },
+    { d: geoPath([[111.3, 25.4], [110.9, 25.8], [110.5, 26.3]]), label: '第四道（湘江）' },
+    { d: geoPath([[107.6, 26.8], [107.1, 27.2], [106.6, 27.6]]), label: '乌江防线' },
+    { d: geoPath([[102.2, 26.4], [101.9, 27.2], [101.6, 28.0]]), label: '金沙江封锁' },
+    { d: geoPath([[102.2, 29.0], [102.4, 29.6], [102.6, 30.2]]), label: '大渡河堵截' }
+  ]
+
+  // 国军重兵合围区（很淡的色块，只暗示包围态势）
+  const ENEMY_ZONES = [
+    // 湘江以东合围区
+    geoPath([[113.6, 25.2], [115.9, 25.3], [115.9, 27.4], [113.4, 27.2], [113.6, 25.2]]),
+    // 川黔边合围区
+    geoPath([[105.4, 27.6], [107.8, 27.6], [107.8, 29.4], [105.2, 29.2], [105.4, 27.6]])
+  ]
+
+  // 追堵方向（箭头起点 → 终点，只画两三处最能说明态势的）
+  const ENEMY_ARROWS = [
+    { from: [113.8, 24.9], to: [112.2, 26.2] },   // 薛岳纵队沿湘江追击
+    { from: [103.2, 30.4], to: [102.4, 29.5] },   // 川军沿大渡河北岸堵截
+    { from: [107.9, 27.0], to: [106.8, 27.4] }    // 黔军扼守乌江
+  ]
 
   // 河流示意
   const RIVERS = [
@@ -357,6 +402,18 @@
               '<filter id="mapSoft" x="-20%" y="-20%" width="140%" height="140%">' +
                 '<feGaussianBlur stdDeviation="1.3"/>' +
               '</filter>' +
+              '<marker id="arrowEnemy" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4.5" markerHeight="4.5" orient="auto">' +
+                '<path d="M0 0 L10 5 L0 10 Z" fill="rgba(47,74,107,0.85)"/>' +
+              '</marker>' +
+              '<marker id="arrowAlly2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto">' +
+                '<path d="M0 0 L10 5 L0 10 Z" fill="#D4622A"/>' +
+              '</marker>' +
+              '<marker id="arrowAlly4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto">' +
+                '<path d="M0 0 L10 5 L0 10 Z" fill="#8E3A6B"/>' +
+              '</marker>' +
+              '<marker id="arrowAlly25" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="4" markerHeight="4" orient="auto">' +
+                '<path d="M0 0 L10 5 L0 10 Z" fill="#A0522D"/>' +
+              '</marker>' +
               '<linearGradient id="mapGloss" x1="0" y1="0" x2="0" y2="1">' +
                 '<stop offset="0" stop-color="#FFFFFF" stop-opacity="0.5"/>' +
                 '<stop offset="0.42" stop-color="#FFFFFF" stop-opacity="0"/>' +
@@ -368,12 +425,25 @@
             '<rect class="map-frame-inner" x="13" y="13" width="' + (W - 26) + '" height="' + (H - 26) + '" rx="5"/>' +
             // 简化地理底图（省界 / 河流 / 山脉，示意性）
             PROVINCE_LINES.map(p => '<path class="map-province" d="' + p.d + '"/>').join('') +
+            // 国军合围区（最淡的一层，只交代态势）
+            ENEMY_ZONES.map(d => '<path class="map-enemy-zone" d="' + d + '"/>').join('') +
             PROVINCE_FALLBACK.map(d => '<path class="map-province" d="' + d + '"/>').join('') +
             (PROV_DATA && PROV_DATA.length ? provinceLabels() : '') +
             RIVERS.map(d => '<path class="map-river" d="' + d + '"/>').join('') +
             MOUNTAINS.map(m =>
               '<path class="map-mountain" d="M' + (m[0] - 7) + ' ' + (m[1] + 4) + ' L' + m[0] + ' ' + (m[1] - 6) + ' L' + (m[0] + 7) + ' ' + (m[1] + 4) + ' Z"/>'
             ).join('') +
+            // 友军各部路线（暖色细线，压在主路线之下）
+            '<path class="map-route-ally ally-2" d="' + ROUTE_2ND + '" marker-end="url(#arrowAlly2)"/>' +
+            '<path class="map-route-ally ally-4" d="' + ROUTE_4TH + '" marker-end="url(#arrowAlly4)"/>' +
+            '<path class="map-route-ally ally-25" d="' + ROUTE_25TH + '" marker-end="url(#arrowAlly25)"/>' +
+            // 国军封锁线与追堵方向
+            ENEMY_LINES.map(l => '<path class="map-enemy-line" d="' + l.d + '"/>').join('') +
+            ENEMY_ARROWS.map(a => {
+              const p1 = geo(a.from[0], a.from[1])
+              const p2 = geo(a.to[0], a.to[1])
+              return '<line class="map-enemy-arrow" x1="' + p1[0] + '" y1="' + p1[1] + '" x2="' + p2[0] + '" y2="' + p2[1] + '" marker-end="url(#arrowEnemy)"/>'
+            }).join('') +
             '<path id="mapRoutePath" d="' + routeD + '" fill="none" stroke="none"/>' +
             // 伪 3D：路线下方两层半透明投影，制造"浮起"错觉
             '<polyline class="map-route-depth3" points="' + polyline + '" transform="translate(4.2,11)" filter="url(#mapSoft)"/>' +
@@ -395,7 +465,11 @@
         '</div>' +   // <div class="map-stage"> 结束
         '<div class="map-replay-wrap"><button class="btn btn-mini btn-mini-ghost" id="map-replay" type="button">' + UI.icon('replay', 'map-replay-ic') + ' 重播行军动画</button></div>' +
         '<div class="map-legend">' +
-          '<span><i class="legend-route"></i>行军路线</span>' +
+          '<span><i class="legend-route"></i>红一方面军</span>' +
+          '<span><i class="legend-ally legend-ally-2"></i>红二方面军</span>' +
+          '<span><i class="legend-ally legend-ally-4"></i>红四方面军</span>' +
+          '<span><i class="legend-ally legend-ally-25"></i>红二十五军</span>' +
+          '<span><i class="legend-enemy"></i>国军封锁</span>' +
           '<span><i class="legend-open"></i>待打卡</span>' +
           '<span><i class="legend-checked"></i>已打卡</span>' +
           '<span><i class="legend-passed"></i>已通关</span>' +
