@@ -253,26 +253,26 @@
     // ===== 10 激战腊子口 =====
     {
       _id: 'q-lazikou-1', nodeCode: 'lazikou', type: 'single',
-      question: '（占位题）腊子口位于哪个省？',
-      options: ['四川省', '甘肃省', '陕西省', '宁夏'],
+      question: '腊子口战役发生在哪一年？',
+      options: ['1934', '1935', '1936', '1937'],
       answer: [1],
-      explanation: '（占位解析）腊子口位于甘肃省迭部县。',
+      explanation: '1935年9月，红军抵达甘肃迭部县腊子口，展开激战并一举攻克天险。',
       difficulty: 1, status: 'published'
     },
     {
       _id: 'q-lazikou-2', nodeCode: 'lazikou', type: 'single',
-      question: '（占位题）攻克腊子口的意义是？',
-      options: ['长征胜利结束', '打通北上进入陕甘的大门', '跳出包围圈', '四渡赤水'],
-      answer: [1],
-      explanation: '（占位解析）腊子口是川甘通道咽喉，攻克后红军打开了北上进入陕甘的大门。',
+      question: '腊子口位于今天哪个省份？',
+      options: ['四川', '陕西', '甘肃', '青海'],
+      answer: [2],
+      explanation: '腊子口位于今甘肃省甘南藏族自治州迭部县，是川甘通道的咽喉要道。',
       difficulty: 1, status: 'published'
     },
     {
-      _id: 'q-lazikou-3', nodeCode: 'lazikou', type: 'judge',
-      question: '（占位题）激战腊子口发生在1935年9月。',
-      options: ['正确', '错误'],
-      answer: [0],
-      explanation: '（占位解析）1935年9月，红军攻克天险腊子口。',
+      _id: 'q-lazikou-3', nodeCode: 'lazikou', type: 'single',
+      question: '腊子口战役的战役性质是？',
+      options: ['阻击战', '攻坚之战', '游击战', '突围战'],
+      answer: [1],
+      explanation: '腊子口峡谷两侧悬崖陡壁、隘口狭窄、易守难攻，红军正面强攻与侧后迂回突袭两面配合，是一场攻坚之战。',
       difficulty: 1, status: 'published'
     },
 

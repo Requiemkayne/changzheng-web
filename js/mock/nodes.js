@@ -2,7 +2,7 @@
  * 节点占位数据（与 miniprogram/mock/nodes.js、cloudfunctions/initData/seed/nodes.js 同构）
  *
  * 说明：瑞金/湘江/遵义/四渡赤水/金沙江/大渡河/雪山/草地/会宁 已按文案组 Word 交付填充；
- * 飞夺泸定桥、激战腊子口 仍为占位文案，待交付。
+ * 激战腊子口已补全真实文案（文案组《激战腊子口.docx》交付）；飞夺泸定桥 仍为占位文案，待交付。
  * 结构说明见 data/nodes.example.json。
  * 图片字段留空串，渲染层自动显示主题色块兜底。
  */
@@ -469,12 +469,12 @@
       date: '1935年9月',
       stage: '走向胜利',
       location: { name: '甘肃省迭部县', longitude: 103.89, latitude: 34.23 },
-      summary: '（占位文案）红军攻克天险腊子口，打开了北上进入陕甘的大门。',
+      summary: '红军抵达甘肃迭部腊子口，正面强攻与侧后迂回配合一举攻克天险，打通了北上进入陕甘的道路。',
       detail: {
         blocks: [
           { type: 'video', src: 'assets/video/lazikou.mp4', poster: 'assets/route/lazikou.webp' },
           { type: 'heading', text: '历史背景' },
-          { type: 'paragraph', text: '（占位文案，待文案组替换）腊子口是川甘通道的咽喉，两侧悬崖陡壁，红军正面强攻与侧后迂回结合，一举攻克。' },
+          { type: 'paragraph', text: '1935年9月，红军抵达甘肃迭部县腊子口。腊子口是川甘通道的咽喉要道，峡谷两侧悬崖陡壁，隘口狭窄，易守难攻，是红军北上必须攻克的天险。红军采取正面强攻吸引敌军注意力，同时派出部队攀援悬崖，从侧后迂回突袭，两面配合一举攻破腊子口。这场攻坚之战打通红军北上的道路，扫除长征途中最后一道大的天然屏障，为红军进入陕甘地区创造关键条件。' },
           { type: 'timeline', items: [
               {
                 date: '1935-09-16',
