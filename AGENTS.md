@@ -7,7 +7,7 @@
 仓库里是**两个站点**，同源托管、设计语言一致：
 
 1. **主站「长征 · 重走长征路」**（仓库根目录）：沿长征路线 11 个节点虚拟打卡、答题闯关、毕业考试、积分赛排行榜的红色教育网页应用。
-2. **专题站「日夜磨一剑 · 鹭岛摘金奖」**（`competition-timeline/`）：备赛攻坚纪实系列报道（总览 + 三篇），带留言区、管理后台与离线单文件版；主站 tabBar 末位「青春经管」即入口，主站把专题站托管在 `/competition-timeline/` 并反代其留言接口。
+2. **专题站「日夜磨一剑 · 鹭岛摘金奖」**（`competition-timeline/`）：备赛攻坚纪实系列报道（总览 + 三篇），带留言区、管理后台与离线单文件版；主站 tabBar「我的」左侧「青春经管」即入口，主站把专题站托管在 `/competition-timeline/` 并反代其留言接口。
 
 主站要点：
 
@@ -51,20 +51,20 @@
 
 ## 专题站 competition-timeline（第二站点，独立留言服务）
 
-- 页面：`index.html`（总览，**全站唯一留言区**）+ `series-1/2/3.html` + `admin.html`（后台，仅 :8899 直连可见；经主站访问一律 404）；四个前台页面底部都带四栏导航（`css/tabbar.css`），链回主站「路线/地图/我的」并保留 `?demo=1 / ?live=1` 查询参数。
+- 页面：`index.html`（总览，无留言区）+ `series-1/2/3.html`（三个正文页各自带按篇隔离的留言区）+ `admin.html`（后台，仅 :8899 直连可见；经主站访问一律 404）；四个前台页面底部都带四栏导航（`css/tabbar.css`），链回主站「路线/地图/我的」并保留 `?demo=1 / ?live=1` 查询参数。
 - 服务：`node competition-timeline/server/server.js` → :8899，零依赖；环境变量 `PORT`（默认 8899）、`DB_PATH`（默认 `server/data.db`）、`ADMIN_PASSWORD`（首次启动的初始口令，控制台打印并写入 `server/初始管理员.txt`，该文件已 gitignore）。
 - 主站托管：主站 `server/server.js` 用**嵌套白名单**（`STATIC_NESTED`）在 `/competition-timeline/` 下只放行 `index/series-1/2/3.html` 与 `css/ js/ fonts/ assets/ pub/`；`admin.html`、`server/`（源码 + SQLite）、`.tools/`、`.draft/`、README 一律 404（`scripts/test-api.js` 有断言）。
 - 留言反代：主站把 `/api/comments`（含 `/:id`）反代到 `COMMENTS_UPSTREAM`（默认 `http://127.0.0.1:8899`），**不反代 `/api/admin/*`**；上游不可用返回 503 `{ ok:false, code:'COMMENTS_UNAVAILABLE' }`（注释流式透传，5s 超时）。
 - 专题站自己的白名单（:8899）相反：根目录 `*.html` 全放行（含 `admin.html`），`/server/**`、`.tools`、`.draft`、`*.md|py|bat|db` 拒绝。
-- 留言模型：单一留言池（`page` 参数已废弃，传了只忽略）；发表返回 `ownerToken`（服务端只存 SHA-256，浏览器存 `localStorage['tl-comments-own']`），删除需令牌；管理端 scrypt + HttpOnly / SameSite=Strict Cookie（8h）；单 IP 发表 20 条/10 分钟、登录失败 5 次/10 分钟。
+- 留言模型：按篇隔离，服务端 `PAGES = ['series-1', 'series-2', 'series-3']` 白名单 + 缺省 `series-1`（`pickPage` / `pickPageFilter`）；归属篇目由页面根节点 `<html data-page="series-N">` 声明，公开读取 `GET /api/comments?page=<篇目>` 按篇过滤（缺省 series-1，非法值 400 `BAD_PAGE`），发表由请求体 `page` 决定归属；后台按 `status × page` 组合过滤（`page=all` 为全部）并返回按篇 `counts`；发表返回 `ownerToken`（服务端只存 SHA-256，浏览器存 `localStorage['tl-comments-own']`），删除需令牌；管理端 scrypt + HttpOnly / SameSite=Strict Cookie（8h）；单 IP 发表 20 条/10 分钟、登录失败 5 次/10 分钟。
 - 离线单文件：`pub/` 全部是 `python .tools/build_single.py <入口> <输出>` 的产物（CSS/字体/图片/脚本内嵌），**不要手改**。
 - 字体：`competition-timeline/fonts/` 是 400/700/900 三档子集，各页 `?v=` 当前统一为 4；改文案后跑 `python .tools/subset_font.py` 并递增 `?v=`。
-- `.draft/` 是本地草稿/探针目录（已 gitignore），其中 `page-column/test.js` 断言的是改造前语义，**已失效，不作为回归依据**。
+- `.draft/` 是本地草稿/探针目录（已 gitignore），其中 `page-column/test.js` 断言留言按篇分栏语义，与当前实现一致，可作回归参考。
 
 ## 目录与职责
 
 ```
-index.html              壳 + 脚本加载顺序 + 底部 tabBar（三 tab + 「青春经管」专题入口）+ favicon
+index.html              壳 + 脚本加载顺序 + 底部 tabBar（三 tab + 「我的」左侧「青春经管」专题入口）+ favicon
 favicon.svg             站点图标（受回归测试字节锁定：677 B）
 css/style.css           设计系统（:root 令牌 + 全部组件样式）
 js/config.js            USE_MOCK 判定 / 演示登录 / API_BASE / CACHE_TTL

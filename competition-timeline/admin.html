@@ -9,6 +9,18 @@
   <link rel="stylesheet" href="fonts/noto-serif-sc.css?v=4">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/admin.css">
+  <style>
+    /* 列表里的「所属篇目」小标签；css/admin.css 不在本次改动范围，就地补这一条 */
+    .mod-page {
+      font-size: 11px;
+      letter-spacing: 1px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      border: 1px solid var(--line);
+      color: var(--muted);
+      background: var(--gray-bg);
+    }
+  </style>
 </head>
 <body>
 
@@ -65,6 +77,14 @@
         <button class="tab" data-status="approved" role="tab" aria-selected="false">已通过 <i id="n-approved">0</i></button>
         <button class="tab" data-status="rejected" role="tab" aria-selected="false">已拒绝 <i id="n-rejected">0</i></button>
         <button class="tab" data-status="all" role="tab" aria-selected="false">全部 <i id="n-all">0</i></button>
+      </nav>
+
+      <!-- 按篇筛选 -->
+      <nav class="tabs tabs-page" role="tablist" aria-label="留言所属篇目">
+        <button class="tab is-active" data-page="all" role="tab" aria-selected="true">全部篇目</button>
+        <button class="tab" data-page="series-1" role="tab" aria-selected="false">系列一</button>
+        <button class="tab" data-page="series-2" role="tab" aria-selected="false">系列二</button>
+        <button class="tab" data-page="series-3" role="tab" aria-selected="false">系列三</button>
       </nav>
 
       <!-- 批量操作 -->

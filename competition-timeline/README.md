@@ -11,8 +11,8 @@
 
 ```
 competition-timeline/
-├── index.html              系列报道总览页（三篇入口，站点首页；唯一留言区）
-├── series-1.html           系列报道（一）日夜磨一剑 · 鹭岛摘金奖（时间线）
+├── index.html              系列报道总览页（三篇入口，站点首页）
+├── series-1.html           系列报道（一）日夜磨一剑 · 鹭岛摘金奖（时间线 + 留言区）
 ├── series-2.html           系列报道（二）把训练当比赛 · 闭环淬炼
 ├── series-3.html           系列报道（三）灯火长明 · 百次调试
 ├── admin.html              管理后台页面（/admin）
@@ -59,11 +59,11 @@ python .tools/build_single.py series-3.html pub/series-3.html
 外部 http(s) 与跨页链接保持原样。构建产物 `pub/` 是一个可离线浏览的完整小站：
 `index.html`（总览）、`series-1.html`、`series-2.html`、`series-3.html` 互相链接可用。
 
-**分页导航**：四个前台页都有「页内返回链」；三个系列页另在页脚之后有「下一个分页」入口，
+**分页导航**：四个前台页都有「页内返回链」；三个系列页另在**留言区上方**有「下一个分页」入口，
 串成 `series-1 → series-2 → series-3 → index` 的链路（总览页**不设**下一篇按钮，三篇入口由
 「系列报道」卡片承担）：
 
-| 页面 | 页内返回（内容区顶部） | 下一个分页（页脚之后） |
+| 页面 | 页内返回（内容区顶部） | 下一个分页（留言区上方） |
 |---|---|---|
 | `index.html` | 返回长征主站 `../index.html#/` | 无（按用户要求不设） |
 | `series-1.html` | 返回总览 `index.html` | 系列报道（二） |
@@ -95,24 +95,24 @@ python .tools/build_single.py series-3.html pub/series-3.html
 - **本人删除**：只能看到并删除**自己发表**的留言，他人留言没有删除按钮
 - **安全**：留言以纯文本渲染（`textContent`），HTML/脚本不会被执行
 
-### 单一留言池（不再分篇目）
+### 按篇目分栏（`page`）
 
-留言区全站只有一处，就在总览页 `index.html`；三个系列页没有留言区。
-服务端同样不再区分篇目——读到的是**全部「已通过」留言合并后的一个池子**。
+留言按**篇目**分栏存放与展示，同一套服务同时服务系列（一）（二）（三）：
 
-| 页面 | 留言区 | 说明 |
+| 页面 | 篇目值 | 说明 |
 |---|---|---|
-| `index.html`（总览） | 有 | **唯一留言区**，展示全部已通过留言 |
-| `series-1.html` / `series-2.html` / `series-3.html` | 无 | 只做内容展示 |
-| `pub/*`（单文件版） | 同 `index.html` | 内联脚本，离线时自动降级为本机存储 |
+| `index.html`（总览） | — | 无留言区 |
+| `series-1.html`（系列一） | `series-1` | 缺省篇目：请求不带 `page` 时按此篇处理，兼容旧链接 |
+| `series-2.html`（系列二） | `series-2` | 页面根节点 `data-page="series-2"` |
+| `series-3.html`（系列三） | `series-3` | 页面根节点 `data-page="series-3"` |
+| `pub/*`（单文件版） | 同上 | 内联脚本读 `data-page`，离线时按篇隔离 localStorage 键 |
 
-- **公开读取不接受任何篇目参数**：`GET /api/comments` 恒返回全部「已通过」留言
-  （排序 `置顶 → 置顶时间 → 发表时间`，上限 200 条）
-- `page` 查询参数**已废弃**：带了也一律忽略（不再返回 `400 BAD_PAGE`），老书签照常能用
-- 发表时请求体里的 `page` **同样被忽略**，服务端固定按单一留言池入库
-- 管理后台只按「状态」筛选，不再有篇目分栏，也没有按篇统计
-- 数据库 `comments.page` 列**保留不删**（删列是不可逆迁移）：老数据仍是 `series-1` / `series-2` / `series-3`，
-  新留言固定写 `index`；该列自此只作历史留档，不参与任何查询
+- 页面篇目由 `<html data-page="…">` 决定，脚本**不硬编码**篇目
+- **公开接口必须指定具体篇目**：`GET /api/comments?page=series-2` 只返回该篇已通过的留言；
+  缺省/空值 → `series-1`（首页旧行为不破）；其他值（含 `all`）→ `400 BAD_PAGE`
+- 发表时篇目取自请求体 `page`，缺省落 `series-1`；非法值同样 `400 BAD_PAGE`
+- 管理接口的 `page` 多接受一个 `all`（全部篇目），其余取值仍按白名单校验
+- 数据库 `comments.page` 列（`TEXT NOT NULL DEFAULT 'series-1'`）；旧库启动时自动补列，老数据落系列一
 
 ### 本人删除的归属校验
 
@@ -135,7 +135,7 @@ python .tools/build_single.py series-3.html pub/series-3.html
 | 能力 | 说明 |
 |---|---|
 | 留言审核 | 按「待审核 / 已通过 / 已拒绝 / 全部」分栏，单条通过或拒绝 |
-
+| **按篇筛选** | 第二栏「全部 / 系列（一）/ 系列（二）」，与状态栏相互独立、可组合；每条留言显示所属篇目；统计数字随篇目收敛 |
 | 批量操作 | 全选或多选后批量通过、批量拒绝、批量置顶/取消置顶、批量删除 |
 | **置顶优秀留言** | 已通过的留言可「置顶」，前台优先展示并加盖「优秀」金印；可取消置顶 |
 | 删除留言 | 单条删除，二次确认 |
@@ -159,7 +159,7 @@ python .tools/build_single.py series-3.html pub/series-3.html
 | 场景 | 存储位置 | 效果 |
 |---|---|---|
 | 运行 `启动留言服务.bat`（或 `node server/server.js`） | **SQLite 数据库** `server/data.db` | 留言持久保存，**所有人共享**，带审核流程 |
-| 直接双击 `index.html`（无服务） | 浏览器 localStorage | 仅本机可见，无审核，可自助删除；脚本把篇目时代留下的四个存储键合并后按时间倒序展示 |
+| 直接双击 `index.html` / `series-2.html`（无服务） | 浏览器 localStorage | 仅本机可见，无审核，可自助删除；按篇目分别存键 |
 | 双击 `pub/*.html`（离线单文件） | 浏览器 localStorage | 同上，脚本与样式已内联，无网络请求 |
 
 页面底部会用一行小字标明当前处于哪种模式。
@@ -172,8 +172,8 @@ python .tools/build_single.py series-3.html pub/series-3.html
 node server/server.js
 ```
 
-然后访问 <http://127.0.0.1:8899/>（总览页，唯一的留言区，展示全部已通过留言），
-后台为 <http://127.0.0.1:8899/admin>。`启动留言服务.bat` 做的事就是
+然后访问 <http://127.0.0.1:8899/>（前台，系列一）或 <http://127.0.0.1:8899/series-2>（系列二，
+即 `series-2.html`），后台为 <http://127.0.0.1:8899/admin>。`启动留言服务.bat` 做的事就是
 「检查 node → 打开默认浏览器到 `http://127.0.0.1:8899/` → 前台运行 `node server\server.js`」，
 关闭窗口即停止服务，未引入任何第三方依赖。
 
@@ -195,8 +195,8 @@ node server/server.js
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/comments` | 返回**全部**「已通过」的留言（最新在前，最多 200 条，即单一留言池）；`page` 参数已废弃，带了也忽略 |
-| POST | `/api/comments` | 发表留言 `{ name, text }`，进入待审核，返回 `ownerToken`；`page` 字段被忽略 |
+| GET | `/api/comments?page=` | 只返回**该篇**「已通过」的留言（最新在前，最多 200 条）；`page` 取 `series-1` / `series-2` / `series-3`，缺省 `series-1`，其他值 `400 BAD_PAGE` |
+| POST | `/api/comments` | 发表留言 `{ name, text, page }`，进入待审核，返回 `ownerToken`；`page` 缺省 `series-1` |
 | DELETE | `/api/comments/:id` | 删除**自己的**留言，需带 `{ token }` 或 `X-Owner-Token` 头 |
 | GET | `/api/health` | 健康检查，返回总数与待审数 |
 
@@ -207,7 +207,7 @@ node server/server.js
 | POST | `/api/admin/login` | 登录 `{ username, password }` |
 | POST | `/api/admin/logout` | 退出 |
 | GET | `/api/admin/me` | 当前身份 |
-| GET | `/api/admin/comments?status=` | 留言列表，只按状态（pending / approved / rejected / all）过滤；响应为 `{ ok, items, counts }`，`counts` 含 `all` / `pending` / `approved` / `rejected`，无 `page` 字段 |
+| GET | `/api/admin/comments?status=&page=` | 留言列表，状态（pending / approved / rejected / all）× 篇目（all / series-1 / series-2）组合过滤，响应带 `page` 与按篇统计 `counts` |
 | POST | `/api/admin/audit` | 审核 `{ ids: [], action: 'approve'｜'reject' }` |
 | POST | `/api/admin/pin` | 置顶 `{ ids: [], pinned: true｜false }`（仅已通过可置顶） |
 | DELETE | `/api/admin/comments/:id` | 删除单条 |
@@ -242,9 +242,8 @@ node server/server.js
 
 ```
 node .draft/whitelist-check.js       # 静态白名单断言矩阵（PORT=8906）
+node .draft/page-column/test.js      # 留言按篇分栏 接口 + 页面自证（PORT=8901）
 ```
-
-> 留言「按篇分栏」已取消：留言区只由 `index.html` 承载，服务端只有单一留言池、`page` 参数一律忽略。`.draft/page-column/test.js` 断言的是改造前的「按篇过滤 / 缺省页 = series-1」语义，**已失效，不作为回归依据**。
 
 ### 查看/备份数据
 
@@ -257,7 +256,7 @@ node .draft/whitelist-check.js       # 静态白名单断言矩阵（PORT=8906�
 
 ## 页面结构
 
-> 下列表格只列正文区块；四页共同的**分页导航**（页内返回链 + 页脚之后的下一分页）见
+> 下列表格只列正文区块；四页共同的**分页导航**（页内返回链 + 留言区上方的下一分页）见
 > 「多页与单文件」一节。
 
 | 区块 | 内容 |
@@ -269,7 +268,7 @@ node .draft/whitelist-check.js       # 静态白名单断言矩阵（PORT=8906�
 | 赛前 | 5 步：团队组建 → 时间与场地 → 应对困难 → 教师指导 → 赛项要求 |
 | 赛中 | 4 步：时间地点 → 赛场规模 → 现场表现 → 比赛结果（摘金盖章动画） |
 | 赛后 | 4 步：专业能力 → 方法与素养 → 成长意义 → 后续跟踪 |
-| 留言区 | 已迁至总览页 `index.html`（三篇合并的唯一留言区），本页不再有 |
+| 留言区 | 昵称 + 留言输入、字数提示、留言列表、逐条删除 |
 | 来源 | 原文链接与供稿/摄影信息 |
 
 ### 系列报道（三）「灯火长明 · 百次调试」（`series-3.html`）

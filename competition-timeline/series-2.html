@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-page="series-2">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -233,7 +233,7 @@
         </figure>
       </section>
 
-      <!-- 分页导航（页底）：系列（二）之后接系列（三） -->
+      <!-- 分页导航：留言区上方，读完正文即可进入下一篇 -->
       <nav class="page-nav page-nav-foot" aria-label="分页导航">
         <a class="page-next" href="series-3.html" data-keep-search>
           <span class="page-next-body">
@@ -243,11 +243,44 @@
           <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg>
         </a>
       </nav>
+      <!-- ============ 9. 留言区（按篇隔离：<html data-page="series-2">） ============ -->
+      <section class="comments" id="comments" aria-labelledby="comments-title">
+        <h2 class="block-title" id="comments-title">留 言 区</h2>
+
+        <div class="cmt-panel">
+          <form class="cmt-form" id="cmt-form" novalidate>
+            <label class="field" for="cmt-name">
+              <span class="field-label">昵称</span>
+              <input class="cmt-input" id="cmt-name" name="name" type="text" maxlength="16"
+                     placeholder="可不填，默认显示「匿名」" autocomplete="nickname">
+            </label>
+
+            <label class="field" for="cmt-text">
+              <span class="field-label">留言</span>
+              <textarea class="cmt-textarea" id="cmt-text" name="text" rows="3" maxlength="200"
+                        placeholder="写下你对这一篇的观后感、祝福或建议…" required
+                        aria-describedby="cmt-hint"></textarea>
+            </label>
+
+            <div class="cmt-actions">
+              <span class="cmt-count">还可输入 <b id="cmt-left">200</b> 字</span>
+              <button class="cmt-submit" type="submit">发表留言</button>
+            </div>
+          </form>
+
+          <p class="cmt-hint" id="cmt-hint" role="status" aria-live="polite"></p>
+
+          <ul class="cmt-list" id="cmt-list" aria-label="留言列表"></ul>
+          <p class="cmt-empty" id="cmt-empty">还没有留言，来说第一句吧</p>
+        </div>
+      </section>
 
     </div>
   </main>
 
 </div>
+
+<script src="js/comments.js"></script>
 
   <!-- 底部四栏导航：与长征主站一致，保证随时能回到主站各栏目 -->
   <nav id="tabbar" aria-label="主导航">
@@ -259,13 +292,13 @@
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 19l5-6 4 3 9-9"/><circle cx="12" cy="12" r="1.6"/><path d="M9 20.5l3-1.5 3 1.5"/></svg>
       <span class="tab-text">地图</span>
     </a>
-    <a class="tab" href="../index.html#/profile">
-      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.5-3.6 4.4-5.2 7.5-5.2s6 1.6 7.5 5.2"/></svg>
-      <span class="tab-text">我的</span>
-    </a>
     <a class="tab tab-active" href="index.html" aria-current="page">
       <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9l9-4.5L21 9l-9 4.5L3 9z"/><path d="M6.5 11v4.2c3.5 2 7.5 2 11 0V11"/><path d="M21 9v5"/></svg>
       <span class="tab-text">青春经管</span>
+    </a>
+    <a class="tab" href="../index.html#/profile">
+      <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c1.5-3.6 4.4-5.2 7.5-5.2s6 1.6 7.5 5.2"/></svg>
+      <span class="tab-text">我的</span>
     </a>
   </nav>
 

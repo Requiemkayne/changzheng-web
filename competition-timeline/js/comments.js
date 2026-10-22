@@ -4,9 +4,8 @@
      1) 服务端 SQLite —— 有 server/server.js 在运行时，留言存数据库、所有人共享
      2) 浏览器 localStorage —— 没有服务时（直接双击 index.html）降级为本地存储
    两种模式都支持发表、删除、字数提示；渲染一律用 textContent，天然防 XSS
-   单一留言池：全站只有一处留言区（总览页），服务端已经没有「篇目（page）」维度，
-   读取即全部已通过留言，发表也不再带篇目
-   本地降级仍要合并读篇目时代留下的四个存储键——那些离线留言不能因为取消篇目而消失
+   按篇隔离：篇目取自页面 <html data-page="...">，服务端用 ?page= 过滤，
+   本地降级用「前缀:篇目」的存储键；series-1 沿用旧键，历史留言不丢
    ============================================================ */
 (function () {
   'use strict';
@@ -14,10 +13,16 @@
   var MAX = 200;
   var LS_NAME = 'tl-comments-name';
 
-  // 篇目时代按「前缀:篇目」分过存储键，那些留言不能因为取消篇目而消失，
-  // 所以仍然 4 条键合并读；写入只落 index 键，否则把别篇留言搬过来会造成重复与丢失
-  var LS_KEYS = ['tl-comments-v1', 'tl-comments-v1:series-2', 'tl-comments-v1:series-3', 'tl-comments-v1:index'];
-  var LS_WRITE_KEY = 'tl-comments-v1:index';
+  // 归属篇目：由页面在 <html data-page="...">（或 <body data-page>）声明，
+  // 读不到就回退 series-1（与服务端缺省一致），不在这里硬编码某一篇
+  var PAGE = (function () {
+    var v = document.documentElement ? document.documentElement.getAttribute('data-page') : '';
+    if (!v && document.body) v = document.body.getAttribute('data-page') || '';
+    return v || 'series-1';
+  })();
+
+  // 本地存储按篇隔离；series-1 沿用旧键 tl-comments-v1，旧留言照常读得到
+  var LS_KEY = PAGE === 'series-1' ? 'tl-comments-v1' : 'tl-comments-v1:' + PAGE;
 
   var form = document.getElementById('cmt-form');
   var nameEl = document.getElementById('cmt-name');
@@ -91,9 +96,9 @@
 
   /* ---------------- 本地存储实现 ---------------- */
 
-  function lsReadKey(key) {
+  function lsLoad() {
     try {
-      var raw = localStorage.getItem(key);
+      var raw = localStorage.getItem(LS_KEY);
       if (!raw) return [];
       var arr = JSON.parse(raw);
       if (!Array.isArray(arr)) return [];
@@ -105,44 +110,14 @@
     }
   }
 
-  function lsWriteKey(key, list) {
+  function lsSave(list) {
     try {
-      localStorage.setItem(key, JSON.stringify(list));
+      localStorage.setItem(LS_KEY, JSON.stringify(list));
       return true;
     } catch (e) {
       showHint('保存失败：浏览器存储不可用或已满');
       return false;
     }
-  }
-
-  // 把 4 条键并成一份：同一 id 只留一条，再按时间倒序
-  // （与服务端 created_at DESC 的展示顺序一致）
-  function lsLoad() {
-    var seen = {};
-    var all = [];
-    LS_KEYS.forEach(function (key) {
-      lsReadKey(key).forEach(function (m) {
-        if (seen[m.id]) return;
-        seen[m.id] = true;
-        all.push(m);
-      });
-    });
-    all.sort(function (a, b) { return (b.ts || 0) - (a.ts || 0); });
-    return all;
-  }
-
-  // 不知道 id 落在哪条键，逐条定位，只重写命中的那条
-  function lsRemove(id) {
-    var hit = false;
-    var ok = true;
-    LS_KEYS.forEach(function (key) {
-      var list = lsReadKey(key);
-      var next = list.filter(function (m) { return m.id !== id; });
-      if (next.length === list.length) return;
-      hit = true;
-      if (!lsWriteKey(key, next)) ok = false;
-    });
-    return hit && ok;
   }
 
   function lsUid() {
@@ -153,7 +128,7 @@
 
   function loadAll() {
     if (mode === 'server') {
-      return apiFetch(API, { method: 'GET' }, 4000)
+      return apiFetch(API + '?page=' + encodeURIComponent(PAGE), { method: 'GET' }, 4000)
         .then(function (r) { return r.json(); })
         .then(function (data) {
           if (!data || !data.ok) throw new Error('BAD');
@@ -168,7 +143,7 @@
       return apiFetch(API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name, text: text })
+        body: JSON.stringify({ name: name, text: text, page: PAGE })
       }, 6000).then(function (r) {
         return r.json().then(function (d) {
           if (!r.ok || !d.ok) throw new Error((d && d.message) || '提交失败');
@@ -178,9 +153,9 @@
     }
 
     var item = { id: lsUid(), name: name || '匿名', text: text, ts: Date.now() };
-    var list = lsReadKey(LS_WRITE_KEY);
+    var list = lsLoad();
     list.unshift(item);
-    if (!lsWriteKey(LS_WRITE_KEY, list)) throw new Error('保存失败');
+    if (!lsSave(list)) throw new Error('保存失败');
     return Promise.resolve({ ok: true, item: item, pending: false });
   }
 
@@ -200,7 +175,8 @@
         });
       });
     }
-    if (!lsRemove(id)) throw new Error('删除失败');
+    var list = lsLoad().filter(function (m) { return m.id !== id; });
+    if (!lsSave(list)) throw new Error('删除失败');
     return Promise.resolve();
   }
 

@@ -3,18 +3,15 @@
    启动：node server/server.js     默认 http://127.0.0.1:8899
    环境变量：PORT（默认 8899）、DB_PATH（默认 server/data.db）、ADMIN_PASSWORD（初始密码）
 
-   留言只剩单一留言池：前台仅在总览页展示这一处，「篇目（page）」维度已整体取消，
-   接口不再识别 page 参数——传了按忽略处理，老书签与老客户端不会因此报错
-
-   公开接口：
-     GET    /api/comments          返回全部「已通过」的留言（置顶优先，最多 200 条）
-     POST   /api/comments          发表留言（进入待审核），body.page 一律忽略
+   公开接口（?page= 见 PAGES 白名单，缺省 series-1）：
+     GET    /api/comments?page=    只返回该篇「已通过」的留言
+     POST   /api/comments          发表留言（进入待审核），body.page 决定归属篇
      GET    /api/health            健康检查
    管理接口（登录后，HttpOnly Cookie 会话）：
      POST   /api/admin/login       登录
      POST   /api/admin/logout      退出
      GET    /api/admin/me          当前身份
-     GET    /api/admin/comments    留言列表（只按 status 过滤）
+     GET    /api/admin/comments    留言列表（可按 status / page 过滤）
      POST   /api/admin/audit       审核：{ ids:[], action:'approve'|'reject' }
      DELETE /api/admin/comments/:id 删除单条
      POST   /api/admin/clear       清空（scope: all|pending|approved|rejected）
@@ -38,9 +35,9 @@ const DB_PATH = process.env.DB_PATH
   ? path.resolve(process.env.DB_PATH)
   : path.join(__dirname, 'data.db');
 
-// 篇目概念已取消（前台只剩一个留言池）。comments.page 列保留不删——删列是不可逆迁移，
-// 老数据（series-1/2/3）还要留档；新留言固定写这个常量，该列自此只作历史留档
-const SHARED_PAGE = 'index';
+// 留言归属篇目白名单：缺省 series-1，非法值一律 400 BAD_PAGE
+const PAGES = ['series-1', 'series-2', 'series-3'];
+const DEFAULT_PAGE = 'series-1';
 
 const MAX_NAME = 16;
 const MAX_TEXT = 200;
@@ -88,29 +85,32 @@ db.exec(`
   // 置顶（优秀留言）
   if (!cols.includes('pinned')) db.exec('ALTER TABLE comments ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
   if (!cols.includes('pinned_at')) db.exec('ALTER TABLE comments ADD COLUMN pinned_at INTEGER');
-  // 篇目列只给极旧的库补齐（保留历史数据，此后不再参与任何查询）
+  // 归属篇目：此前只有首页，老数据统一落到 series-1（值同 DEFAULT_PAGE）
   if (!cols.includes('page')) {
     db.exec("ALTER TABLE comments ADD COLUMN page TEXT NOT NULL DEFAULT 'series-1'");
   }
-  // 列表与统计都只按 status + 时间取数，篇目索引因此不再创建
   db.exec('CREATE INDEX IF NOT EXISTS idx_comments_status ON comments(status, created_at DESC)');
+  db.exec('CREATE INDEX IF NOT EXISTS idx_comments_page ON comments(page, status, created_at DESC)');
 })();
 
 /* ---------------- 预编译语句 ---------------- */
 
-// 单一留言池：公开读取恒取全部已通过留言，排序 置顶 → 置顶时间 → 发表时间
 const qPublicList = db.prepare(
-  "SELECT id, name, text, created_at, pinned FROM comments WHERE status = 'approved' " +
+  "SELECT id, name, text, created_at, pinned FROM comments WHERE status = 'approved' AND page = ? " +
   'ORDER BY pinned DESC, pinned_at DESC, created_at DESC LIMIT 200'
 );
-// 后台列表：status 可取 'all'，一条预编译语句覆盖两种情形（不做 SQL 拼接）
+// 后台列表：status / page 各可取 'all'，一条预编译语句覆盖四种组合（不做 SQL 拼接）
 const qAdminList = db.prepare(
-  'SELECT id, name, text, ip, created_at, status, audited_at, audited_by, pinned, pinned_at FROM comments ' +
-  "WHERE (? = 'all' OR status = ?) " +
+  'SELECT id, name, text, ip, created_at, status, audited_at, audited_by, pinned, pinned_at, page FROM comments ' +
+  "WHERE (? = 'all' OR status = ?) AND (? = 'all' OR page = ?) " +
   'ORDER BY pinned DESC, created_at DESC LIMIT 1000'
 );
 const qCount = db.prepare('SELECT COUNT(*) AS n FROM comments');
 const qCountStatus = db.prepare('SELECT COUNT(*) AS n FROM comments WHERE status = ?');
+const qCountOfPage = db.prepare("SELECT COUNT(*) AS n FROM comments WHERE (? = 'all' OR page = ?)");
+const qCountStatusOfPage = db.prepare(
+  "SELECT COUNT(*) AS n FROM comments WHERE status = ? AND (? = 'all' OR page = ?)"
+);
 const qOne = db.prepare('SELECT id, status, owner_hash FROM comments WHERE id = ?');
 const qInsert = db.prepare(
   'INSERT INTO comments (id, name, text, ip, created_at, status, owner_hash, page) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
@@ -176,6 +176,21 @@ function cleanText(v) {
   let s = typeof v === 'string' ? v : '';
   s = s.replace(/\r\n/g, '\n').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '');
   return s.trim();
+}
+
+// 篇目解析：缺省 / 空 → series-1；不在白名单 → null（调用方回 400 BAD_PAGE）
+function pickPage(v) {
+  if (v === undefined || v === null || v === '') return DEFAULT_PAGE;
+  const s = String(v);
+  return PAGES.indexOf(s) >= 0 ? s : null;
+}
+
+// 后台筛选用的篇目解析：空 / 'all' → 'all'（全部篇目，本身就是合法筛选值）；其余走白名单
+function pickPageFilter(v) {
+  if (v === undefined || v === null || v === '') return 'all';
+  const s = String(v);
+  if (s === 'all') return 'all';
+  return pickPage(s);
 }
 
 function clientIp(req) {
@@ -423,10 +438,11 @@ const server = http.createServer(async (req, res) => {
 
   /* -------- 公开：已通过留言 -------- */
   if (url.startsWith('/api/comments') && method === 'GET' && !url.startsWith('/api/admin')) {
-    // 单一留言池：page 查询参数不再识别，带了也直接忽略（老书签照常可用）
+    // 按篇取留言；不带 page 时按 series-1，保持首页旧行为
+    const page = pickPage(new URL(rawUrl, 'http://x').searchParams.get('page'));
+    if (!page) return sendJson(res, 400, { ok: false, error: 'BAD_PAGE', message: '不支持的篇目' });
     try {
-      const rows = qPublicList.all();
-      const items = rows.map((r) => ({
+      const items = qPublicList.all(page).map((r) => ({
         id: r.id, name: r.name, text: r.text, ts: r.created_at, pinned: !!r.pinned,
       }));
       return sendJson(res, 200, { ok: true, items, total: items.length });
@@ -450,6 +466,14 @@ const server = http.createServer(async (req, res) => {
       return sendJson(res, 400, { ok: false, error: e.message, message: msg });
     }
 
+    const page = pickPage(body.page);
+    if (!page) {
+      return sendJson(res, 400, {
+        ok: false, error: 'BAD_PAGE',
+        message: '不支持的篇目（' + PAGES.join(' / ') + '）',
+      });
+    }
+
     const name = cleanName(body.name);
     const text = cleanText(body.text);
 
@@ -471,7 +495,7 @@ const server = http.createServer(async (req, res) => {
     const ownerToken = crypto.randomBytes(20).toString('hex');
     const ownerHash = sha256(ownerToken);
     try {
-      qInsert.run(id, name, text, ip, ts, 'pending', ownerHash, SHARED_PAGE);
+      qInsert.run(id, name, text, ip, ts, 'pending', ownerHash, page);
       return sendJson(res, 201, {
         ok: true, pending: true,
         item: { id, name, text, ts, status: 'pending' },
@@ -572,26 +596,28 @@ const server = http.createServer(async (req, res) => {
   if (url === '/api/admin/comments' && method === 'GET') {
     if (!requireAuth(req, res)) return;
     const sp = new URL(rawUrl, 'http://x').searchParams;
-    const status = sp.get('status') || 'all';   // 唯一的筛选维度（page 参数已取消，传了也忽略）
+    const status = sp.get('status') || 'all';        // 状态过滤（保持原行为）
+    // 篇目过滤：'all' / series-1 / series-2；缺省、空串同样按 'all'
+    const pageFilter = pickPageFilter(sp.get('page'));
+    if (!pageFilter) return sendJson(res, 400, { ok: false, error: 'BAD_PAGE', message: '不支持的篇目' });
     let rows;
     try {
-      rows = qAdminList.all(status, status);
+      rows = qAdminList.all(status, status, pageFilter, pageFilter);
     } catch (e) {
       return sendJson(res, 500, { ok: false, error: 'DB_ERROR' });
     }
     const items = rows.map((r) => ({
       id: r.id, name: r.name, text: r.text, ip: r.ip, ts: r.created_at,
       status: r.status, auditedAt: r.audited_at, auditedBy: r.audited_by,
-      pinned: !!r.pinned, pinnedAt: r.pinned_at,
+      pinned: !!r.pinned, pinnedAt: r.pinned_at, page: r.page,
     }));
-    // counts 恒为全库按状态统计，不随 status 收敛（切换标签角标不跳动）
     return sendJson(res, 200, {
-      ok: true, items,
+      ok: true, items, page: pageFilter,
       counts: {
-        all: qCount.get().n,
-        pending: qCountStatus.get('pending').n,
-        approved: qCountStatus.get('approved').n,
-        rejected: qCountStatus.get('rejected').n,
+        all: qCountOfPage.get(pageFilter, pageFilter).n,
+        pending: qCountStatusOfPage.get('pending', pageFilter, pageFilter).n,
+        approved: qCountStatusOfPage.get('approved', pageFilter, pageFilter).n,
+        rejected: qCountStatusOfPage.get('rejected', pageFilter, pageFilter).n,
       },
     });
   }
