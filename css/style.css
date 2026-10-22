@@ -735,6 +735,94 @@ a { color: var(--red-mid); text-decoration: none; }
 }
 .block-caption { font-size: 12px; color: var(--muted); text-align: center; margin-top: 7px; letter-spacing: 1px; }
 
+/* 时间线手风琴：点时间点展开三段式详情 */
+.block-tl-fold {
+  display: block;              /* 覆盖 .block-tl-item 的 flex，否则 summary 与正文并排 */
+  border: 1px solid rgba(201, 162, 39, 0.32);
+  border-radius: var(--r-md);
+  background: rgba(255, 253, 247, 0.72);
+  margin: 8px 0;
+  padding: 0 12px;
+  transition: border-color .18s, background .18s;
+}
+.block-tl-fold[open] {
+  border-color: rgba(168, 24, 44, 0.35);
+  background: rgba(255, 253, 247, 0.95);
+}
+.block-tl-head {
+  list-style: none;
+  cursor: pointer;
+  display: grid;
+  width: 100%;                 /* summary 默认收缩，不给 100% 时 1fr 会算成 0 */
+  grid-template-columns: 96px minmax(0, 1fr) 14px;
+  gap: 10px;
+  align-items: baseline;
+  padding: 11px 0;
+}
+.block-tl-head .block-tl-date { width: auto; white-space: nowrap; }
+.block-tl-head .block-tl-text { min-width: 0; word-break: break-word; }
+.block-tl-head::-webkit-details-marker { display: none; }
+.block-tl-cue {
+  width: 8px; height: 8px;
+  border-right: 1.6px solid var(--gold-deep);
+  border-bottom: 1.6px solid var(--gold-deep);
+  transform: rotate(45deg);
+  transition: transform .18s;
+  align-self: center;
+}
+.block-tl-fold[open] .block-tl-cue { transform: rotate(-135deg); }
+.block-tl-fold .block-tl-text { color: var(--ink); }
+
+.tl-body {
+  padding: 2px 0 14px;
+  border-top: 1px dashed rgba(201, 162, 39, 0.35);
+  margin-top: 2px;
+}
+.tl-sec { margin-top: 12px; }
+.tl-sec-k {
+  display: inline-block;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--gold-deep);
+  border-left: 2px solid var(--gold);
+  padding-left: 7px;
+  margin-bottom: 5px;
+}
+.tl-sec p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.78;
+  color: #453830;
+}
+.tl-story {
+  margin-top: 14px;
+  padding: 12px 13px;
+  border-radius: var(--r-md);
+  background: rgba(200, 16, 46, 0.05);
+  border-left: 3px solid var(--red-mid);
+}
+.tl-story-k {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--red-dark);
+  margin-bottom: 4px;
+}
+.tl-story-t {
+  margin: 0 0 5px;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--red-dark);
+  letter-spacing: 0.5px;
+}
+.tl-story p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #4A3A32;
+}
+
 .block-timeline { margin: 12px 0 12px 8px; }
 .block-tl-item {
   display: flex;
@@ -2359,4 +2447,30 @@ a { color: var(--red-mid); text-decoration: none; }
   font-weight: inherit;
   line-height: inherit;
   cursor: pointer;
+}
+
+/* ---------- 时间线手风琴：覆盖 .block-tl-item 的 flex（规则顺序在后，用更高特异性压住） ---------- */
+.block-timeline .block-tl-fold {
+  display: block;
+  padding: 0 12px;
+  margin: 8px 0;
+}
+.block-timeline .block-tl-fold .block-tl-head {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 96px minmax(0, 1fr) 14px;
+  gap: 10px;
+  align-items: baseline;
+  padding: 11px 0;
+}
+.block-timeline .block-tl-fold .block-tl-date { width: auto; white-space: nowrap; }
+.block-timeline .block-tl-fold .block-tl-text { min-width: 0; word-break: break-word; }
+
+/* 故事出处：淡灰小字，不抢故事正文 */
+.tl-story-src {
+  margin-top: 8px !important;
+  font-size: 11px !important;
+  line-height: 1.6 !important;
+  color: rgba(110, 99, 80, 0.72) !important;
+  letter-spacing: 0.2px;
 }

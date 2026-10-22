@@ -175,27 +175,27 @@
     // ===== 7 飞夺泸定桥 =====
     {
       _id: 'q-luding-1', nodeCode: 'luding', type: 'single',
-      question: '（占位题）泸定桥由多少根铁索组成？',
-      options: ['9根', '11根', '13根', '17根'],
-      answer: [2],
-      explanation: '（占位解析）泸定桥由13根铁索组成。',
-      difficulty: 1, status: 'published'
+      question: '泸定桥一共有多少根铁索？',
+      options: ['11根', '13根', '15根'],
+      answer: [1],
+      explanation: '泸定桥由十三根铁索构成，桥板被敌军拆除后只剩铁索。',
+      difficulty: 2, status: 'published'
     },
     {
       _id: 'q-luding-2', nodeCode: 'luding', type: 'single',
-      question: '（占位题）飞夺泸定桥的突击队员共多少人？',
-      options: ['17名', '22名', '30名', '100名'],
-      answer: [1],
-      explanation: '（占位解析）22名突击队员攀着铁索飞夺泸定桥。',
-      difficulty: 1, status: 'published'
+      question: '飞夺泸定桥发生在哪个省份？',
+      options: ['四川', '贵州', '云南'],
+      answer: [0],
+      explanation: '泸定桥位于四川省泸定县，横跨大渡河。',
+      difficulty: 2, status: 'published'
     },
     {
       _id: 'q-luding-3', nodeCode: 'luding', type: 'judge',
-      question: '（占位题）飞夺泸定桥时桥面木板完好无损。',
+      question: '敌人提前拆掉了泸定桥桥面木板。',
       options: ['正确', '错误'],
-      answer: [1],
-      explanation: '（占位解析）敌军拆除了大部分桥板，突击队员攀铁索前进。',
-      difficulty: 1, status: 'published'
+      answer: [0],
+      explanation: '敌军为阻止红军过桥，提前拆除了桥面上的木板，只留下十三根铁索。',
+      difficulty: 2, status: 'published'
     },
 
     // ===== 8 爬雪山 =====

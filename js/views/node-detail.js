@@ -43,6 +43,31 @@
 
   /* ---------- blocks 渲染器（7 种 type，与小程序版同构） ---------- */
 
+  // 时间点的展开内容：三段式 + 可选故事
+  function timelineDetail(d) {
+    if (!d) return ''
+    let h = '<div class="tl-body">'
+    if (d.situation) {
+      h += '<div class="tl-sec"><span class="tl-sec-k">战前态势</span><p>' + F.escapeHtml(d.situation) + '</p></div>'
+    }
+    if (d.key) {
+      h += '<div class="tl-sec"><span class="tl-sec-k">关键细节</span><p>' + F.escapeHtml(d.key) + '</p></div>'
+    }
+    if (d.impact) {
+      h += '<div class="tl-sec"><span class="tl-sec-k">结果与影响</span><p>' + F.escapeHtml(d.impact) + '</p></div>'
+    }
+    if (d.story && d.story.title) {
+      h += '<div class="tl-story"><span class="tl-story-k">故事</span>' +
+        '<h4 class="tl-story-t">' + F.escapeHtml(d.story.title) + '</h4>' +
+        '<p>' + F.escapeHtml(d.story.text) + '</p>' +
+        (d.story.source
+          ? '<p class="tl-story-src">出处：' + F.escapeHtml(d.story.source) + '</p>'
+          : '') +
+        '</div>'
+    }
+    return h + '</div>'
+  }
+
   function renderBlocks(blocks) {
     let html = ''
     ;(blocks || []).forEach(b => {
@@ -87,10 +112,23 @@
         case 'timeline': {
           let items = ''
           ;(b.items || []).forEach(it => {
-            items += '<div class="block-tl-item">' +
-              '<div class="block-tl-date">' + F.escapeHtml(it.date) + '</div>' +
-              '<div class="block-tl-text">' + F.escapeHtml(it.text) + '</div>' +
-              '</div>'
+            const has = !!(it.detail && (it.detail.situation || it.detail.key || it.detail.impact || it.detail.story))
+            if (has) {
+              // 有展开内容：做成可收放的手风琴
+              items += '<details class="block-tl-item block-tl-fold">' +
+                '<summary class="block-tl-head">' +
+                  '<span class="block-tl-date">' + F.escapeHtml(it.date) + '</span>' +
+                  '<span class="block-tl-text">' + F.escapeHtml(it.text) + '</span>' +
+                  '<span class="block-tl-cue" aria-hidden="true"></span>' +
+                '</summary>' +
+                timelineDetail(it.detail) +
+                '</details>'
+            } else {
+              items += '<div class="block-tl-item">' +
+                '<div class="block-tl-date">' + F.escapeHtml(it.date) + '</div>' +
+                '<div class="block-tl-text">' + F.escapeHtml(it.text) + '</div>' +
+                '</div>'
+            }
           })
           html += '<div class="block block-timeline">' + items + '</div>'
           break
