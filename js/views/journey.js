@@ -1,9 +1,8 @@
 /**
- * 欢迎页（简版开场）—— 单屏：纪念徽标 + 标题 + 七节点速览 + 开始按钮
+ * 欢迎页（方案 A · 字碑式）—— 单屏：竖排「重走长征路」+ 竖排年份 + 出发 / 跳过
  *
- * 原「红飘带滚动叙事」多幕长页已简化：不再有滚动驱动动画、场景卡、
- * 历史/今日图片交叉淡化。文案与节点仍由 mock/journey.js 驱动，
- * 改内容只动数据文件，无需改本视图。
+ * 信息压到最少：没有徽标、节点速览、金句。标题、年份、按钮文案仍由
+ * js/mock/journey.js 驱动，改内容只动数据文件。
  */
 ;(function (root) {
   const VIEWS = root.CZ_VIEWS || (root.CZ_VIEWS = {})
@@ -17,14 +16,6 @@
     return api.isLoggedIn() ? '#/' : '#/login'
   }
 
-  // 金句按中文逗号断成两行，避免窄屏把词拆开；没有逗号时保持单行
-  function quoteHtml(text) {
-    return String(text || '')
-      .split('，')
-      .map(seg => F.escapeHtml(seg))
-      .join('，<br>')
-  }
-
   VIEWS.journey = {
     mount(rootEl) {
       const jd = root.CZ_MOCK_JOURNEY
@@ -33,19 +24,15 @@
         return
       }
 
-      const chips = jd.nodes.map(n =>
-        '<span class="welcome-chip"><b>' + String(n.order).padStart(2, '0') + '</b>' +
-        F.escapeHtml(n.name) + '</span>'
-      ).join('')
-
       rootEl.innerHTML =
-        '<div class="journey welcome">' +
-          '<div class="welcome-badge">纪念红军长征胜利 90 周年</div>' +
-          '<h1 class="welcome-title">' + F.escapeHtml(jd.title) + '</h1>' +
-          '<div class="welcome-sub">' + F.escapeHtml(jd.subtitle) + ' · 于都出发 会宁会师</div>' +
-          '<div class="welcome-rule"></div>' +
-          '<div class="welcome-route">' + chips + '</div>' +
-          '<p class="welcome-quote">' + quoteHtml(jd.ending.text) + '</p>' +
+        '<div class="journey welcome welcome-stele">' +
+          '<div class="stele">' +
+            '<h1 class="welcome-title stele-title">' + F.escapeHtml(jd.title) + '</h1>' +
+            '<div class="stele-meta">' +
+              '<span class="stele-year">' + F.escapeHtml(jd.subtitle) + '</span>' +
+              '<span class="stele-rule" aria-hidden="true"></span>' +
+            '</div>' +
+          '</div>' +
           '<div class="welcome-actions">' +
             '<button class="btn btn-primary welcome-start" id="journey-start" type="button">' +
               UI.icon('flag', 'btn-ic') + ' ' + F.escapeHtml(jd.ending.action) +

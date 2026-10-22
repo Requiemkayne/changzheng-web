@@ -14,8 +14,8 @@
   }
 })(typeof self !== 'undefined' ? self : this, function () {
   return {
-    title: '两万五千里',
-    subtitle: '1934 — 1936',
+    title: '重走长征路',
+    subtitle: '一九三四 — 一九三六',
     nodes: [
       {
         code: 'yudu',
@@ -91,7 +91,7 @@
     ending: {
       title: '长征永远在路上',
       text: '每一代人有每一代人的长征路，每一代人都要走好自己的长征路。',
-      action: '开始长征'
+      action: '出发'
     }
   }
 })

@@ -53,15 +53,15 @@ async function grab() {
 
   console.log('hash:', await evalJs('location.hash'))
   console.log('欢迎页在场:', await evalJs(`document.querySelector('.journey.welcome') ? 'yes' : 'NO'`))
-  console.log('标题:', await evalJs(`document.querySelector('.welcome-title').innerText`))
-  console.log('副标题:', await evalJs(`document.querySelector('.welcome-sub').innerText`))
-  console.log('节点速览数:', await evalJs(`document.querySelectorAll('.welcome-chip').length`))
-  console.log('首/尾节点:', await evalJs(`document.querySelectorAll('.welcome-chip')[0].innerText + ' … ' + document.querySelectorAll('.welcome-chip')[6].innerText`))
+  console.log('标题:', await evalJs(`document.querySelector('.stele-title').innerText`))
+  console.log('标题竖排:', await evalJs(`getComputedStyle(document.querySelector('.stele-title')).writingMode`))
+  console.log('年份:', await evalJs(`document.querySelector('.stele-year').innerText`))
+  console.log('出发按钮:', await evalJs(`document.querySelector('#journey-start').innerText.trim()`))
   console.log('旧滚动叙事残留(.j-scene/.jr-dot):', await evalJs(`document.querySelectorAll('.j-scene').length + ' / ' + document.querySelectorAll('.jr-dot').length`))
   console.log('tabbar 隐藏:', await evalJs(`document.getElementById('tabbar').style.display`))
   console.log('是否需要滚动:', await evalJs(`document.documentElement.scrollHeight > window.innerHeight ? 'yes' : 'no'`))
   console.log('横向溢出:', await evalJs(`document.documentElement.scrollWidth > window.innerWidth ? 'yes(' + document.documentElement.scrollWidth + ')' : 'no'`))
-  console.log('胶囊都在视口内:', await evalJs(`Array.prototype.every.call(document.querySelectorAll('.welcome-chip'), el => el.getBoundingClientRect().right <= window.innerWidth + 0.5) ? 'yes' : 'NO'`))
+  console.log('字碑在视口内:', await evalJs(`(() => { const r = document.querySelector('.stele').getBoundingClientRect(); return (r.right <= window.innerWidth + 0.5 && r.bottom <= window.innerHeight + 0.5) ? 'yes' : 'NO' })()`))
   await shot('welcome-page.png')
 
   // 出口：mock 模式点「开始长征」→ 登录页
