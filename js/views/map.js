@@ -58,8 +58,8 @@
   const W = 360, H = 520            // viewBox 尺寸
   const PAD_X = 42, PAD_Y = 56      // 边距（给标签留空间）
   // 实际范围：lng 102.23~116.03，lat 25.53~35.68（含留白放大）
-  const LNG_MIN = 98.6, LNG_MAX = 117.6
-  const LAT_MIN = 23.8, LAT_MAX = 38.2
+  const LNG_MIN = 98.6, LNG_MAX = 118.8
+  const LAT_MIN = 23.8, LAT_MAX = 37.8
 
   function px(n) {
     return PAD_X + (n.location.longitude - LNG_MIN) / (LNG_MAX - LNG_MIN) * (W - 2 * PAD_X)
@@ -141,6 +141,41 @@
     [[103.0, 33.4], [105.0, 33.7], [107.0, 33.9]]
   ].map(geoPath)
 
+  /* ---------- 海陆：海岸线（大致轮廓，用于区分陆海，不作测绘依据） ---------- */
+  // 只取图幅东南角那一段海岸（闽南—粤东），用来区分海陆
+  const COAST = [
+    [116.4, 23.8], [116.9, 23.9], [117.3, 24.1], [117.8, 24.35], [118.3, 24.55], [118.8, 24.7]
+  ]
+  // 海域多边形：海岸线 → 右下角闭合
+  const SEA_PATH = (() => {
+    const pts = COAST.map(p => geo(p[0], p[1]))
+    const rightBottom = geo(LNG_MAX, LAT_MIN)
+    return 'M' + pts.map(p => p.join(',')).join('L') +
+      'L' + rightBottom.join(',') + 'L' + geo(COAST[0][0], LAT_MIN).join(',') + 'Z'
+  })()
+  const COAST_LINE = 'M' + COAST.map(p => geo(p[0], p[1]).join(',')).join('L')
+
+  /* ---------- 根据地（红色淡块 + 斜线，仅示意范围） ---------- */
+  const BASES = [
+    { name: '中央苏区', labelDx: -30, labelDy: 16, ring: [[115.0, 24.9], [116.3, 25.2], [116.4, 26.6], [115.4, 27.0], [114.9, 26.0]] },
+    { name: '川陕苏区', ring: [[105.6, 31.5], [107.6, 32.2], [108.3, 33.0], [106.6, 32.6], [105.4, 32.2]] },
+    { name: '湘鄂川黔', ring: [[109.2, 28.7], [110.5, 29.3], [110.2, 30.3], [109.0, 29.8]] },
+    { name: '陕甘宁', ring: [[107.7, 35.5], [109.6, 36.2], [109.4, 37.2], [107.6, 36.5]] }
+  ].map(b => {
+    const pts = b.ring.map(p => geo(p[0], p[1]))
+    let cx = 0
+    let cy = 0
+    pts.forEach(p => { cx += p[0]; cy += p[1] })
+    cx /= pts.length
+    cy /= pts.length
+    return {
+      name: b.name,
+      d: 'M' + pts.map(p => p.join(',')).join('L') + 'Z',
+      lx: cx + (b.labelDx || 0),
+      ly: cy + (b.labelDy || 0)
+    }
+  })
+
   /* ---------- 友军各部路线（红军其他主力） ---------- */
   // 红二方面军：桑植 → 黔东 → 滇东 → 石鼓渡江 → 甘孜 → 北上会宁
   const ROUTE_2ND = geoPath([
@@ -162,13 +197,13 @@
   /* ---------- 国军封锁线与封锁区（蓝色系，压在友军与主线之下） ---------- */
   // 四道封锁线（1934.10–11）+ 乌江 / 金沙江 / 大渡河 江防
   const ENEMY_LINES = [
-    { d: geoPath([[115.6, 25.0], [115.1, 25.5], [114.6, 26.0]]), label: '第一道' },
-    { d: geoPath([[113.9, 25.2], [113.4, 25.5], [112.9, 25.8]]), label: '第二道' },
-    { d: geoPath([[113.1, 25.3], [112.8, 25.9], [112.5, 26.4]]), label: '第三道' },
-    { d: geoPath([[111.3, 25.4], [110.9, 25.8], [110.5, 26.3]]), label: '第四道（湘江）' },
-    { d: geoPath([[107.6, 26.8], [107.1, 27.2], [106.6, 27.6]]), label: '乌江防线' },
-    { d: geoPath([[102.2, 26.4], [101.9, 27.2], [101.6, 28.0]]), label: '金沙江封锁' },
-    { d: geoPath([[102.2, 29.0], [102.4, 29.6], [102.6, 30.2]]), label: '大渡河堵截' }
+    { d: geoPath([[115.6, 25.0], [115.1, 25.5], [114.6, 26.0]]), label: '第一道', at: null },
+    { d: geoPath([[113.9, 25.2], [113.4, 25.5], [112.9, 25.8]]), label: '第二道', at: null },
+    { d: geoPath([[113.1, 25.3], [112.8, 25.9], [112.5, 26.4]]), label: '第三道', at: null },
+    { d: geoPath([[111.3, 25.4], [110.9, 25.8], [110.5, 26.3]]), label: '第四道·湘江', at: [110.2, 26.5] },
+    { d: geoPath([[107.6, 26.8], [107.1, 27.2], [106.6, 27.6]]), label: '乌江', at: [106.3, 27.7] },
+    { d: geoPath([[102.2, 26.4], [101.9, 27.2], [101.6, 28.0]]), label: '金沙江', at: [101.2, 28.1] },
+    { d: geoPath([[102.2, 29.0], [102.4, 29.6], [102.6, 30.2]]), label: '大渡河', at: [102.9, 30.0] }
   ]
 
   // 国军重兵合围区（很淡的色块，只暗示包围态势）
@@ -248,8 +283,8 @@
 
     // 天气示意：只对「雨 / 雪」节点画侧边小景（乌云 + 雨丝 / 雪花），半透明、互不遮挡
     const WX = root.CZ_MOCK_WEATHER || {}
-    const VIG_W = 34           // 小景宽度（用于排布避让）
-    const VIG_H = 26
+    const VIG_W = 46           // 小景宽度（已放大，标签可压在图上）
+    const VIG_H = 34
     const placed = []          // 已放置的小景，用来避免互相覆盖
 
     function pickSide(cx, cy) {
@@ -267,8 +302,9 @@
 
       const isRain = mode === 'rain'
       const cloudFill = isRain ? '#6E6B64' : '#B3C7D6'
-      let g = '<g class="map-wxv map-wxv-' + mode + '" transform="translate(' + x + ',' + y + ')" opacity="' +
-        (isRain ? '0.62' : '0.74') + '" aria-hidden="true">'
+      // 放大 1.35 倍、整体更淡：作为背景氛围，文字压在它上面
+      let g = '<g class="map-wxv map-wxv-' + mode + '" transform="translate(' + x + ',' + y + ') scale(1.35)" opacity="' +
+        (isRain ? '0.4' : '0.46') + '" aria-hidden="true">'
       // 乌云：三个叠在一起的椭圆
       g += '<g class="wxv-cloud" fill="' + cloudFill + '">' +
         '<ellipse cx="-7" cy="1.5" rx="8.6" ry="5.4"/>' +
@@ -315,18 +351,16 @@
       const h = 13
       const vg = vigs[p.node.code]
       const DY = [4, -8, 16, -20, 28, -32]   // 纵向依次尝试，避开上下相邻的标签
-      const OFFS = [21, 36, 54]              // 横向由近到远：近处放不下就往远处挪
+      const OFFS = [21, 32, 44]              // 横向由近到远：近处放不下就往远处挪
       let placedBox = null
 
-      // 候选顺序：远离天气小景的一侧优先
-      const sides = vg ? (vg.side === 'right' ? ['left', 'right'] : ['right', 'left']) : ['right', 'left']
+      // 天气小景只作背景：标签不再为它让位，优先右侧贴节点
+      const sides = ['right', 'left']
       for (const dy of DY) {
         if (placedBox) break
         for (const sd of sides) {
           if (placedBox) break
           for (const off of OFFS) {
-            // 与天气小景同侧时，只有挪得足够远（越过云宽）才允许
-            if (vg && vg.side === sd && off < 50) continue
             const anchor = sd === 'right' ? 'start' : 'end'
             const x = sd === 'right' ? p.x + off : p.x - off
             const y = p.y + dy
@@ -336,7 +370,7 @@
               x2: anchor === 'start' ? x + w : x,
               y2: y + 2
             }
-            if (box.x1 < 16 || box.x2 > W - 16) continue        // 不出图框
+            if (box.x1 < 8 || box.x2 > W - 8) continue           // 不出图框（放宽，避免把标签推到别的节点旁）
             if (hit(box)) continue                               // 不和已放标签重叠
             labels[p.node.code] = { x, y, anchor }
             labelBoxes.push(box)
@@ -420,11 +454,22 @@
                 '<stop offset="1" stop-color="#6E0918" stop-opacity="0.07"/>' +
               '</linearGradient>' +
             '</defs>' +
+            // 陆地底色 + 海域（先陆后海，再叠网格）
+            '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="10" fill="#F8F2E2"/>' +
+            '<path class="map-sea" d="' + SEA_PATH + '"/>' +
+            '<path class="map-coast" d="' + COAST_LINE + '"/>' +
             '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="10" fill="url(#grid)"/>' +
             '<rect class="map-frame-outer" x="6" y="6" width="' + (W - 12) + '" height="' + (H - 12) + '" rx="8"/>' +
             '<rect class="map-frame-inner" x="13" y="13" width="' + (W - 26) + '" height="' + (H - 26) + '" rx="5"/>' +
             // 简化地理底图（省界 / 河流 / 山脉，示意性）
             PROVINCE_LINES.map(p => '<path class="map-province" d="' + p.d + '"/>').join('') +
+            // 根据地（很淡的红色斜线块 + 名称）
+            '<defs><pattern id="baseHatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">' +
+              '<line x1="0" y1="0" x2="0" y2="5" stroke="rgba(200,16,46,0.16)" stroke-width="1.1"/>' +
+            '</pattern></defs>' +
+            BASES.map(b => '<path class="map-base" d="' + b.d + '"/>').join('') +
+            BASES.map(b => '<text class="map-base-name" x="' + b.lx.toFixed(1) + '" y="' + b.ly.toFixed(1) + '">' +
+              F.escapeHtml(b.name) + '</text>').join('') +
             // 国军合围区（最淡的一层，只交代态势）
             ENEMY_ZONES.map(d => '<path class="map-enemy-zone" d="' + d + '"/>').join('') +
             PROVINCE_FALLBACK.map(d => '<path class="map-province" d="' + d + '"/>').join('') +
@@ -439,6 +484,11 @@
             '<path class="map-route-ally ally-25" d="' + ROUTE_25TH + '" marker-end="url(#arrowAlly25)"/>' +
             // 国军封锁线与追堵方向
             ENEMY_LINES.map(l => '<path class="map-enemy-line" d="' + l.d + '"/>').join('') +
+            ENEMY_LINES.filter(l => l.at).map(l => {
+              const p = geo(l.at[0], l.at[1])
+              return '<text class="map-enemy-name" x="' + p[0].toFixed(1) + '" y="' + p[1].toFixed(1) + '">' +
+                F.escapeHtml(l.label) + '</text>'
+            }).join('') +
             ENEMY_ARROWS.map(a => {
               const p1 = geo(a.from[0], a.from[1])
               const p2 = geo(a.to[0], a.to[1])
