@@ -23,11 +23,11 @@
 | 静态预览（mock 模式，无需服务） | 直接用浏览器打开 `index.html` |
 | 本地后端 + 完整账号体系 | `node server/server.js` → http://localhost:8088 |
 | 前端全链路测试（61 项断言） | `node scripts/test-web.js` |
-| 后端 API 全链路测试（127 项断言） | `node scripts/test-api.js`（自起随机端口 + 临时数据库） |
+| 后端 API 全链路测试（132 项断言） | `node scripts/test-api.js`（自起随机端口 + 临时数据库） |
 | 专题站（静态页 + 留言服务 + 后台） | `node competition-timeline/server/server.js` → http://127.0.0.1:8899（后台 `/admin`；初始口令首次启动打印并写入 `server/初始管理员.txt`） |
 | 专题站单文件构建（离线发布） | `python competition-timeline/.tools/build_single.py <入口页> <输出>`（产物入库到 `competition-timeline/pub/`） |
 | 专题站字体子集重建 | `python competition-timeline/.tools/subset_font.py`（之后把各页 `?v=` 递增，当前统一 `?v=4`） |
-| 数据库备份（SQLite 三件套 + SHA256 清单 + 轮转） | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-db.ps1`（`-ServiceName` 配合 nssm 停服取一致快照） |
+| 数据库备份（SQLite 三件套 + SHA256 清单 + 轮转） | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-db.ps1 -All`（默认只备主站库，`-All` 连留言库一起备；`-ServiceName` 配合 nssm 停服取一致快照） |
 | 字体重建（内容新增汉字后） | `python scripts/build-fonts.py`（见「已知坑」，本机缺输入） |
 | 截图（Edge headless，CDP） | `node scripts/cdp-shot.js "<url>" out.png 390 844 3000` |
 | 手机视口截图 | `node tools/mobile-shot.js "<url>" out.png 390 844` |
@@ -90,7 +90,7 @@ server/contest.js       积分赛 + 排行榜 + 题库导入
 docs/DEPLOY-WINDOWS.md  Windows 内网部署手册（nssm 服务 / HTTPS 反代 / 备份与升级）
 scripts/test-web.js     前端 mock 全链路 + 设计/可访问性回归锁
 scripts/test-api.js     后端 API 全链路验证
-scripts/backup-db.ps1   SQLite 备份（db + -wal/-shm + SHA256 清单 + 轮转，可选 nssm 停服）
+scripts/backup-db.ps1   SQLite 备份（db + -wal/-shm + SHA256 清单 + 轮转，可选 nssm 停服；`-All` 一次备主站与留言两个库）
 scripts/build-fonts.py  由 Google Fonts 切片构建 700/900 子集 woff2 + glyphs.txt
 scripts/dom-check-*.js  各页面 DOM 验收（需 8088 服务 + Edge）
 scripts/cdp-shot.js / tools/mobile-shot.js  截图工具
@@ -142,10 +142,10 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 
 - **换行符（Windows）**：仓库没有 `.gitattributes`，而全局 `core.autocrlf=true` 会把 LF 转成 CRLF，导致 `favicon.svg` 变成 684 B、字节级测试失败。本仓库已设 `core.autocrlf=false`；重装/换克隆后先确认这一点，必要时 `git rm --cached -r . && git reset --hard`。
 - **本机访问 GitHub 的两个坑**：① `schannel` 后端会报 `SEC_E_NO_CREDENTIALS`（curl 也一样），凡是 `git fetch/pull` 都加 `-c http.sslBackend=openssl`；② 若 `github.com` 解析到的 IP 连不上（曾出现 `20.205.243.166` 超时），可用本地 CONNECT 代理指向可用的 GitHub 边缘 IP（例如 `20.27.177.113`）后 `git -c http.proxy=http://127.0.0.1:<端口> -c http.sslBackend=openssl fetch`。两者都是环境问题，不属于项目代码。
-- **`scripts/test-api.js` 在本机沙箱下会有 2 项失败**（端口占用子进程用例：`child_process.spawn` 的管道 stdio 被 DSH 沙箱拦截，退出码记为 null、stderr 为空）。手工等价验证：占住端口后 `PORT=<端口> node server/server.js` 应以退出码 1 结束并打印「启动失败：端口 … 已被占用（EADDRINUSE）」+ 换端口/netstat 提示。正常终端预期 127/127。
+- **`scripts/test-api.js` 在本机沙箱下会有 2 项失败**（端口占用子进程用例：`child_process.spawn` 的管道 stdio 被 DSH 沙箱拦截，退出码记为 null、stderr 为空）。手工等价验证：占住端口后 `PORT=<端口> node server/server.js` 应以退出码 1 结束并打印「启动失败：端口 … 已被占用（EADDRINUSE）」+ 换端口/netstat 提示。正常终端预期 132/132。
 - `scripts/test-web.js` 在运行时把 `config.USE_MOCK` 改 true，验证的是 mock 分支；`js/api.js` 在 Node 下用内存存储兜底（无 localStorage）。
 - `scripts/test-api.js` 在 `require('../server/server')` **之前**设置 `DB_PATH` 指向临时库；测试自己负责清理，别指向 `server/data.db`（SQLite 还会留下 `-wal`/`-shm`，只删 `data.db` 删不干净）。
-- `README.md`（主站）有两处过期描述：开头「地图用 Leaflet CDN」（实际内联 SVG，零联网）与测试断言数「19 / 71 项」（实际 61 / 127）；另外根 README 完全没提 `competition-timeline` 专题站。以代码、测试与 `competition-timeline/README.md` 为准。
+- `README.md`（主站）有两处过期描述：开头「地图用 Leaflet CDN」（实际内联 SVG，零联网）与测试断言数「19 / 71 项」（实际 61 / 132）；另外根 README 完全没提 `competition-timeline` 专题站。以代码、测试与 `competition-timeline/README.md` 为准。
 - `scripts/build-fonts.py` 需要 fonttools + brotli，并读取 `fonts/urls.txt`（**该文件未入库**）与 101 个原始切片；因此本仓库无法直接重建字体。没有原始切片来源时，改动文案只能接受回落到系统宋体，不要伪造 woff2。
 - **内容交付后字体子集没重建（现存）**：`ea84a48` 填充了 9 个节点文案与全部题目，但 `fonts/glyphs.txt` / woff2 未更新；扫描 `js/**`（除 `vendor`）+ `server/**` + `index.html` 实测有 **80 个 ≥U+2000 字符不在子集内**（如 苏/晚/委/赶/赴/援/捐/灌/浴…），这些字会逐字回落系统宋体。`test-web` 的覆盖断言只查 `server/question-bank.json`，**测试全绿 ≠ 字形齐全**；重建须在有原始切片的机器上跑 `python scripts/build-fonts.py`，再把 `fonts/glyphs.txt` 与两个 woff2 一起提交。
 - 浏览器验收脚本硬编码 Edge 路径 `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`；`scripts/dom-check-*` 与 `scripts/play-*` 还硬编码 `http://localhost:8088/?mock=1`——必须先起后端，换机器要改路径。
@@ -156,9 +156,9 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 - 用 pwsh 读中文文件请走 read 工具或显式 `-Encoding utf8`：本机 PowerShell 的 `Get-Content` 会把无 BOM 的 UTF-8 中文读成乱码（文件本身没问题，`server/server.js` 带 BOM，其余无 BOM，保持现状）。
 - `server/data.db` 首次启动自动创建（连同 `-wal`/`-shm`，三者均已 gitignore）；重置演示数据直接删这三个文件再重启。进程在 SIGINT/SIGTERM 时会优雅关库；生产备份用 `scripts/backup-db.ps1`（三件套 + SHA256 清单 + 轮转），不要只拷 `data.db`。
 - **生产部署照 `docs/DEPLOY-WINDOWS.md` 走**（nssm 注册服务、HTTPS 反代、备份、升级步骤都在里面），不要凭记忆另发明一套流程。
-- **部署要起两个服务**：主站 `:8088` + 专题站留言 `:8899`（建议 nssm 各注册一个服务）。`docs/DEPLOY-WINDOWS.md` 目前只写主站，专题站/8899 与 `COMMENTS_UPSTREAM` 需按上面「专题站」一节补步骤；只起主站时 `/api/comments` 返回 503 属预期，不是 bug。
+- **部署要起两个服务**：主站 `:8088` + 专题站留言 `:8899`（建议 nssm 各注册一个服务）。`docs/DEPLOY-WINDOWS.md` 的 2.3 与 §4 已写清 8899 服务、`COMMENTS_UPSTREAM` 与「8899 不得对外暴露」；只起主站时 `/api/comments` 返回 503 属预期，不是 bug。
 - **专题站初始管理员口令**：`competition-timeline/server/初始管理员.txt` 只是首次启动的明文提示，改密后不会更新，**不代表当前密码**；该文件已 gitignore，改密后直接删除。
-- **留言反代没有自动化测试**：`test-api` 只锁定嵌套白名单，`proxyComments` 的 200/503 与「admin 不转发」要手工验证——起 8899 后 `curl http://127.0.0.1:8088/api/comments` 应返回上游 JSON；停掉 8899 应得 503 `COMMENTS_UNAVAILABLE`；`/api/admin/me` 仍应走主站自己的 401。
+- **留言反代有自动化测试**：`scripts/test-api.js` 的 `[14] 留言反代` 用进程内假上游锁定 GET/POST 透传（含 body 与 Cookie）、`X-Forwarded-For`、`/api/admin/*` 不转发（落主站 401 兜底）、上游下线回 503 `COMMENTS_UNAVAILABLE`；真机部署后仍建议起 8899 用 `curl http://127.0.0.1:8088/api/comments` 复核一次。
 - `competition-timeline/pub/*.html` 是 `build_single.py` 的产物；改页面/样式/字体后必须重跑构建，不要手改产物（与 `fonts/` 生成物同规则）。
 - file:// 模式下没有 fetch/后端，任何新的网络调用都要有 mock 分支，否则双击预览会坏。
 - 静态模式下长按「我的」页昵称卡片可重置本地进度（调试用），别再叠加其他隐藏手势。
@@ -166,7 +166,7 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 ## 改完怎么验（Definition of Done）
 
 1. `node scripts/test-web.js` → `ALL PASSED（61 项）`
-2. `node scripts/test-api.js` → 本机沙箱 125 通过 / 2 失败（见「已知坑」，那 2 项要手工验证 EADDRINUSE）；正常终端应为 127/127
+2. `node scripts/test-api.js` → 本机沙箱 130 通过 / 2 失败（见「已知坑」，那 2 项要手工验证 EADDRINUSE）；正常终端应为 132/132
 3. 动了 UI：`node server/server.js` 后浏览 `http://localhost:8088/?mock=1#/`（建议带 `?live=1`），用 `scripts/cdp-shot.js` 或 `tools/mobile-shot.js` 出 390×844 截图自查首屏、tabBar 不遮挡、四态颜色、无横向滚动、焦点环可见。
 4. 动了判分/账号/竞赛：两种模式都要走一遍真实流程（打卡 → 取题 → 交卷 → 毕业 → 竞赛），不能只跑单测。
 5. 动了专题站/托管：同时起主站 8088 与留言 8899，验证 `/competition-timeline/` 页面可开、`/competition-timeline/admin.html` 与 `/competition-timeline/server/server.js` 均 404、留言可读写、停掉 8899 后 `/api/comments` 返回 503。

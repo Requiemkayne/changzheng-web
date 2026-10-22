@@ -7,6 +7,7 @@
 const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
+const http = require('node:http')
 const assert = require('node:assert')
 const { spawnSync } = require('node:child_process')
 
@@ -712,6 +713,58 @@ async function main() {
     const headRes = await rawReq('HEAD', '/css/style.css')
     ok('HEAD 保持改造前语义（405，本次没有新引入 HEAD 分支）', headRes.status === 405, '实际 ' + headRes.status)
 
+
+    /* ---------- 14. 留言反代（专题站留言前端打的是同源 /api/comments） ---------- */
+    // 上游用一个进程内的假留言服务顶着：既能断言透传，也能断言「上游挂了 → 503」
+    console.log('[14] 留言反代 /api/comments')
+    const upstreamHits = []
+    const upstream = http.createServer((urq, urs) => {
+      const chunks = []
+      urq.on('data', c => chunks.push(c))
+      urq.on('end', () => {
+        upstreamHits.push({
+          method: urq.method,
+          url: urq.url,
+          cookie: urq.headers.cookie || '',
+          xff: urq.headers['x-forwarded-for'] || '',
+          body: Buffer.concat(chunks).toString('utf8')
+        })
+        urs.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
+        urs.end(JSON.stringify({ ok: true, page: 'series-1', items: [], echo: urq.url }))
+      })
+    })
+    await new Promise(res => upstream.listen(0, '127.0.0.1', res))
+    const proxyInst = await startInstance({ COMMENTS_UPSTREAM: 'http://127.0.0.1:' + upstream.address().port })
+
+    r = await reqRaw(proxyInst.base, 'GET', '/api/comments?page=series-2')
+    ok('反代透传：GET /api/comments → 上游状态码与 body 原样返回',
+      r.status === 200 && r.body && r.body.page === 'series-1' && r.body.echo === '/api/comments?page=series-2',
+      '实际 ' + r.status + ' ' + JSON.stringify(r.body))
+
+    r = await reqRaw(proxyInst.base, 'POST', '/api/comments', { page: 'series-1', content: '测试' }, null,
+      { Cookie: 'tl-comments-own=abc123' })
+    const lastHit = upstreamHits[upstreamHits.length - 1]
+    ok('反代透传：POST body 与 Cookie 都送到上游（删留言靠 ownerToken）',
+      r.status === 200 && !!lastHit && lastHit.method === 'POST' &&
+      lastHit.body.indexOf('测试') >= 0 && lastHit.cookie === 'tl-comments-own=abc123',
+      '实际 ' + r.status + ' hit=' + JSON.stringify(lastHit))
+    ok('反代透传：带 X-Forwarded-For（上游按 IP 限速 20 条/10 分钟）',
+      !!lastHit && lastHit.xff !== '', '实际 xff=' + (lastHit && lastHit.xff))
+
+    // 后台接口永不转发：/api/admin/me 落到主站自己的登录拦截（server/server.js:277），
+    // admin.html 在主站也是 404，管理端只能走 8899 直连
+    const hitsBeforeAdmin = upstreamHits.length
+    r = await reqRaw(proxyInst.base, 'GET', '/api/admin/me')
+    ok('/api/admin/* 不转发：落到主站自己的 401 拦截，上游一条请求都没收到',
+      r.status === 401 && r.body && r.body.error === 'AUTH_REQUIRED' && upstreamHits.length === hitsBeforeAdmin,
+      '实际 ' + r.status + ' 上游新增=' + (upstreamHits.length - hitsBeforeAdmin))
+
+    // 上游停掉：前端要能拿到可诊断的 JSON，而不是留言框一直转圈
+    await new Promise(res => upstream.close(res))
+    r = await reqRaw(proxyInst.base, 'GET', '/api/comments?page=series-1')
+    ok('上游不可用 → 503 COMMENTS_UNAVAILABLE（不是 500，也不挂住）',
+      r.status === 503 && r.body && r.body.code === 'COMMENTS_UNAVAILABLE',
+      '实际 ' + r.status + ' ' + JSON.stringify(r.body))
 
   } finally {
     for (const s of extraServers) {

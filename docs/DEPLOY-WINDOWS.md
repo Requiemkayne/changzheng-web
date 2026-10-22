@@ -183,6 +183,47 @@ schtasks /query /tn "ChangzhengWeb" /v /fo LIST
 > 本服务的静态根与默认库路径都是绝对路径（`server/server.js:25`、`server/db.js:12`），不依赖工作目录；但 `DB_PATH` 写相对路径时会相对**工作目录**解析，生产环境请一律写绝对路径。
 > 以 SYSTEM 运行时，确保 `C:\cz\web\server` 与备份目录对 SYSTEM 可写。
 
+### 2.3 专题站留言服务 :8899（第二个服务）
+
+主站的 `/api/comments*` 只是反代（`server/server.js:199` `proxyComments`），留言的库、后台、限速都在第二个进程里。**只起 8088 时 `/api/comments` 恒返回 503 `COMMENTS_UNAVAILABLE`** —— 那是缺服务的表现，不是 bug。
+
+1. 以**管理员**身份注册第二个服务（服务名建议 `ChangzhengComments`）：
+
+```bat
+C:\cz\tools\nssm.exe install ChangzhengComments "C:\Program Files\nodejs\node.exe"
+C:\cz\tools\nssm.exe set ChangzhengComments AppDirectory C:\cz\web\competition-timeline
+C:\cz\tools\nssm.exe set ChangzhengComments AppParameters "server\server.js"
+C:\cz\tools\nssm.exe set ChangzhengComments AppStdout C:\cz\logs\comments.out.log
+C:\cz\tools\nssm.exe set ChangzhengComments AppStderr C:\cz\logs\comments.err.log
+C:\cz\tools\nssm.exe set ChangzhengComments AppEnvironmentExtra PORT=8899 DB_PATH=C:\cz\data\comments.db
+C:\cz\tools\nssm.exe set ChangzhengComments AppRotateFiles 1
+C:\cz\tools\nssm.exe set ChangzhengComments AppRotateBytes 10485760
+C:\cz\tools\nssm.exe set ChangzhengComments AppStopMethodConsole 15000
+C:\cz\tools\nssm.exe set ChangzhengComments Start SERVICE_AUTO_START
+C:\cz\tools\nssm.exe start ChangzhengComments
+```
+
+`DB_PATH` 不写就是 `C:\cz\web\competition-timeline\server\data.db`（`competition-timeline/server/server.js:36`）；写给的是相对路径会相对**工作目录**解析（`:34-35` 走 `path.resolve`），生产一律写绝对路径。
+
+2. **初始管理员口令**（只增不改的坑）：
+
+- 只在 `users` 表为空时生成（`competition-timeline/server/server.js:302-308`）。要指定口令就在**首次启动前**设 `ADMIN_PASSWORD`；不设则随机 12 位并写进 `C:\cz\web\competition-timeline\server\初始管理员.txt`（同时打印到 stdout）。
+- 那个文件是**首次启动那一刻的明文快照**，改密后不会更新，**不代表当前密码**；改完密码直接删掉它。它落在主站静态白名单外（`/competition-timeline/server/` 一律 404），但仍应删。
+- 后台 `/admin` 只在 `:8899` 直连可见；经主站访问 `/competition-timeline/admin.html` 恒 404（`scripts/test-api.js` 有断言）。
+
+3. **监听与暴露面**：`server.listen(PORT, '0.0.0.0')`（`competition-timeline/server/server.js:816`）—— 硬编码全接口，**没有 `HOST` 环境变量**。只能靠防火墙限制：8899 只对本机与管理员放行，**绝不要把 8899 映射到公网或对外反代**（留言是匿名外部输入，管理后台同端口）。主站侧只转发 `/api/comments*`，`/api/admin/*` 永不转发（`server/server.js:188-196`）。
+
+4. 验证（两个服务都要起）：
+
+```bat
+curl http://127.0.0.1:8899/api/comments?page=series-1
+curl http://127.0.0.1:8088/api/comments?page=series-1
+```
+
+两条应返回同一个 JSON；停掉 `ChangzhengComments` 后 8088 那条应变成 503 `COMMENTS_UNAVAILABLE`；`curl http://127.0.0.1:8088/api/admin/me` 应返回主站自己的 401 `AUTH_REQUIRED`（说明没被转发出去）。⚠️ 以上 nssm 命令未验证（本机未安装 nssm）。
+
+> 备份别漏第二个库：留言数据是**独立的第二个 SQLite**，`scripts\backup-db.ps1 -All` 一次备两个库（见 5.2）。
+
 ---
 
 ## 3. 反向代理（80 端口 / 将来 HTTPS）
@@ -310,6 +351,7 @@ set CORS_ORIGIN=http://192.168.1.9:8080
 | `RATE_LIMIT_LOGIN` | `10`（60 秒滑动窗口） | 每 IP 每分钟登录次数 | 反代后所有请求同 IP，建议 `60` |
 | `RATE_LIMIT_REGISTER` | `10`（60 秒） | 每 IP 每分钟注册次数 | 同上 |
 | `RATE_LIMIT_CONTEST_START` | `5`（300 秒窗口） | 开赛接口限速，同时记「用户桶 + IP 桶」，任一超限即 429（`server/server.js:89-90`、`260-266`） | 保持默认 5 次/300 秒；反代后 IP 桶会退化为全站共享（见 3.3） |
+| `COMMENTS_UPSTREAM` | `http://127.0.0.1:8899`（`server/server.js:190`） | 留言反代上游：`/api/comments*` 流式转发到这里，5 秒超时（`:212`），连不上回 503 `COMMENTS_UNAVAILABLE` | 与 2.3 的专题站服务同机同端口；跨机部署填 `http://<内网IP>:8899`，并保证只在内网可达 |
 
 启动前设置（cmd，只对当前窗口生效）：
 
@@ -355,38 +397,41 @@ WAL 保证的是「崩溃后能恢复到一致状态」，**不是**「只拷 da
 
 | 参数 | 默认值 | 说明 |
 |---|---|---|
-| `-DbPath` | `..\server\data.db`（相对脚本目录解析为绝对路径） | 要备份的数据库 |
+| `-DbPath` | `..\server\data.db`（相对**脚本目录**解析为绝对路径） | 要备份的数据库；可给**多个**（`p1,p2`），语义与 `-All` 相同 |
+| `-All` | 关 | 一次备两个库：`..\server\data.db` + `..\competition-timeline\server\data.db`；与 `-DbPath` **互斥**（同时给直接报错退出） |
 | `-BackupDir` | `<repo>\backup` | 备份根目录 |
 | `-Keep` | `14` | 保留最近 N 份时间戳目录，超出自动清理 |
-| `-ServiceName` | 空 | 给了就先 `nssm stop`，拷完再 `nssm start`；没给则只做一致性拷贝并提示建议停服务 |
+| `-ServiceName` | 空 | 给了就先 `nssm stop`，拷完再 `nssm start`；可给**多个**（主站 + 留言）。没给则只做一致性拷贝并提示建议停服务 |
 
 常用命令：
 
 ```powershell
-# 默认：备份 server\data.db 到 <repo>\backup\<时间戳>\
+# 默认：只备主站 server\data.db 到 <repo>\backup\<时间戳>\
 powershell -NoProfile -ExecutionPolicy Bypass -File C:\cz\web\scripts\backup-db.ps1
+
+# 生产推荐：主站库 + 专题站留言库一起备，并先停两个服务（最稳）
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\cz\web\scripts\backup-db.ps1 -All -ServiceName ChangzhengWeb,ChangzhengComments
 
 # 指定库与目录、保留 30 份
 powershell -NoProfile -ExecutionPolicy Bypass -File C:\cz\web\scripts\backup-db.ps1 -DbPath D:\cz-data\data.db -BackupDir D:\cz-backup -Keep 30
-
-# 先停 nssm 服务，拷完自动启动（最稳）
-powershell -NoProfile -ExecutionPolicy Bypass -File C:\cz\web\scripts\backup-db.ps1 -ServiceName ChangzhengWeb
 ```
 
 脚本行为：建时间戳子目录（同一秒重复会自动加 `-1` 后缀）→ 逐个拷贝存在的 `data.db` / `-wal` / `-shm`（共享读，不阻塞运行中的 SQLite）→ 计算 SHA256 写 `manifest.txt` → 清理超出 `-Keep` 的旧备份 → 打印备份路径与总大小；任何一步失败都 `exit 1` 并打印原因。
+
+**多库模式**（`-All` 或给多个 `-DbPath`）：两个库的文件名都叫 `data.db`，平铺会互相覆盖，所以每库落到时间戳目录下的 `db1\`、`db2\` 子目录，`manifest.txt` 用「源数据库:」段里的 `db1\ = <源路径>` 说明对应关系。**其中某个库不存在时只跳过并告警，不算失败**（比如还没起过留言服务）。单库模式仍是原来的平铺布局（`<时间戳>\data.db`），老的恢复流程不用改。
 
 ### 5.3 实跑输出（本机临时库，未触碰 server\data.db）
 
 ```text
 [backup] 已拷贝 data.db (4096 字节)
-[backup] 已拷贝 data.db-wal (12392 字节)
+[backup] 已拷贝 data.db-wal (828152 字节)
 [backup] 已拷贝 data.db-shm (32768 字节)
-备份完成: C:\Users\liwenyang\AppData\Local\Temp\cz-bk-e4\backup\20261021-172551
+备份完成: C:\Users\liwenyang\AppData\Local\Temp\cz-doc\out4\20261022-200140
   data.db  4,096 字节  sha256=d872a52e869261dc4cf51c6a70fd85736916c38e14fc5d704cd8f74a406c4942
-  data.db-wal  12,392 字节  sha256=e69df0c8f321f482fb130cd6c38f95c3adea15bc7a66f8ab43fa2c69f52cecbe
-  data.db-shm  32,768 字节  sha256=04edb36b78d4b676724366d26ed33e0a2394f6a172ab164c4b785f676b98e84a
-总大小: 0.05 MB
-已清理旧备份: 20261021-172540
+  data.db-wal  828,152 字节  sha256=d5e8c64deab61d25a8ea0ed3da3db442aa57f2f6b324c2155daa017c4c5dc035
+  data.db-shm  32,768 字节  sha256=15efff391f31c1f2618e242901c93baff7f91ca7d3ecc49c7c129a7522865a59
+总大小: 0.82 MB
+旧备份: 无超出保留份数的目录
 保留策略: 最近 3 份
 ```
 
@@ -394,26 +439,51 @@ manifest.txt 内容：
 
 ```text
 # 长征 web 数据库备份清单
-备份时间: 2026-10-21 17:25:52 +08:00
-源数据库: C:\Users\liwenyang\AppData\Local\Temp\cz-bk-e4\data.db
+备份时间: 2026-10-22 20:01:40 +08:00
+源数据库:
+  C:\Users\liwenyang\AppData\Local\Temp\cz-doc\src\data.db
 服务处理: 未停服务（共享读一致性拷贝）
 
 文件:
 data.db  sha256=d872a52e869261dc4cf51c6a70fd85736916c38e14fc5d704cd8f74a406c4942  bytes=4096
-data.db-wal  sha256=e69df0c8f321f482fb130cd6c38f95c3adea15bc7a66f8ab43fa2c69f52cecbe  bytes=12392
-data.db-shm  sha256=04edb36b78d4b676724366d26ed33e0a2394f6a172ab164c4b785f676b98e84a  bytes=32768
+data.db-wal  sha256=d5e8c64deab61d25a8ea0ed3da3db442aa57f2f6b324c2155daa017c4c5dc035  bytes=828152
+data.db-shm  sha256=15efff391f31c1f2618e242901c93baff7f91ca7d3ecc49c7c129a7522865a59  bytes=32768
 ```
 
 备份的一致性也实测过：把三件套拷到新目录后用 `node:sqlite` 打开，能读出全部数据（`restored rows=3`）；`Get-FileHash` / `certutil` 与 manifest 的 SHA256 一致。
 
+`-All` 多库模式（本机实跑，此时留言库还不存在 → 只跳过并告警，退出码 0）：
+
+```text
+[backup] 跳过（文件不存在）: C:\cz\web\competition-timeline\server\data.db
+[backup] 已拷贝 db1\data.db (4096 字节)
+[backup] 已拷贝 db1\data.db-wal (828152 字节)
+[backup] 已拷贝 db1\data.db-shm (32768 字节)
+备份完成: <repo>\backup\20261022-200113
+  db1\data.db  4,096 字节  sha256=d872a52e869261dc4cf51c6a70fd85736916c38e14fc5d704cd8f74a406c4942
+  db1\data.db-wal  828,152 字节  sha256=d5e8c64deab61d25a8ea0ed3da3db442aa57f2f6b324c2155daa017c4c5dc035
+  db1\data.db-shm  32,768 字节  sha256=15efff391f31c1f2618e242901c93baff7f91ca7d3ecc49c7c129a7522865a59
+总大小: 0.82 MB
+保留策略: 最近 14 份
+```
+
+manifest.txt 对应的「源数据库:」段（两个库都在时是两行 `db1\` / `db2\`）：
+
+```text
+源数据库:
+  db1\ = C:\cz\web\server\data.db
+  db2\ = C:\cz\web\competition-timeline\server\data.db
+```
+
 ### 5.4 每日自动备份
 
 ```bat
-schtasks /create /tn "ChangzhengWebBackup" /tr "powershell -NoProfile -ExecutionPolicy Bypass -File C:\cz\web\scripts\backup-db.ps1 -Keep 30" /sc daily /st 02:00 /ru SYSTEM /rl HIGHEST /f
+schtasks /create /tn "ChangzhengWebBackup" /tr "powershell -NoProfile -ExecutionPolicy Bypass -File C:\cz\web\scripts\backup-db.ps1 -All -Keep 30" /sc daily /st 02:00 /ru SYSTEM /rl HIGHEST /f
 schtasks /run /tn "ChangzhengWebBackup"
 ```
 
 > ⚠️ 未验证：创建计划任务需要管理员权限。
+> 加 `-All` 才是两个库都备（主站 + 留言）；只给 `-Keep 30` 就只备 `server\data.db`，留言会漏。
 > 备份目录建议放**另一块盘**（如 `D:\cz-backup`），并用 `-BackupDir` 指过去。
 
 ### 5.5 恢复步骤
@@ -448,7 +518,7 @@ curl -s -o NUL -w "%{http_code}\n" http://127.0.0.1:8088/
 - **旧 `-wal/-shm` 绝不能和新 `data.db` 混用**，否则可能读到错乱页；换库时要么三件套一起换，要么先删掉旧的两个附属文件（仅在服务已停的前提下）。
 - 恢复后至少做一次登录 + 打卡 + 取题冒烟，确认数据可写，而不只是健康检查。
 - 备份目录与数据库目录不要放同一块盘，避免一起坏。
-
+- **留言库要单独恢复**：停 `ChangzhengComments` → 从备份里取留言库的三件套（`-All` 备份里是 `db2\data.db*`，单库备份里就叫 `data.db*`）→ 覆盖到 `C:\cz\web\competition-timeline\server\` → 起服务；不恢复它只会丢留言，主站打卡/账号不受影响（`/api/comments` 会一直是 503，直到库就位）。
 ---
 
 ## 6. 升级流程
