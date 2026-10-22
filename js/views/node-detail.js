@@ -66,6 +66,22 @@
         case 'quote':
           html += '<div class="block block-quote">「' + F.escapeHtml(b.text) + '」</div>'
           break
+        case 'video': {
+          // 影像资料（历史背景上方）：poster 用节点封面，避免加载前黑屏
+          const vsrc = F.escapeHtml(b.src || '')
+          const poster = F.escapeHtml(b.poster || '')
+          if (!vsrc) break
+          html += '<div class="block block-video">' +
+            '<video controls playsinline preload="metadata"' +
+            (poster ? ' poster="' + poster + '"' : '') +
+            ' aria-label="' + F.escapeHtml(b.caption || '历史影像资料') + '">' +
+            '<source src="' + vsrc + '" type="video/mp4">' +
+            '您的浏览器不支持视频播放。' +
+            '</video>' +
+            (b.caption ? '<div class="block-caption">' + F.escapeHtml(b.caption) + '</div>' : '') +
+            '</div>'
+          break
+        }
         case 'timeline': {
           let items = ''
           ;(b.items || []).forEach(it => {

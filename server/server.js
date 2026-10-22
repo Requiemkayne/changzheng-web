@@ -63,7 +63,8 @@ const STATIC_NESTED = {
 const STATIC_ROOT_FILES = new Set(['index.html', 'favicon.ico', 'favicon.svg'])
 const STATIC_EXT = new Set([
   '.html', '.css', '.js', '.woff', '.woff2',
-  '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.json'
+  '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.json',
+  '.mp4'
 ])
 
 function json(res, status, obj) {
@@ -586,6 +587,41 @@ function serveStatic(req, res, pathname) {
       return res.end()   // 304 无响应体，也不发 Content-Length
     }
     const useGzip = compressible && st.size >= GZIP_MIN_BYTES && acceptsGzip(req.headers['accept-encoding'])
+
+    // 视频按字节范围响应：iOS Safari 必须拿到 206 才肯播放，拖进度条也依赖它
+    if (ext === '.mp4') {
+      res.setHeader('Accept-Ranges', 'bytes')
+      const range = req.headers.range
+      if (range) {
+        const m = /^bytes=(\d*)-(\d*)$/.exec(String(range).trim())
+        if (m && (m[1] || m[2])) {
+          let start
+          let end
+          if (!m[1]) {
+            // bytes=-N：最后 N 字节
+            const tail = parseInt(m[2], 10)
+            start = Math.max(0, st.size - tail)
+            end = st.size - 1
+          } else {
+            start = parseInt(m[1], 10)
+            end = m[2] ? Math.min(parseInt(m[2], 10), st.size - 1) : st.size - 1
+          }
+          if (start >= st.size || start > end) {
+            res.setHeader('Content-Range', 'bytes */' + st.size)
+            res.writeHead(416, { 'Content-Type': 'application/json; charset=utf-8' })
+            return res.end(JSON.stringify({ ok: false, code: 'RANGE_NOT_SATISFIABLE', message: '请求范围超出文件大小' }))
+          }
+          res.setHeader('Content-Type', MIME[ext] || 'video/mp4')
+          res.setHeader('Content-Range', 'bytes ' + start + '-' + end + '/' + st.size)
+          res.setHeader('Content-Length', String(end - start + 1))
+          res.writeHead(206)
+          const stream = fs.createReadStream(file, { start, end })
+          stream.on('error', () => res.destroy())
+          return stream.pipe(res)
+        }
+      }
+    }
+
     fs.readFile(file, (err, data) => {
       if (err) {
         res.removeHeader('ETag')

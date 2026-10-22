@@ -76,7 +76,7 @@ js/router.js            hash 路由 + tabBar + 路由守卫 + 首访欢迎页
 js/map3d.js             3D 沙盘（three.js；高程图 assets/map3d/heightmap.png）
 js/weather.js           页面级天气特效（canvas，尊重 reduced-motion）
 js/live-reload.js       ?live=1 时的开发自动刷新
-js/mock/nodes.js        11 节点（9 篇文案已交付，泸定桥/腊子口仍为占位；含经纬度/阶段/detail 块/quiz 关联）
+js/mock/nodes.js        11 节点（9 篇文案已交付，泸定桥/腊子口仍为占位；含经纬度/阶段/detail 块/quiz 关联）；8 个节点的 detail.blocks 首块是 video（assets/video/<code>.mp4，位于「历史背景」标题上方）
 js/mock/questions.js    43 题（每节点 3 题 + final 池 10 题；含 answer/explanation）
 js/mock/loader.js       仅 mock 模式用 document.write 注入 questions.js
 js/mock/{journey,spirit,weather}.js  开场/精神卡/天气文案数据
@@ -97,6 +97,7 @@ tools/bake-heightmap.py 生成 assets/map3d/heightmap.png（生成物，勿手�
 samples/map3d/          地图方案探索样例，不是生产代码
 fonts/glyphs.txt        字重子集的字符快照（逐行一个字符），构建脚本的输入输出
 assets/route/*.webp     11 个节点封面图（nodes.js 的 images.cover 引用）
+assets/video/*.mp4      8 个节点的影像资料（nodes.js 的 video 块引用；720p H.264，合计约 71 MB）
 competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + pub 离线单文件 + .tools 构建脚本（详见其 README）
 ```
 
@@ -118,13 +119,14 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 - 题目格式：`{ _id, nodeCode, type: 'single'|'multiple'|'judge', question, options[], answer: [下标], explanation }`（另有 `difficulty` / `status`）；`answer` 恒为下标数组，判断题 `options` 必须是 `["正确","错误"]`。
 - 文案交付状态：**9 个节点已按文案组 Word 交付**（瑞金/湘江/遵义/四渡赤水/金沙江/大渡河/雪山/草地/会宁），配套题目也已重写；**飞夺泸定桥、激战腊子口 仍是占位文案**，其「占位」标记要保留，别把整站都当成品描述。
 - 节点封面图已交付：`assets/route/<code>.webp`，由 `nodes.js` 的 `images.cover` 引用；画师的 `illustrations` 数组仍为空（渲染层需保留主题色块兜底）。
+- `detail.blocks` 现有 7 种 type：`heading / paragraph / image / quote / video / timeline / dataCard`（未知 type 静默忽略）。`video` 形如 `{ type:'video', src:'assets/video/<code>.mp4', poster:'assets/route/<code>.webp', caption? }`，渲染为 `<video controls playsinline preload="metadata">`，**必须排在 heading 之前**（用户要求位于「历史背景」上方）。
 - 竞赛题库：出题人直接编辑 `server/question-bank.json`，重启服务自动导入。**导入按 `id` 幂等去重（INSERT OR IGNORE）——修改已有 id 的题干不会被更新**，需换新 id 或清掉 `bank_questions` 对应行；竞赛要求库内 ≥ 20 题。
 - 新增文案里的汉字若不在 `fonts/glyphs.txt` 中，会逐字回落到系统衬线（不会豆腐块，但一句话里两种字形）；出正式文案后需要重跑字体重建（见「已知坑」）。**当前就处于这个状态**：内容已交付但字体子集未重建。
 
 ## 不可破坏的约束
 
 1. **答案永不下发**（http 模式）：`getQuiz` 剥离 `answer`/`explanation`，判分只在服务端；`questions.js` 只能经 `js/mock/loader.js` 在 mock 模式注入，**不得在 `index.html` 加 `<script src="js/mock/questions.js">`**（`scripts/test-web.js` 会断言这一点）。
-2. **静态白名单**：`server/server.js` 只对外提供 `index.html`、`favicon.ico/svg` 和 `css/ js/ fonts/ assets/` 目录，隐藏段、`..`、源码、脚本、多级 md、db 一律 404。新增顶层资源目录必须同时改 `STATIC_DIRS`、`STATIC_EXT` 与对应测试，否则线上 404。
+2. **静态白名单**：`server/server.js` 只对外提供 `index.html`、`favicon.ico/svg` 和 `css/ js/ fonts/ assets/` 目录，隐藏段、`..`、源码、脚本、多级 md、db 一律 404。新增顶层资源目录必须同时改 `STATIC_DIRS`、`STATIC_EXT` 与对应测试，否则线上 404。视频扩展名 `.mp4` 已在 `STATIC_EXT` 中（`assets/video/`），MIME 走 `video/mp4`。
 3. **HTML 转义**：任何来自数据/用户/接口的字符串进 `innerHTML` 前必须过 `CZ_FORMAT.escapeHtml`。
 4. **零外部依赖、离线可用**：不引 CDN 字体/图片/地图/JS；three.js 用 `js/vendor/`；世界地图不用。
 5. **字体契约（测试锁定）**：`fonts/noto-serif-sc.css` 只允许 ≤2 个 @font-face（700 + 900）、**不得恢复 unicode-range 分片方案**、两个 woff2 src 都要存在且 >100KB。改字体走 `scripts/build-fonts.py`，不要手写 @font-face。
@@ -146,6 +148,7 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 - `scripts/build-fonts.py` 需要 fonttools + brotli，并读取 `fonts/urls.txt`（**该文件未入库**）与 101 个原始切片；因此本仓库无法直接重建字体。没有原始切片来源时，改动文案只能接受回落到系统宋体，不要伪造 woff2。
 - **内容交付后字体子集没重建（现存）**：`ea84a48` 填充了 9 个节点文案与全部题目，但 `fonts/glyphs.txt` / woff2 未更新；扫描 `js/**`（除 `vendor`）+ `server/**` + `index.html` 实测有 **80 个 ≥U+2000 字符不在子集内**（如 苏/晚/委/赶/赴/援/捐/灌/浴…），这些字会逐字回落系统宋体。`test-web` 的覆盖断言只查 `server/question-bank.json`，**测试全绿 ≠ 字形齐全**；重建须在有原始切片的机器上跑 `python scripts/build-fonts.py`，再把 `fonts/glyphs.txt` 与两个 woff2 一起提交。
 - 浏览器验收脚本硬编码 Edge 路径 `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`；`scripts/dom-check-*` 与 `scripts/play-*` 还硬编码 `http://localhost:8088/?mock=1`——必须先起后端，换机器要改路径。
+- **视频依赖 Range**：静态服务对 `.mp4` 返回 `206 Partial Content` + `Content-Range`（iOS Safari 不拿到 206 就不播，拖进度条也依赖它），其他扩展名仍是整文件 200。改 `serveStatic` 时别把这段删了；新增视频用 `ffmpeg -c:v libx264 -crf 30 -preset medium -movflags +faststart -c:a aac -b:a 64k`（源素材 228 MB → 产出 71 MB）。
 - 静态响应按扩展名分层：html/css/js/json 走 `no-cache` + ETag（可拿 304），图片/字体给 1 天；文本类按 `Accept-Encoding` 返回 gzip 并带 `Vary`。**HEAD 请求仍是 405**（测试锁定为「保持改造前语义」），不要顺手加 HEAD 分支。
 - `/__version` 忽略 `js/vendor/`，改其他 js/css 会触发 `?live=1` 重载。
 - 用 pwsh 读中文文件请走 read 工具或显式 `-Encoding utf8`：本机 PowerShell 的 `Get-Content` 会把无 BOM 的 UTF-8 中文读成乱码（文件本身没问题，`server/server.js` 带 BOM，其余无 BOM，保持现状）。

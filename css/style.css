@@ -665,6 +665,26 @@ a { color: var(--red-mid); text-decoration: none; }
   background: linear-gradient(90deg, rgba(201, 162, 39, 0.5), transparent);
 }
 .block-paragraph { font-size: 15px; color: #453830; text-indent: 2em; }
+/* 影像资料（历史背景上方的视频块） */
+.block-video {
+  margin: 4px 0 18px;
+}
+
+.block-video video {
+  display: block;
+  width: 100%;
+  border-radius: var(--r-md);
+  background: #1A1012;
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  box-shadow: 0 6px 18px rgba(74, 5, 16, 0.18);
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.block-video .block-caption {
+  margin-top: 8px;
+}
+
 .block-quote {
   position: relative;
   background: var(--gold-bg);

@@ -26,6 +26,7 @@
       summary: '1934年10月，中央领导机关从瑞金出发，8.6万红军夜渡于都河，踏上两万五千里远征。',
       detail: {
         blocks: [
+          { type: 'video', src: 'assets/video/ruijin.mp4', poster: 'assets/route/ruijin.webp' },
           { type: 'heading', text: '历史背景' },
           { type: 'paragraph', text: '1934年，第五次反“围剿”失利，中央苏区形势危急。10月10日晚，中共中央、中革军委机关从江西瑞金出发，向于都集结开进。中央红军主力共8.6万余人，陆续从瑞金、兴国等地赶赴于都，架设浮桥、夜渡于都河，开启伟大的长征。' },
           { type: 'paragraph', text: '苏区群众全力支援，送粮送物、捐献门板。这支红色大军从此踏上战略转移的远征之路，开启二万五千里的艰苦征程。' },
@@ -77,6 +78,7 @@
       summary: '1935年1月，中共中央政治局在遵义召开扩大会议，纠正“左”倾军事错误，成为生死攸关的转折点。',
       detail: {
         blocks: [
+          { type: 'video', src: 'assets/video/zunyi.mp4', poster: 'assets/route/zunyi.webp' },
           { type: 'heading', text: '历史背景' },
           { type: 'paragraph', text: '遵义会议是1935年1月中共中央政治局在贵州遵义召开的扩大会议，是在红军第五次反“围剿”失败和长征初期严重受挫的情况下，为纠正博古、王明、李德等人“左”倾领导在军事指挥上的错误而召开的。' },
           { type: 'paragraph', text: '这是中国共产党第一次独立自主地运用马克思列宁主义基本原理解决自己的路线、方针和政策问题的会议。它在极端危急的历史关头挽救了党、挽救了红军、挽救了中国革命，是党的历史上一个生死攸关的转折点。' },
@@ -101,6 +103,7 @@
       summary: '三个月内四次渡过赤水河，在川黔滇边把敌军拖得团团转，跳出了四十万重兵的合围。',
       detail: {
         blocks: [
+          { type: 'video', src: 'assets/video/sidu.mp4', poster: 'assets/route/sidu.webp' },
           { type: 'heading', text: '历史背景' },
           { type: 'paragraph', text: '1935年1月，遵义会议召开，纠正了“左”倾军事错误，重新确立毛泽东在党中央和红军的领导地位。此时中央红军刚完成长征初期突围，蒋介石调集国民党重兵，在川、黔、滇交界布下包围圈，企图将中央红军围歼于这一区域。' },
           { type: 'paragraph', text: '为摆脱敌军围追堵截、争取战略主动权，中央红军于1935年1月19日至3月22日，在赤水河流域开展机动运动战，也就是四渡赤水战役。' },
@@ -153,6 +156,7 @@
       summary: '1935年5月，17名勇士驾小船冒着炮火强渡大渡河，抢占对岸阵地，为主力打开北上通道。',
       detail: {
         blocks: [
+          { type: 'video', src: 'assets/video/dadu.mp4', poster: 'assets/route/dadu.webp' },
           { type: 'heading', text: '历史背景' },
           { type: 'paragraph', text: '1935年5月，中央红军抵达大渡河。大渡河水流湍急、两岸陡峭，敌军妄图凭借天险阻挡红军。' },
           { type: 'paragraph', text: '红军挑选十七名勇士组成突击队，冒着对岸敌人密集炮火，驾小船强渡。战士们奋勇冲锋，成功抢占对岸阵地，为主力部队开辟通道，彰显无畏牺牲、攻坚克难的英雄气概。' },
@@ -176,6 +180,7 @@
       summary: '（占位文案）22名突击队员沿13根铁索飞夺泸定桥，创造了长征史上的奇迹。',
       detail: {
         blocks: [
+          { type: 'video', src: 'assets/video/luding.mp4', poster: 'assets/route/luding.webp' },
           { type: 'heading', text: '历史背景' },
           { type: 'paragraph', text: '（占位文案，待文案组替换）泸定桥桥板被敌军拆除，红军突击队员攀着13根铁索，冒着密集火力冲向对岸。' },
           { type: 'image', src: '', caption: '（占位）泸定桥（画师素材待交付）' },
@@ -199,6 +204,7 @@
       summary: '1935年6月，红军翻越海拔4000余米的夹金山，在缺氧与风雪中互相搀扶，翻过后在达维与红四方面军会师。',
       detail: {
         blocks: [
+          { type: 'video', src: 'assets/video/xueshan.mp4', poster: 'assets/route/xueshan.webp' },
           { type: 'heading', text: '历史背景' },
           { type: 'paragraph', text: '1935年6月，中央红军踏上长征途中第一座大雪山——夹金山。海拔4000余米的雪山终年积雪，当地民谣传唱：“夹金山，夹金山，鸟儿飞不过，凡人不可攀。要想越过夹金山，除非神仙到人间。”' },
           { type: 'paragraph', text: '战士们身着单衣、脚穿草鞋，在缺氧、狂风与冰雹中互相搀扶。翻过雪山，红军在达维与红四方面军胜利会师。皑皑雪山见证信仰，风雪铸就不朽的长征精神。' },
@@ -222,6 +228,7 @@
       summary: '1935年8月，红军右路军由毛儿盖出发，历时7天穿越松潘草地，无数将士长眠荒原。',
       detail: {
         blocks: [
+          { type: 'video', src: 'assets/video/caodi.mp4', poster: 'assets/route/caodi.webp' },
           { type: 'heading', text: '历史背景' },
           { type: 'paragraph', text: '1935年8月，红军分为右路军、左路军，先后踏入松潘草地。右路军由毛儿盖出发，历经7天跋涉抵达班佑。' },
           { type: 'paragraph', text: '这里海拔3500米以上，昼夜温差大，荒无人烟，草甸之下遍布沼泽泥潭。粮食耗尽，战士们采食野菜、煮皮带充饥。无数将士长眠荒原，他们以钢铁意志战胜绝境，诠释着革命理想高于天。' },
@@ -269,6 +276,7 @@
       summary: '1936年10月，红一、红二、红四方面军在甘肃会宁等地会师，两万五千里长征胜利结束。',
       detail: {
         blocks: [
+          { type: 'video', src: 'assets/video/huining.mp4', poster: 'assets/route/huining.webp' },
           { type: 'heading', text: '历史背景' },
           { type: 'paragraph', text: '1936年10月，红一方面军、红二方面军、红四方面军在甘肃会宁等地胜利会师。历经两年艰苦跋涉，三大主力红军成功会合，标志着二万五千里长征胜利结束。' },
           { type: 'paragraph', text: '长征是宣言书，长征是宣传队，长征是播种机。长征的胜利，保存了中国革命的火种，打开中国革命新局面，铸就伟大长征精神，在中国革命史上写下不朽篇章。' },
