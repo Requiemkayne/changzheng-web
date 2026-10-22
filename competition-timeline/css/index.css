@@ -1,0 +1,34 @@
+/* ============================================================
+   【技炫青春 能创未来】系列报道总览页（index.html）样式
+   页面级样式，后置于 css/style.css；总览页不再引用 css/series-3.css
+   ============================================================ */
+
+/* 系列卡片列表：整体可点 + 列表左侧金线（复用 .steps / .step 结构） */
+.series-list::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  left: -16px;
+  width: 1px;
+  background: linear-gradient(180deg, rgba(201, 162, 39, 0.55), rgba(201, 162, 39, 0.12));
+}
+
+.series-card {
+  display: block;
+  text-decoration: none;
+}
+
+.series-card:hover,
+.series-card:active {
+  border-color: rgba(201, 162, 39, 0.55);
+  background: var(--gold-bg);
+}
+
+.series-note {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.7;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}

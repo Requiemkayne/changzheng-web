@@ -30,7 +30,7 @@
 }
 
 /* ============================================================
-   日夜磨一剑 · 鹭岛摘金奖 —— 备赛攻坚纪实时间线
+   日夜磨一剑 · 鹭岛摘金奖 —— 备赛攻坚纪实
    严格对齐 changzheng-web-main/DESIGN.md 与 css/style.css 的尺寸体系：
 
    布局   #app  max-width 480px 居中；.page padding 18px；卡片间距 14px；区块间距 24px
@@ -930,33 +930,38 @@ tbody td:nth-child(2) {
 }
 
 /* ============================================================
-   分页导航：页内「返回」与页底「下一篇」
-   · 四个前台页（总览 + 系列一/二/三）统一，形成
-     总览 → 一 → 二 → 三 → 总览 的闭环；返回链固定在内容区顶部，
-     下一篇入口固定在页脚之后
-   · 尺寸沿用 .jump（36px 触控高度）与 .foot / .step 的卡片语言：
-     两枚入口都用浅色底，焦点环继续交给全局 a:focus-visible（深红），
-     不在深红底上放交互元素，就不需要为焦点环另开金环例外
+   分页导航：顶栏左上角的「返回」与留言区上方的「下一篇」
+   · 四个前台页（总览 + 系列一/二/三）统一：返回固定在吸顶顶栏最左侧，
+     滚动时始终可见；下一篇留在正文与留言区之间，形成
+     总览 → 一 → 二 → 三 → 总览 的闭环
+   · 返回只有图标（名称走 aria-label），32px 触控区沿用 .jump 的
+     金边浅描边语言，不挤压品牌（品牌本就 min-width:0 + 省略号兜底）
    ============================================================ */
-.page-nav { margin: 0 0 14px; }
 .page-nav-foot { margin: 20px 0 0; }
 
-.page-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  min-height: 36px;
-  padding: 0 12px 0 8px;
-  border: var(--gold-border);
+.shell-back {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(232, 200, 106, 0.45);
   border-radius: var(--r-sm);
-  background: var(--card);
-  box-shadow: var(--shadow);
-  color: var(--red-dark);
-  font-size: 13px;
-  letter-spacing: 0.06em;
+  color: var(--gold-light);
+  transition: background 0.15s ease, transform 0.08s ease;
 }
-.page-back:hover { background: var(--gold-pale); }
-.page-back:active { transform: scale(0.985); }
+.shell-back:hover,
+.shell-back:active { background: rgba(245, 233, 200, 0.16); color: #FFF4DC; }
+.shell-back:active { transform: scale(0.94); }
+
+/* 深红底上深红焦点环不可见：改浅纸色内描边，与顶栏既有高亮语言一致 */
+.shell-back:focus-visible {
+  outline: 2px solid rgba(245, 233, 200, 0.9);
+  outline-offset: -3px;
+}
+
+/* 顶栏是 space-between：返回占据左端后，让品牌吃掉余量，才不会把品牌推到右端 */
+.shell-back + .brand { flex: 1 1 auto; }
 
 .page-next {
   display: flex;
@@ -994,7 +999,7 @@ tbody td:nth-child(2) {
 }
 
 /* 箭头：返回朝左、下一篇朝右，均用自绘 SVG（禁 emoji 与字形图标） */
-.page-back .ic,
+.shell-back .ic,
 .page-next .ic {
   flex: none;
   fill: none;
@@ -1003,7 +1008,7 @@ tbody td:nth-child(2) {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.page-back .ic { width: 13px; height: 13px; }
+.shell-back .ic { width: 15px; height: 15px; }
 .page-next .ic {
   width: 16px;
   height: 16px;
@@ -1066,208 +1071,11 @@ tbody td:nth-child(2) {
 </style>
   <style>
 /* ============================================================
-   【技炫青春 能创未来】系列报道（三）· 灯火长明 · 百次调试
-   页面级样式（仅 series-3.html 使用，后置于 css/style.css）
-
-   约定
-   · 只复用 css/style.css 的既有令牌与组件（.shell-bar / .hero /
-     .block-title / .phase / .step / .intro / .figure / .overview /
-     .badge / .foot），不新增颜色变量，不改动 style.css；
-   · 颜色只取 var(--*) 与既有令牌的 rgba 组合
-     （金 201,162,39 / 亮金 232,200,106 / 深红 74,5,16 / 墨褐 110,99,80），
-     本文件不出现任何十六进制色值；
-   · 形状只取 3 / 4 / 6px 与 var(--r-sm) / var(--r-md) / var(--r-lg)，
-     无胶囊形；投影一律带偏移并以深红 74,5,16 着色，无零偏移光晕；
-   · 不写字体声明、无外部字体 / 图片 / 脚本、无 emoji、无星形字形；
-   · 赛中结果卡仅保留底色与文字，不使用旋转印章等装饰性动效。
+   【技炫青春 能创未来】系列报道总览页（index.html）样式
+   页面级样式，后置于 css/style.css；总览页不再引用 css/series-3.css
    ============================================================ */
 
-/* ============================================================
-   0. 锚点跳转：为吸顶栏留出占位，避免目标标题被深红顶栏压住
-   .shell-bar 高度 = 内容行 33.4px（strong 13×1.3 = 16.9，
-   em 10×1.65 = 16.5）+ 上下 padding 8 + 8 + 底边 1 = 50.4px；
-   取整 51px 再加 8px 余量 → 59px，使滚动落点稳定停在顶栏下方，
-   标题本身及其上沿留白都不被遮挡。
-   ============================================================ */
-html { scroll-padding-top: 59px; }
-
-/* ============================================================
-   1. 顶栏：只留品牌（印章 + 标题）
-   原「赛前/赛中/赛后」锚点与「总览 / 系列（一）（二）」按钮
-   已按用户要求删除；四页顶栏统一为品牌单行，阶段跳转改由
-   页脚入口承担，相关 .shell-right / .jump-series 规则随之移除。
-   ============================================================ */
-
-
-/* Hero 副题：390px 下「实」字不再孤悬成行；不支持 balance 时
-   退回 pretty（同样收掉短尾行），两者都不支持则保持原有的
-   居中自动换行 —— 字号与对齐方式均不改动 */
-.hero-sub {
-  text-wrap: pretty;
-  text-wrap: balance;
-}
-
-/* ============================================================
-   3. 区块间距统一 24px（卡片间距仍为 14px）
-   ============================================================ */
-.intro,
-.overview,
-.sources { margin-bottom: 24px; }
-
-/* ============================================================
-   4. 图片：引言后的通栏横幅 / 阶段内的金框竖排
-   ============================================================ */
-.figure--full { margin-left: 0; }
-
-/* ============================================================
-   5. 步骤卡：序号 + 4 字小标题 + 单段正文
-   ============================================================ */
-.step-no {
-  margin-right: 8px;
-  font-family: var(--font-title);
-  font-weight: 900;
-  font-size: 13px;
-  letter-spacing: 0.08em;
-  color: var(--gold-deep);
-  font-variant-numeric: tabular-nums;
-}
-
-/* 卡内金侧线与正文对齐 */
-.step-body { padding-left: 9px; }
-
-
-/* ============================================================
-   7. 内容来源块
-   ============================================================ */
-.src-card {
-  background: var(--card);
-  border: var(--gold-border);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow);
-  padding: 16px;
-}
-
-.src-list { display: block; }
-
-.src-row {
-  display: grid;
-  grid-template-columns: 60px 1fr;
-  gap: 10px;
-  padding: 9px 0;
-  border-top: 1px dashed var(--line);
-}
-
-.src-row:first-child {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.src-row dt {
-  font-family: var(--font-title);
-  font-weight: 700;
-  font-size: 11px;
-  line-height: 2;
-  letter-spacing: 0.08em;
-  color: var(--gold-deep);
-}
-
-.src-row dd {
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--ink);
-}
-
-.src-link { overflow-wrap: anywhere; }
-
-.src-note {
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--line);
-  font-size: 12px;
-  line-height: 1.7;
-  color: var(--muted);
-}
-
-/* ============================================================
-   8. 页脚系列归档说明
-   ============================================================ */
-.foot-note {
-  padding: 12px;
-  background: var(--gold-bg);
-  border: 1px solid rgba(201, 162, 39, 0.3);
-  border-radius: var(--r-md);
-  font-size: 13px;
-  line-height: 1.75;
-  color: var(--ink);
-}
-
-.foot-links { margin-top: 10px; }
-
-/* ============================================================
-   9. 焦点环：统一深红（本页无 tabBar，不出现金环）
-   ============================================================ */
-a:focus-visible,
-button:focus-visible {
-  outline: 2px solid var(--red-dark);
-  outline-offset: 2px;
-  box-shadow: none;
-  border-radius: 3px;
-}
-
-/* 深红 shell 内改为内描边，并提亮底衬保证深红环可见 */
-.shell-bar a:focus-visible {
-  outline-offset: -2px;
-  background: rgba(245, 233, 200, 0.18);
-}
-
-/* ============================================================
-   10. 响应式
-   ============================================================ */
-@media (max-width: 400px) {
-  .src-row { grid-template-columns: 52px 1fr; }
-}
-
-@media (min-width: 520px) {
-  .src-row { grid-template-columns: 68px 1fr; }
-}
-
-/* ============================================================
-   11. 减弱动效
-   ============================================================ */
-@media (prefers-reduced-motion: reduce) {
-  .step,
-  .figure,
-  .src-card,
-  .foot-note {
-    transition: none !important;
-    animation: none !important;
-  }
-
-}
-
-/* ============================================================
-   12. 打印
-   ============================================================ */
-@media print {
-  .step,
-  .figure,
-  .intro,
-  .src-card,
-  .foot,
-  .table-box {
-    box-shadow: none;
-    break-inside: avoid;
-  }
-
-
-  .foot-note { background: none; }
-  .src-link { color: var(--ink); }
-}
-
-/* ============================================================
-   13. 系列总览页专用（仅 series.html 使用）
-   卡片整体可点 + 列表左侧金线；不改动上述任何区块样式
-   ============================================================ */
+/* 系列卡片列表：整体可点 + 列表左侧金线（复用 .steps / .step 结构） */
 .series-list::before {
   content: "";
   position: absolute;
@@ -1287,11 +1095,6 @@ button:focus-visible {
 .series-card:active {
   border-color: rgba(201, 162, 39, 0.55);
   background: var(--gold-bg);
-}
-
-.hero-meta {
-  text-wrap: pretty;
-  text-wrap: balance;
 }
 
 .series-note {
@@ -1366,11 +1169,14 @@ body.has-tabbar { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
   <!-- ============ 1. 顶部深红 shell ============ -->
   <header class="shell-bar">
     <div class="wrap shell-bar-inner">
+      <a class="shell-back" href="../index.html#/" data-keep-search aria-label="返回长征主站">
+        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+      </a>
       <a class="brand" href="#top">
         <span class="brand-seal" aria-hidden="true">技</span>
         <span class="brand-text">
-          <strong>技炫青春</strong>
-          <em>能创未来 · 系列总览</em>
+          <strong>技炫青春 · 能创未来</strong>
+          <em>系列总览</em>
         </span>
       </a>
     </div>
@@ -1394,14 +1200,6 @@ body.has-tabbar { padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
 
   <main class="page">
     <div class="wrap">
-      <!-- 分页导航（页顶）：总览页的上一级是长征主站「路线」页；固定入口，不依赖浏览器历史栈 -->
-      <nav class="page-nav" aria-label="分页导航">
-        <a class="page-back" href="../index.html#/" data-keep-search>
-          <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
-          <span>返回长征主站</span>
-        </a>
-      </nav>
-
 
       <!-- ============ 3. 三篇系列报道入口 ============ -->
       <section class="series" id="list" aria-labelledby="list-title">

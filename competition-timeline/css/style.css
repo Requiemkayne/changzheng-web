@@ -1,5 +1,5 @@
 /* ============================================================
-   日夜磨一剑 · 鹭岛摘金奖 —— 备赛攻坚纪实时间线
+   日夜磨一剑 · 鹭岛摘金奖 —— 备赛攻坚纪实
    严格对齐 changzheng-web-main/DESIGN.md 与 css/style.css 的尺寸体系：
 
    布局   #app  max-width 480px 居中；.page padding 18px；卡片间距 14px；区块间距 24px
@@ -899,33 +899,38 @@ tbody td:nth-child(2) {
 }
 
 /* ============================================================
-   分页导航：页内「返回」与页底「下一篇」
-   · 四个前台页（总览 + 系列一/二/三）统一，形成
-     总览 → 一 → 二 → 三 → 总览 的闭环；返回链固定在内容区顶部，
-     下一篇入口固定在页脚之后
-   · 尺寸沿用 .jump（36px 触控高度）与 .foot / .step 的卡片语言：
-     两枚入口都用浅色底，焦点环继续交给全局 a:focus-visible（深红），
-     不在深红底上放交互元素，就不需要为焦点环另开金环例外
+   分页导航：顶栏左上角的「返回」与留言区上方的「下一篇」
+   · 四个前台页（总览 + 系列一/二/三）统一：返回固定在吸顶顶栏最左侧，
+     滚动时始终可见；下一篇留在正文与留言区之间，形成
+     总览 → 一 → 二 → 三 → 总览 的闭环
+   · 返回只有图标（名称走 aria-label），32px 触控区沿用 .jump 的
+     金边浅描边语言，不挤压品牌（品牌本就 min-width:0 + 省略号兜底）
    ============================================================ */
-.page-nav { margin: 0 0 14px; }
 .page-nav-foot { margin: 20px 0 0; }
 
-.page-back {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  min-height: 36px;
-  padding: 0 12px 0 8px;
-  border: var(--gold-border);
+.shell-back {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(232, 200, 106, 0.45);
   border-radius: var(--r-sm);
-  background: var(--card);
-  box-shadow: var(--shadow);
-  color: var(--red-dark);
-  font-size: 13px;
-  letter-spacing: 0.06em;
+  color: var(--gold-light);
+  transition: background 0.15s ease, transform 0.08s ease;
 }
-.page-back:hover { background: var(--gold-pale); }
-.page-back:active { transform: scale(0.985); }
+.shell-back:hover,
+.shell-back:active { background: rgba(245, 233, 200, 0.16); color: #FFF4DC; }
+.shell-back:active { transform: scale(0.94); }
+
+/* 深红底上深红焦点环不可见：改浅纸色内描边，与顶栏既有高亮语言一致 */
+.shell-back:focus-visible {
+  outline: 2px solid rgba(245, 233, 200, 0.9);
+  outline-offset: -3px;
+}
+
+/* 顶栏是 space-between：返回占据左端后，让品牌吃掉余量，才不会把品牌推到右端 */
+.shell-back + .brand { flex: 1 1 auto; }
 
 .page-next {
   display: flex;
@@ -963,7 +968,7 @@ tbody td:nth-child(2) {
 }
 
 /* 箭头：返回朝左、下一篇朝右，均用自绘 SVG（禁 emoji 与字形图标） */
-.page-back .ic,
+.shell-back .ic,
 .page-next .ic {
   flex: none;
   fill: none;
@@ -972,7 +977,7 @@ tbody td:nth-child(2) {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.page-back .ic { width: 13px; height: 13px; }
+.shell-back .ic { width: 15px; height: 15px; }
 .page-next .ic {
   width: 16px;
   height: 16px;
