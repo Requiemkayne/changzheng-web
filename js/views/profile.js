@@ -146,11 +146,21 @@
         '</div>' +
       '</div>' +
 
-      '<h2 class="section-title">节点成绩</h2>' +
-      '<div class="card">' + scoreRows + '</div>' +
+      '<details class="profile-fold">' +
+        '<summary class="profile-fold-head">' +
+          '<h2 class="section-title">节点成绩</h2>' +
+          '<span class="fold-cue" aria-hidden="true"></span>' +
+        '</summary>' +
+        '<div class="card">' + scoreRows + '</div>' +
+      '</details>' +
 
-      '<h2 class="section-title">我的足迹</h2>' +
-      '<div class="card">' + foot + '</div>' +
+      '<details class="profile-fold">' +
+        '<summary class="profile-fold-head">' +
+          '<h2 class="section-title">我的足迹</h2>' +
+          '<span class="fold-cue" aria-hidden="true"></span>' +
+        '</summary>' +
+        '<div class="card">' + foot + '</div>' +
+      '</details>' +
       '</div>'
 
     bind(rootEl, cfg, nodes, progress, checkins, states, user)

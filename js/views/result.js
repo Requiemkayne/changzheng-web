@@ -8,6 +8,14 @@
   const api = root.CZ_API
   const UI = root.CZ_UI
 
+  // 返回：有站内上一页就后退，直接打开的（history 空栈或站外跳来）回首页
+  function goBack() {
+    const ref = document.referrer || ''
+    const fromOtherSite = ref !== '' && ref.indexOf(location.origin) !== 0
+    if (history.length > 1 && !fromOtherSite) history.back()
+    else location.hash = '#/'
+  }
+
   VIEWS.result = {
     mount(rootEl, params) {
       rootEl.innerHTML = '<div class="page-center">' + UI.icon('medal', 'page-center-icon') + '<div>正在结算…</div></div>'
@@ -57,7 +65,7 @@
 
     rootEl.innerHTML =
       '<div class="page">' +
-      '<a class="back-link" href="#/">‹ 返回节点列表</a>' +
+      '<button type="button" class="back-link">‹ 返回</button>' +
       '<div class="result-hero hero-result">' +
         '<div class="result-title">总分结算</div>' +
         '<div class="result-score"><span class="score-num score-num-big">' + total + '</span><span class="score-unit">分</span></div>' +
@@ -74,6 +82,10 @@
         '<a class="btn btn-primary" href="#/">返回节点列表</a>' +
       '</div>' +
       '</div>'
+
+    // 顶部返回键：绑定到 goBack（有站内上一页就后退，否则回首页）
+    const backBtn = rootEl.querySelector('.back-link')
+    if (backBtn) backBtn.addEventListener('click', goBack)
   }
 
   function rankBadge(rank) {

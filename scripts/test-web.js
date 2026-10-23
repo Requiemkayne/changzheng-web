@@ -1192,7 +1192,7 @@ async function chain() {
   ok('js/**.js + index.html 零处 javascript: 伪协议（扫描 ' + jsScan.length + ' 个文件）')
 
   // ②【静态】3 个视图的 .back-link 必须是 <button type="button">，且同文件定义并绑定了 goBack
-  const backExpect = { 'js/views/contest.js': 1, 'js/views/node-detail.js': 1, 'js/views/quiz.js': 2 }
+  const backExpect = { 'js/views/contest.js': 1, 'js/views/node-detail.js': 1, 'js/views/quiz.js': 2, 'js/views/leaderboard.js': 1, 'js/views/result.js': 1 }
   const backReport = []
   let backTotal = 0
   for (const rel of Object.keys(backExpect)) {
@@ -1217,8 +1217,8 @@ async function chain() {
       JSON.stringify((src.match(/\.back-link'\)[\s\S]{0,60}/) || ['(未找到 .back-link 绑定)'])[0]))
     backTotal += tags.length
   }
-  assert.strictEqual(backTotal, 4, '工单是 4 处 .back-link，实际 ' + backTotal)
-  ok('.back-link 全为 <button type="button">：共 4 处，且各自定义并绑定 goBack —— ' + backReport.join(' '))
+  assert.strictEqual(backTotal, 6, '工单是 6 处 .back-link，实际 ' + backTotal)
+  ok('.back-link 全为 <button type="button">：共 6 处，且各自定义并绑定 goBack —— ' + backReport.join(' '))
 
   // ③【静态】map.js 的三条 3D 状态写入全部经过 set3dStatus()，且写前摘掉容器的 role
   const mapSrc8 = fs.readFileSync(path.join(STATIC_ROOT, 'js', 'views', 'map.js'), 'utf8')

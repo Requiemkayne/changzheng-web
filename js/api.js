@@ -190,7 +190,7 @@
         sequentialUnlock: false,
         requireReadBeforeCheckin: true,
         defaultPassScore: 60,
-        finalExam: { questionCount: 10, passScore: 60, title: '长征知识总结答题' },
+        finalExam: { questionCount: 10, passScore: 60, timeoutMs: 3 * 60 * 1000, title: '长征知识总结答题' },
         theme: { primary: '#C8102E', gold: '#D4A017' }
       }
     }
@@ -414,17 +414,19 @@
           }
           // mode === final
           if (states.finalState === 'locked') return { ok: false, error: 'NOT_ALL_CHECKED_IN' }
-          const pool = mockQuestions.filter(q => q.nodeCode === 'final' && q.status === 'published')
+          // 题目来源改为 11 个节点的关卡题（覆盖全部知识点），不再用 final 占位题
+          const pool = mockQuestions.filter(q => q.nodeCode !== 'final' && q.status === 'published')
           const n = Math.min(cfg.finalExam.questionCount, pool.length)
-          const picked = shuffle(pool).slice(0, n)
+          const picked = pickAcrossNodes(pool, n)
           const passScore = finalPassScore(cfg)
           return {
             ok: true,
             meta: {
               title: cfg.finalExam.title,
-              subtitle: '共' + n + '题，得分 ' + passScore + ' 分以上毕业',
+              subtitle: '共' + n + '题，得分 ' + passScore + ' 分以上毕业，限时 ' + Math.round((cfg.finalExam.timeoutMs || 180000) / 60000) + ' 分钟',
               questionCount: n,
-              passScore
+              passScore: passScore,
+              timeoutMs: cfg.finalExam.timeoutMs || 0
             },
             questions: stripAnswers(picked)
           }
@@ -506,7 +508,7 @@
   const STORAGE_CONTESTS = 'cz_contests'
 
   function contestRules() {
-    return { questionCount: 20, pointsPerQuestion: 5, fullScore: 100, title: '长征知识竞赛' }
+    return { questionCount: 10, pointsPerQuestion: 5, fullScore: 50, title: '长征知识竞赛' }
   }
 
   function mockContests() {
@@ -564,7 +566,7 @@
         storeSet(STORAGE_CONTESTS, mockContests().concat([{ id: contestId, status: 'in_progress', questions: picked, createdAt: Date.now() }]))
         return {
           ok: true, contestId,
-          meta: { title: contestRules().title, subtitle: '共 ' + n + ' 题 · 每题 5 分 · 满分 100', questionCount: n },
+          meta: { title: contestRules().title, subtitle: '共 ' + n + ' 题 · 每题 5 分 · 满分 ' + (n * 5), questionCount: n },
           questions: stripAnswers(picked)
         }
       })
@@ -666,6 +668,32 @@
     }
     return a
   }
+
+/**
+ * 毕业考抽题：从 11 个节点的题目里抽，先保证每个节点各出 1 题（覆盖广度），
+ * 不够再随机补 —— 这样每次点开都是不同组合，也不会连着抽到同一节点的题。
+ */
+  function pickAcrossNodes(pool, n) {
+  const byNode = {}
+  pool.forEach(q => {
+    const k = q.nodeCode || 'other'
+    ;(byNode[k] = byNode[k] || []).push(q)
+  })
+  const codes = shuffle(Object.keys(byNode))
+  const out = []
+  for (let i = 0; i < codes.length && out.length < n; i++) {
+    out.push(shuffle(byNode[codes[i]])[0])
+  }
+  if (out.length < n) {
+    const used = {}
+    out.forEach(q => { used[q._id || q.id] = 1 })
+    const rest = shuffle(pool.filter(q => !used[q._id || q.id]))
+    let k = 0
+    while (out.length < n && k < rest.length) out.push(rest[k++])
+  }
+  return shuffle(out)
+}
+
 
   return {
     getConfig,

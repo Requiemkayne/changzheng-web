@@ -16,8 +16,8 @@ function getConfigDoc() {
     sequentialUnlock: false,
     requireReadBeforeCheckin: true,
     defaultPassScore: 60,
-    finalExam: { questionCount: 10, passScore: 60, title: '长征知识总结答题' },
-    contest: { questionCount: 20, pointsPerQuestion: 5, timeoutMs: 30 * 60 * 1000, title: '长征知识竞赛' },
+    finalExam: { questionCount: 10, passScore: 60, timeoutMs: 3 * 60 * 1000, title: '长征知识总结答题' },
+    contest: { questionCount: 10, pointsPerQuestion: 5, timeoutMs: 30 * 60 * 1000, title: '长征知识竞赛' },
     theme: { primary: '#C8102E', gold: '#D4A017' }
   }
 }
@@ -171,20 +171,46 @@ function getQuiz(db, userId, mode, code) {
 
   // mode === final
   if (states.finalState === 'locked') return { ok: false, error: 'NOT_ALL_CHECKED_IN', message: '打卡全部节点后解锁' }
-  const pool = mockQuestions.filter(q => q.nodeCode === 'final' && q.status === 'published')
+  // 题目来源改为 11 个节点的关卡题（覆盖全部知识点），不再用 final 占位题
+  const pool = mockQuestions.filter(q => q.nodeCode !== 'final' && q.status === 'published')
   const n = Math.min(cfg.finalExam.questionCount, pool.length)
-  const picked = shuffle(pool).slice(0, n)
+  const picked = pickAcrossNodes(pool, n)
   recordAttempt(userId, mode, code, picked.map(q => q._id))
   return {
     ok: true,
     meta: {
       title: cfg.finalExam.title,
-      subtitle: '共' + n + '题，得分 ' + cfg.finalExam.passScore + ' 分以上毕业',
+      subtitle: '共' + n + '题，得分 ' + cfg.finalExam.passScore + ' 分以上毕业，限时 ' + Math.round((cfg.finalExam.timeoutMs || 180000) / 60000) + ' 分钟',
       questionCount: n,
       passScore: cfg.finalExam.passScore
     },
     questions: stripAnswers(picked)
   }
+}
+
+/**
+ * 毕业考抽题：从 11 个节点的题目里抽，先保证每个节点各出 1 题（覆盖广度），
+ * 不够再随机补 —— 这样每次点开都是不同组合，也不会连着抽到同一节点的题。
+ */
+function pickAcrossNodes(pool, n) {
+  const byNode = {}
+  pool.forEach(q => {
+    const k = q.nodeCode || 'other'
+    ;(byNode[k] = byNode[k] || []).push(q)
+  })
+  const codes = shuffle(Object.keys(byNode))
+  const out = []
+  for (let i = 0; i < codes.length && out.length < n; i++) {
+    out.push(shuffle(byNode[codes[i]])[0])
+  }
+  if (out.length < n) {
+    const used = {}
+    out.forEach(q => { used[q._id || q.id] = 1 })
+    const rest = shuffle(pool.filter(q => !used[q._id || q.id]))
+    let k = 0
+    while (out.length < n && k < rest.length) out.push(rest[k++])
+  }
+  return shuffle(out)
 }
 
 /* ---------- 判分 ---------- */

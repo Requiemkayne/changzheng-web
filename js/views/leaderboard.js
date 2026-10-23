@@ -30,6 +30,14 @@
     }
   }
 
+  // 返回：有站内上一页就后退，直接打开的（history 空栈或站外跳来）回首页
+  function goBack() {
+    const ref = document.referrer || ''
+    const fromOtherSite = ref !== '' && ref.indexOf(location.origin) !== 0
+    if (history.length > 1 && !fromOtherSite) history.back()
+    else location.hash = '#/'
+  }
+
   function medal(rank) {
     if (rank === 1) return '<span class="lb-medal lb-medal-1">' + UI.icon('medal') + '</span>'
     if (rank === 2) return '<span class="lb-medal lb-medal-2">' + UI.icon('medal') + '</span>'
@@ -63,6 +71,7 @@
 
     rootEl.innerHTML =
       '<div class="page">' +
+        '<button type="button" class="back-link">‹ 返回</button>' +
         '<div class="map-title">' +
           '<h1 class="map-title-cn">竞赛排行榜</h1>' +
           '<div class="map-title-sub">知识竞赛 · 争当先锋</div>' +
@@ -80,6 +89,9 @@
           '<button class="btn btn-primary" id="lb-go">' + UI.icon('trophy', 'btn-ic') + ' 参加竞赛</button>' +
         '</div>' +
       '</div>'
+
+    const backBtn = rootEl.querySelector('.back-link')
+    if (backBtn) backBtn.addEventListener('click', goBack)
 
     rootEl.querySelectorAll('.lb-tab').forEach(el => {
       el.addEventListener('click', () => {

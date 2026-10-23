@@ -283,12 +283,16 @@ async function main() {
     for (const n of nodes) await req('POST', '/api/checkin', { code: n.code }, t2)
     r = await req('GET', '/api/quiz?mode=final', undefined, t2)
     ok('全打卡后 final 抽 10 题', r.status === 200 && r.body.questions.length === 10)
-    const finalAnswers = mockQuestions
-      .filter(q => q.nodeCode === 'final')
-      .map(q => ({ id: q._id, answer: q.answer }))
-    // 只提交抽中题目的答案
-    const pickedIds = r.body.questions.map(q => q.id)
-    const pickedAnswers = finalAnswers.filter(a => pickedIds.includes(a.id))
+    // 毕业考从 11 个节点的关卡题里随机抽：按本次实际下发的题号回题库取答案
+    const pickedAnswers = r.body.questions.map(q => {
+      const src = mockQuestions.find(m => m._id === q.id)
+      return { id: q.id, answer: src.answer }
+    })
+    ok('final 抽到的题都来自 11 个节点的关卡题',
+      r.body.questions.every(q => {
+        const src = mockQuestions.find(m => m._id === q.id)
+        return src && src.nodeCode !== 'final'
+      }))
     r = await req('POST', '/api/quiz/submit', { mode: 'final', code: '', answers: pickedAnswers }, t2)
     ok('final 全对 → 毕业 isFinalPassed', r.body.score === 100 && r.body.isFinalPassed === true)
 
@@ -301,9 +305,9 @@ async function main() {
     r = await req('GET', '/api/contest/status', undefined, t2)
     ok('已毕业 → graduated=true 且题库 ≥20', r.body.graduated === true && r.body.bankCount >= 20)
     r = await req('POST', '/api/contest/start', {}, t2)
-    ok('开场 → 抽 20 题且零答案字段', r.status === 200 && r.body.questions.length === 20 &&
+    ok('开场 → 抽 10 题且零答案字段', r.status === 200 && r.body.questions.length === 10 &&
       r.body.questions.every(q => !('answer' in q) && !('explanation' in q) && q.id && q.options))
-    ok('meta 含满分 100', r.body.meta.questionCount === 20 && r.body.meta.subtitle.includes('100'))
+    ok('meta 含满分 50', r.body.meta.questionCount === 10 && r.body.meta.subtitle.includes('50'))
     const contestId = r.body.contestId
     // 从库读该场次的正确答案（模拟服务端快照）
     const { DatabaseSync: DatabaseSyncContest } = require('node:sqlite')
@@ -317,7 +321,7 @@ async function main() {
     ok('他人场次 → CONTEST_NOT_FOUND（防串场）', r.body.error === 'CONTEST_NOT_FOUND')
     r = await req('POST', '/api/contest/submit', { contestId, answers: fullWrong }, t2)
     ok('全错交卷 → 0 分', r.status === 200 && r.body.score === 0 && r.body.correctCount === 0)
-    ok('解析返回含正确答案', r.body.results.length === 20 && r.body.results[0].correctAnswer.length > 0)
+    ok('解析返回含正确答案', r.body.results.length === 10 && r.body.results[0].correctAnswer.length > 0)
     ok('myStats 累计 0 / 最佳 0 / 1 场', r.body.myStats.plays === 1 && r.body.myStats.totalScore === 0)
     r = await req('POST', '/api/contest/submit', { contestId, answers: fullRight }, t2)
     ok('重复交卷 → ALREADY_SUBMITTED', r.body.error === 'ALREADY_SUBMITTED')
@@ -326,7 +330,7 @@ async function main() {
     const snap2 = JSON.parse(dbContest.prepare('SELECT questions FROM contests WHERE id = ?').get(contestId2).questions)
     const fullRight2 = snap2.map(q => ({ id: q.id, answer: JSON.parse(q.answer) }))
     r = await req('POST', '/api/contest/submit', { contestId: contestId2, answers: fullRight2, durationMs: 88000 }, t2)
-    ok('全对 → 100 分且最佳 100', r.body.score === 100 && r.body.myStats.bestScore === 100 && r.body.myStats.plays === 2)
+    ok('全对 → 50 分且最佳 50', r.body.score === 50 && r.body.myStats.bestScore === 50 && r.body.myStats.plays === 2)
     dbContest.close()
     // 排行榜
     r = await req('GET', '/api/contest/leaderboard?type=total')
@@ -334,7 +338,7 @@ async function main() {
     r = await req('GET', '/api/contest/leaderboard?type=total', undefined, t2)
     ok('总榜含我且名次正确', r.body.myRank !== null && r.body.list.length >= 1 && r.body.list[0].name)
     r = await req('GET', '/api/contest/leaderboard?type=best', undefined, t2)
-    ok('最佳榜可读', r.status === 200 && r.body.type === 'best' && r.body.list[0].score === 100)
+    ok('最佳榜可读', r.status === 200 && r.body.type === 'best' && r.body.list[0].score === 50)
 
     /* ---------- 9. 退出登录 ---------- */
     console.log('\n[9] 退出')
