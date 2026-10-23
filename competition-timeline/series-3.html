@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#6E0918">
-  <meta name="description" content="2026年世界职业院校技能大赛总决赛争夺赛人工智能赛道（中职组）银奖团队 —— 灯火长明、百次调试的赛前、赛中、赛后时间线整理">
-  <title>灯火长明 · 百次调试 —— 人工智能赛道银奖团队日夜攻坚纪实</title>
-  <link rel="stylesheet" href="fonts/noto-serif-sc.css?v=5">
+  <meta name="description" content="2026年世界职业院校技能大赛总决赛争夺赛人工智能赛道（中职组）银奖团队 —— 灯火长明、百次调试的备赛阶段、赛事角逐阶段、赛后复盘阶段时间线整理">
+  <title>灯火伴求索 · 百调砺真知 —— 人工智能赛道银奖团队日夜攻坚纪实</title>
+  <link rel="stylesheet" href="fonts/noto-serif-sc.css?v=14">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/series-3.css">
   <link rel="stylesheet" href="css/tabbar.css">
@@ -21,13 +21,14 @@
       <a class="shell-back" href="index.html" data-keep-search aria-label="返回总览">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
       </a>
-      <a class="brand" href="#top">
+      <!-- 品牌条只做标识，不加交互：点击该区域不应触发跳转 -->
+      <div class="brand">
         <span class="brand-seal" aria-hidden="true">技</span>
         <span class="brand-text">
           <strong>技炫青春 · 能创未来</strong>
           <em>系列报道（三）</em>
         </span>
-      </a>
+      </div>
     </div>
   </header>
 
@@ -38,9 +39,9 @@
       <p class="hero-eyebrow">2026年世界职业院校技能大赛 · 总决赛争夺赛 · 人工智能赛道（中职组）</p>
 
       <h1 class="hero-title" id="hero-title">
-        <span class="hero-line">灯火长明</span>
+        <span class="hero-line">灯火伴求索</span>
         <span class="hero-orn" aria-hidden="true"></span>
-        <span class="hero-line">百次调试</span>
+        <span class="hero-line">百调砺真知</span>
       </h1>
 
       <dl class="hero-stats">
@@ -61,13 +62,6 @@
         <h2 class="block-title" id="intro-title">引 言</h2>
         <p>9月21日至25日，2026年世界职业院校技能大赛总决赛争夺赛人工智能赛道（中职组）由北京市丰台区中英实验学校承办，全国119支队伍同场竞技。计算机系李文杨、李美熙、刘华栋、马明阳四位同学在指导教师柯宇、陈奕扬带领下，登上<strong>银奖</strong>领奖台。</p>
 
-        <ul class="roster">
-          <li><b>李文杨</b><small>24003班 · 班主任 朱虎声</small></li>
-          <li><b>李美熙</b><small>24004班 · 班主任 周海艳</small></li>
-          <li><b>刘华栋</b><small>24005班 · 班主任 钱维娜</small></li>
-          <li><b>马明阳</b><small>24005班 · 班主任 钱维娜</small></li>
-        </ul>
-        <p class="coach">指导教师<b>柯宇</b><span class="coach-sep">、</span><b>陈奕扬</b></p>
       </section>
 
       <figure class="figure figure--full">
@@ -75,53 +69,97 @@
         <figcaption>赛场合影：四位队员与指导教师在赛事背景板前合影</figcaption>
       </figure>
 
-      <figure class="figure figure--full">
-        <img src="assets/img/s3-4.jpg" alt="赛事背景板前，四位队员与一位指导教师合影" width="1600" height="1205" loading="lazy">
-        <figcaption>同一赛场，另一张合影：四位队员与一位指导教师在赛事背景板前</figcaption>
-      </figure>
-
       <!-- =====================================================
-           4. 赛前（5 张步骤卡）
+           1. 项目侧重（模型训练与数据链路）
       ====================================================== -->
-      <section class="phase" id="pre" aria-labelledby="pre-title">
-        <div class="phase-head">
+      <!-- =====================================================
+           岗位分工（与系列一/二对齐：独立成节，置于最前）
+      ====================================================== -->
+      <section class="phase" id="team" aria-labelledby="team-title">
+        <div class="phase-head phase-head--single">
           <span class="phase-index" aria-hidden="true">壹</span>
-          <div>
-            <p class="phase-name">赛前</p>
-            <h2 class="phase-title" id="pre-title">灯火长明</h2>
-            <p class="phase-sub">九月初启动 · 训练基地的灯常亮到深夜</p>
-          </div>
+          <h2 class="phase-title" id="team-title">岗位分工</h2>
         </div>
 
         <ol class="steps">
           <li class="step">
-            <h3><span class="step-no" aria-hidden="true">01</span>组队定员</h3>
+            <h3>团队组建 · 明确岗位职责</h3>
             <div class="step-body">
-              <p>参赛团队由计算机系四位同学组成，名单见上方成员构成；指导教师柯宇、陈奕扬带领四人组队参赛。</p>
+              <p>参赛团队由计算机系四位同学组成，<strong>各司其职、分工协作</strong>，相互补位、彼此支撑；指导教师柯宇、陈奕扬全程带队。</p>
+              <ul class="roster roster--photo">
+                <li>
+                  <img class="roster-photo" src="assets/img/member-huadong.jpg" alt="刘华栋的证件照" width="264" height="352" loading="lazy" decoding="async">
+                  <div class="roster-text"><b>刘华栋</b><small><span>24005班</span><span class="rt">班主任 钱维娜</span></small></div>
+                </li>
+                <li>
+                  <img class="roster-photo" src="assets/img/member-mingyang.jpg" alt="马明阳的证件照" width="264" height="352" loading="lazy" decoding="async">
+                  <div class="roster-text"><b>马明阳</b><small><span>24005班</span><span class="rt">班主任 钱维娜</span></small></div>
+                </li>
+                <li>
+                  <img class="roster-photo" src="assets/img/member-wenyang.jpg" alt="李文杨的证件照" width="264" height="352" loading="lazy" decoding="async">
+                  <div class="roster-text"><b>李文杨</b><small><span>24003班</span><span class="rt">班主任 朱虎声</span></small></div>
+                </li>
+                <li>
+                  <img class="roster-photo" src="assets/img/member-meixi.jpg" alt="李美熙的证件照" width="264" height="352" loading="lazy" decoding="async">
+                  <div class="roster-text"><b>李美熙</b><small><span>24004班</span><span class="rt">班主任 周海艳</span></small></div>
+                </li>
+              </ul>
+              <p class="coach">指导教师<b>柯宇</b><span class="coach-sep">、</span><b>陈奕扬</b></p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="phase" id="tech" aria-labelledby="tech-title">
+        <div class="phase-head phase-head--single">
+          <span class="phase-index" aria-hidden="true">贰</span>
+          <h2 class="phase-title" id="tech-title">项目侧重</h2>
+        </div>
+
+        <ol class="steps">
+          <li class="step">
+            <h3>数据准备 · 可追溯与清洗</h3>
+            <div class="step-body">
+              <p>开展垂域模型训练，优先选用<strong>来源可追溯</strong>的数据集；利用脚本完成<strong>样本去重</strong>，过滤残缺无效数据，避免模型过拟合，并做好<strong>格式适配</strong>，匹配训练框架输入规范。</p>
+            </div>
+          </li>
+
+          <li class="step">
+            <h3>训练与调优 · 量化微调</h3>
+            <div class="step-body">
+              <p>选用<strong>轻量化底座</strong>，采用 <strong>QLoRA</strong> 结合 <strong>4-bit 量化</strong>进行微调，调试学习率、截断长度等超参；训练过程监控 <strong>loss 收敛</strong>，保障训练效果。</p>
+            </div>
+          </li>
+
+          <li class="step">
+            <h3>样本与纠偏 · 人工把关</h3>
+            <div class="step-body">
+              <p>实战得到的<strong>对抗样本</strong>需要<strong>人工复核筛选</strong>后，才可加入数据集迭代模型；模型实际输出的研判结果，也要预留<strong>人工纠偏</strong>环节，及时修正误判，确保输出结果可靠。</p>
+            </div>
+          </li>
+        </ol>
+      </section>
+
+      <!-- =====================================================
+           2. 备赛阶段（5 张步骤卡）
+      ====================================================== -->
+      <section class="phase" id="pre" aria-labelledby="pre-title">
+        <div class="phase-head phase-head--single">
+          <span class="phase-index" aria-hidden="true">叁</span>
+          <h2 class="phase-title" id="pre-title">朝夕备赛</h2>
+        </div>
+
+        <ol class="steps">
+          <li class="step">
+            <h3>研读规程</h3>
+            <div class="step-body">
+              <p>自九月初起，指导教师柯宇、陈奕扬全程带队，深入研读赛项规程，<strong>拆解评分要点</strong>，并结合队员特点制定训练方案。训练从模型训练、参数调优到系统集成、现场部署，全流程<strong>精雕细琢</strong>。</p>
             </div>
           </li>
           <li class="step">
-            <h3><span class="step-no" aria-hidden="true">02</span>研读规程</h3>
+            <h3>日夜攻坚</h3>
             <div class="step-body">
-              <p>自九月初起，指导教师柯宇、陈奕扬全程带队，深入研读赛项规程，拆解评分要点，并结合队员特点制定训练方案。训练从模型训练、参数调优到系统集成、现场部署，全流程精雕细琢。</p>
-            </div>
-          </li>
-          <li class="step">
-            <h3><span class="step-no" aria-hidden="true">03</span>日夜攻坚</h3>
-            <div class="step-body">
-              <p>训练基地的灯光常常亮到深夜，键盘敲击声、小组讨论声、人机交互的声音交织在一起。为让模型精度再提升一点，四人反复调试上百次；为排查一行报错代码，逐行分析、不断验证。</p>
-            </div>
-          </li>
-          <li class="step">
-            <h3><span class="step-no" aria-hidden="true">04</span>模拟赛场</h3>
-            <div class="step-body">
-              <p>从九月初到比赛当天，团队每天坚持训练，一遍遍模拟赛场流程，在失误中总结，在压力下成长。遇到技术瓶颈时，指导教师耐心指导；队员心态波动时，老师及时疏导。</p>
-            </div>
-          </li>
-          <li class="step">
-            <h3><span class="step-no" aria-hidden="true">05</span>后方保障</h3>
-            <div class="step-body">
-              <p>备赛期间，计算机系主任朱艳梅全程跟进训练工作，密切关注训练进度，精准指导训练内容，统筹调配训练资源。出征前夕，校领导专程来到训练现场为选手们加油鼓劲；学校各部门高效联动。</p>
+              <p>训练基地的灯光常常亮到深夜，键盘敲击声、小组讨论声、人机交互的声音交织在一起。为让模型精度再提升一点，四人<strong>反复调试上百次</strong>；为排查一行报错代码，<strong>逐行分析、不断验证</strong>。</p>
             </div>
           </li>
         </ol>
@@ -130,46 +168,56 @@
           <img src="assets/img/s3-2.jpg" alt="会议室围桌研讨，学生在笔记本上调试程序" width="1600" height="1200" loading="lazy">
           <figcaption>备赛现场：师生围桌研讨，队员在笔记本上反复调试程序</figcaption>
         </figure>
+
+        <ol class="steps">
+          <li class="step">
+            <h3>模拟赛场</h3>
+            <div class="step-body">
+              <p>从九月初到比赛当天，团队每天坚持训练，<strong>一遍遍模拟赛场流程</strong>，<strong>在失误中总结，在压力下成长</strong>。遇到技术瓶颈时，指导教师耐心指导；队员心态波动时，老师及时疏导。</p>
+            </div>
+          </li>
+          <li class="step">
+            <h3>后方保障</h3>
+            <div class="step-body">
+              <p>备赛期间，计算机系主任朱艳梅全程跟进训练工作，密切关注训练进度，精准指导训练内容，<strong>统筹调配训练资源</strong>。出征前夕，校领导专程来到训练现场为选手们加油鼓劲；学校各部门<strong>高效联动</strong>。</p>
+            </div>
+          </li>
+        </ol>
       </section>
 
       <!-- =====================================================
            5. 赛中（4 张步骤卡）
       ====================================================== -->
       <section class="phase" id="during" aria-labelledby="during-title">
-        <div class="phase-head">
-          <span class="phase-index" aria-hidden="true">贰</span>
-          <div>
-            <p class="phase-name">赛中</p>
-            <h2 class="phase-title" id="during-title">沉着应战</h2>
-            <p class="phase-sub">9月21日至25日 · 北京市丰台区中英实验学校 · 全国 119 支队伍同场竞技</p>
-          </div>
+        <div class="phase-head phase-head--single">
+          <span class="phase-index" aria-hidden="true">肆</span>
+          <h2 class="phase-title" id="during-title">赛场夺银</h2>
         </div>
 
         <ol class="steps">
           <li class="step">
-            <h3><span class="step-no" aria-hidden="true">06</span>赛项内涵</h3>
+            <h3>赛项内涵</h3>
             <div class="step-body">
-              <p>人工智能赛道聚焦真实场景下的方案设计、系统部署与运行维护，重点考察选手的专业技能水平，同时兼顾职业素养、团队合作与创新创意等综合素养。</p>
+              <p>人工智能赛道聚焦真实场景下的方案设计、系统部署与运行维护，重点考察选手的<strong>专业技能水平</strong>，同时兼顾<strong>职业素养、团队合作与创新创意</strong>等综合素养。</p>
             </div>
           </li>
           <li class="step">
-            <h3><span class="step-no" aria-hidden="true">07</span>四个环节</h3>
+            <h3>四个环节</h3>
             <div class="step-body">
-              <p>赛场上，四位同学按算法设计、模型优化、系统集成、现场调试的顺序依次推进。四个环节须在规定时间内连贯完成，对选手的综合素质要求极高。</p>
+              <p>赛场上，四位同学按<strong>算法设计、模型优化、系统集成、现场调试</strong>的顺序依次推进。四个环节须在<strong>规定时间内连贯完成</strong>，对选手的综合素质要求极高。</p>
             </div>
           </li>
           <li class="step">
-            <h3><span class="step-no" aria-hidden="true">08</span>沉着应战</h3>
+            <h3>沉着应战</h3>
             <div class="step-body">
-              <p>面对瞬息万变的技术难题与强劲对手，四位同学沉着冷静、从容应战。从突发问题的及时应对，到赛事任务的精准落地，每一次协作都默契十足。</p>
+              <p>面对瞬息万变的技术难题与强劲对手，四位同学<strong>沉着冷静、从容应战</strong>。从突发问题的及时应对，到赛事任务的精准落地，每一次协作都<strong>默契十足</strong>。</p>
             </div>
           </li>
           <li class="step step-result">
-            <h3><span class="step-no" aria-hidden="true">09</span>成果转化</h3>
+            <h3>成果转化</h3>
             <div class="step-body">
-              <p>赛场上每一个步骤都有条不紊，平日的训练成果被完整转化为赛场优势。四位同学以稳定的心态完成赛事任务，用实力为学校争光，用奋斗为青春添彩。</p>
+              <p>赛场上每一个步骤都有条不紊，平日的训练成果被<strong>完整转化为赛场优势</strong>。四位同学以稳定的心态完成赛事任务，<strong>成功斩获银牌。用实力为学校争光，用奋斗为青春添彩</strong>。</p>
             </div>
-            <p class="coach">赛道成绩<b>银奖</b></p>
           </li>
         </ol>
 
@@ -183,35 +231,55 @@
            6. 赛后（3 张步骤卡）
       ====================================================== -->
       <section class="phase" id="post" aria-labelledby="post-title">
-        <div class="phase-head">
-          <span class="phase-index" aria-hidden="true">叁</span>
-          <div>
-            <p class="phase-name">赛后</p>
-            <h2 class="phase-title" id="post-title">能力沉淀</h2>
-            <p class="phase-sub">用实力为学校争光，用奋斗为青春添彩</p>
-          </div>
+        <div class="phase-head phase-head--single">
+          <span class="phase-index" aria-hidden="true">伍</span>
+          <h2 class="phase-title" id="post-title">赛后复盘</h2>
         </div>
 
         <ol class="steps">
           <li class="step">
-            <h3><span class="step-no" aria-hidden="true">10</span>能力沉淀</h3>
+            <h3>能力沉淀</h3>
             <div class="step-body">
-              <p>赛项要求覆盖方案设计、系统部署与运行维护，赛场任务则是算法设计、模型优化、系统集成与现场调试，两条线索在同一套能力上收束。</p>
+              <p>赛项要求覆盖方案设计、系统部署与运行维护，赛场任务则是算法设计、模型优化、系统集成与现场调试，两条线索在<strong>同一套能力上收束</strong>。</p>
             </div>
           </li>
           <li class="step">
-            <h3><span class="step-no" aria-hidden="true">11</span>素养延展</h3>
+            <h3>素养延展</h3>
             <div class="step-body">
-              <p>赛道在重点考查专业技能水平的同时，兼顾职业素养、团队合作与创新创意等综合素养。对参赛者来说，前一项是当下的答卷，后几项是更耐久的积累。</p>
+              <p>赛道在重点考查专业技能水平的同时，兼顾职业素养、团队合作与创新创意等综合素养。对参赛者来说，前一项是<strong>当下的答卷</strong>，后几项是<strong>更耐久的积累</strong>。</p>
             </div>
           </li>
           <li class="step">
-            <h3><span class="step-no" aria-hidden="true">12</span>默契协作</h3>
+            <h3>默契协作</h3>
             <div class="step-body">
               <p>在压力下形成的配合方式，比单次成绩更可延续，也更能说明团队为何能在现场始终保持从容。</p>
             </div>
           </li>
         </ol>
+      </section>
+
+      <!-- ======================================================
+           8. 赛场图集（散落卡片，点击放大由 js/gallery.js 提供）
+      ====================================================== -->
+      <section class="gallery" id="gallery" aria-labelledby="gallery-title">
+        <h2 class="block-title" id="gallery-title">赛 场 图 集</h2>
+        <div class="gal-stage">
+          <figure class="gal-card g1" tabindex="0">
+            <img src="assets/img/s3-4.jpg" alt="赛事背景板前，四位队员与一位指导教师合影" width="1600" height="1205" loading="lazy" decoding="async">
+          </figure>
+          <figure class="gal-card g2" tabindex="0">
+            <img src="assets/img/s3-g2.jpg" alt="晚间在房间内分头调试，队员各自使用笔记本电脑编写与运行程序" width="1400" height="1050" loading="lazy" decoding="async">
+          </figure>
+          <figure class="gal-card g3" tabindex="0">
+            <img src="assets/img/s3-g3.jpg" alt="队员围在床沿对照纸质材料逐条讨论，手机同步录音留档" width="1400" height="1145" loading="lazy" decoding="async">
+          </figure>
+          <figure class="gal-card g4" tabindex="0">
+            <img src="assets/img/s3-g4.jpg" alt="四名队员身着队服坐成一排，指导教师手持材料做临场叮嘱" width="1400" height="1050" loading="lazy" decoding="async">
+          </figure>
+          <figure class="gal-card g5" tabindex="0">
+            <img src="assets/img/s3-g5.jpg" alt="高铁车厢内，队员在赴赛途中用笔记本核对资料与数据" width="1400" height="1050" loading="lazy" decoding="async">
+          </figure>
+        </div>
       </section>
 
       <!-- 分页导航：留言区上方，读完正文即可进入下一篇 -->
@@ -261,6 +329,7 @@
 
 </div>
 
+<script src="js/gallery.js"></script>
 <script src="js/comments.js"></script>
 
   <!-- 底部四栏导航：与长征主站一致，保证随时能回到主站各栏目 -->
@@ -285,7 +354,7 @@
 
   <!-- 1) 保留查询参数（?demo=1 / ?live=1），避免回主站被路由守卫弹到登录页；
         顶部分页返回链与页底下一篇入口同样带 data-keep-search，走同一段改写
-       2) 已在专题站内点「青春经管」不再重载当页（同页只滚回顶部），跨页（系列页→总览）仍照常跳转 -->
+       2) 专题站内点「青春经管」一律不跳转：首页与系列页均原地不动 -->
   <script>
   (function () {
     var q = location.search
@@ -295,22 +364,10 @@
       var parts = href.split('#')
       if (q) links[i].setAttribute('href', parts[0] + q + (parts[1] ? '#' + parts[1] : ''))
     }
-    // /dir/index.html 与 /dir/ 是同一页：按规范化后的路径判，避免凭写法差异漏判
-    function samePage(href) {
-      var norm = function (p) { return p.replace(/\/index\.html$/, '/') }
-      try {
-        return norm(new URL(href, location.href).pathname) === norm(location.pathname)
-      } catch (e) {
-        return false
-      }
-    }
     var self = document.querySelector('#tabbar .tab[aria-current="page"]')
     if (!self) return
     self.addEventListener('click', function (e) {
-      if (!samePage(self.getAttribute('href'))) return
       e.preventDefault()
-      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
     })
   })()
   </script>

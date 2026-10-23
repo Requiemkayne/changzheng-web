@@ -5,7 +5,7 @@
    约定
    · 只复用 css/style.css 的既有令牌与组件（.shell-bar / .hero /
      .block-title / .phase / .step / .intro / .figure / .roster /
-     .tags / .overview / .comments / .foot），不新增颜色变量；
+     .overview / .comments / .foot），不新增颜色变量；
    · 颜色只取 var(--*) 与既有令牌的 rgba 组合（金 201,162,39 /
      亮金 232,200,106 / 深红 74,5,16），不出现新的色值；
    · 无外部字体 / 图片 / 脚本，无 emoji，无星形字形；
@@ -24,13 +24,23 @@
    2. Hero：徽标已下移到「赛中 · 荣获银奖」，此处只做收尾留白
       （只动内边距与行间距，字号规范与配色一律沿用 style.css）
    ============================================================ */
+/* 赛项定位下方的现场影像：宽度随 .figure，圆角沿用既有令牌 */
+.figure video {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;      /* 原片 1280×720；HEVC 解不出画面时也要保证框的比例 */
+  border-radius: var(--r-sm);
+  background: var(--red-dark);
+}
+
 .hero { padding-bottom: 24px; }
 .hero .hero-meta { margin-top: 12px; }
 
 /* ============================================================
    4. 阶段内小节标 / 正文卡：与 .phase 金侧线对齐（缩进 18px）
    ============================================================ */
-.phase .sub-title { margin: 22px 0 10px 18px; }
+
 .phase .intro { margin-left: 18px; }
 
 /* ============================================================
@@ -56,61 +66,39 @@
 }
 
 /* ============================================================
-   6. 闭环五环：纵向卡组 + 首尾金线回勾
+   6. 闭环五环：横向滑动卡片（默认露第一张，右侧露出第二张一角）
+      无动效、无自动播放；靠"露边"暗示可滑动，滚动条隐藏保持干净
    ============================================================ */
 .loop-cards {
-  position: relative;
   list-style: none;
-  margin: 0 0 12px 18px;
-  padding: 0 14px 0 0;
+  display: flex;
+  gap: 12px;
+  /* 出血到 .step 内边距之外：首卡与正文左对齐，滑动时卡片可贴屏边 */
+  margin: 2px -16px 12px;
+  padding: 2px 16px 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
 }
-
-/* 右侧金线回勾：由 05 再训练折回 01 训练 */
-.loop-cards::after {
-  content: "";
-  position: absolute;
-  top: 24px;
-  bottom: 24px;
-  right: 0;
-  width: 9px;
-  border: 1px solid rgba(201, 162, 39, 0.55);
-  border-left: 0;
-  border-radius: 0 8px 8px 0;
-}
-
-/* 折回处的菱形，指向首环 */
-.loop-cards::before {
-  content: "";
-  position: absolute;
-  top: 20px;
-  right: 5px;
-  width: 7px;
-  height: 7px;
-  background: linear-gradient(135deg, var(--gold-light), var(--gold-deep));
-  transform: rotate(45deg);
+.loop-cards::-webkit-scrollbar { display: none; }
+.loop-cards:focus-visible {
+  outline: 2px solid var(--red-dark);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
 }
 
 .loop-card {
-  position: relative;
-  margin-bottom: 14px;
+  flex: 0 0 240px;              /* 卡片收窄，露出的下一张更多，滑动暗示更明确 */
+  scroll-snap-align: start;
+  display: flex;                /* 等高卡组：内容一律顶端对齐，下方留白按卡内 padding 处理 */
+  flex-direction: column;
   background: var(--card);
   border: var(--gold-border);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow);
-  padding: 14px 16px;
-}
-
-/* 卡片左侧菱形节点（沿用 .step::before 的既有语言） */
-.loop-card::before {
-  content: "";
-  position: absolute;
-  left: -19px;
-  top: 18px;
-  width: 7px;
-  height: 7px;
-  background: var(--card);
-  border: 1px solid var(--gold);
-  transform: rotate(45deg);
+  padding: 12px 13px;
 }
 
 .lc-head {
@@ -140,8 +128,8 @@
 
 /* 原文依据句 */
 .lc-quote {
-  font-size: 15px;
-  line-height: 1.65;
+  font-size: 14px;
+  line-height: 1.55;
   color: var(--ink);
   padding-left: 9px;
   border-left: 1px solid var(--gold);

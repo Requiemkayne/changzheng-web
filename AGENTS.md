@@ -22,8 +22,9 @@
 |---|---|
 | 静态预览（mock 模式，无需服务） | 直接用浏览器打开 `index.html` |
 | 本地后端 + 完整账号体系 | `node server/server.js` → http://localhost:8088 |
-| 前端全链路测试（61 项断言） | `node scripts/test-web.js` |
-| 后端 API 全链路测试（132 项断言） | `node scripts/test-api.js`（自起随机端口 + 临时数据库） |
+| 前端全链路测试（63 项断言） | `node scripts/test-web.js` |
+| 后端 API 全链路测试（135 项断言） | `node scripts/test-api.js`（自起随机端口 + 临时数据库） |
+| 真实浏览器端到端（mock，需 8088 服务 + Edge） | `node tools/e2e-test.js`（欢迎/路线/11 节点/答题/综合练习/申请毕业/竞赛/排行榜/我的，逐页查渲染、控制台错误、横向溢出） |
 | 专题站（静态页 + 留言服务 + 后台） | `node competition-timeline/server/server.js` → http://127.0.0.1:8899（后台 `/admin`；初始口令首次启动打印并写入 `server/初始管理员.txt`） |
 | 专题站单文件构建（离线发布） | `python competition-timeline/.tools/build_single.py <入口页> <输出>`（产物入库到 `competition-timeline/pub/`） |
 | 专题站字体子集重建 | `python competition-timeline/.tools/subset_font.py`（之后把各页 `?v=` 递增，当前统一 `?v=4`） |
@@ -78,16 +79,17 @@ js/map-provinces.js     省级边界数据（全国 35 省，范围 73–136°E 
 js/map-factions.js      长征态势数据（友军路线 / 国军封锁线 / 合围区 / 追堵箭头 / 根据地；2D 与 3D 共用，均为示意坐标）
 js/weather.js           页面级天气特效（canvas，尊重 reduced-motion）
 js/live-reload.js       ?live=1 时的开发自动刷新
-js/mock/nodes.js        11 节点（9 篇文案已交付，泸定桥/腊子口仍为占位；含经纬度/阶段/detail 块/quiz 关联）；8 个节点的 detail.blocks 首块是 video（assets/video/<code>.mp4，位于「历史背景」标题上方）
+js/mock/nodes.js        11 节点（11 篇文案均已交付；仅湘江/泸定/会宁 3 处插图 src 为空、caption 标注「画师素材待交付」）；11 个节点的 detail.blocks 首块都是 video（assets/video/<code>.mp4，位于「历史背景」标题上方）
 js/mock/questions.js    43 题（每节点 3 题 + final 池 10 题；含 answer/explanation）
 js/mock/loader.js       仅 mock 模式用 document.write 注入 questions.js
 js/mock/{journey,spirit,weather}.js  开场/精神卡/天气文案数据
-js/views/*.js           login home node-detail quiz map profile contest leaderboard journey
+js/views/*.js           login home node-detail quiz result map profile contest leaderboard journey（result = 末节点后的总分结算/实时排名页）
 server/server.js        静态服务（ETag/304 + gzip + 缓存分层）+ /api 路由 + /__version
 server/db.js            SQLite 建表（users/sessions/progress/checkin_logs/bank_questions/contests）
 server/auth.js          异步 scrypt 密码哈希 + HMAC 会话令牌 + 按 IP/用户名限速
 server/game.js          打卡 / 取题 / 判分（与 api.js mock 分支 1:1 同构）
 server/contest.js       积分赛 + 排行榜 + 题库导入
+server/challenge.js     答题挑战总分榜（全部 published 节点 quiz_scores.best 之和，公开 GET /api/challenge/leaderboard）
 docs/DEPLOY-WINDOWS.md  Windows 内网部署手册（nssm 服务 / HTTPS 反代 / 备份与升级）
 scripts/test-web.js     前端 mock 全链路 + 设计/可访问性回归锁
 scripts/test-api.js     后端 API 全链路验证
@@ -95,11 +97,12 @@ scripts/backup-db.ps1   SQLite 备份（db + -wal/-shm + SHA256 清单 + 轮转�
 scripts/build-fonts.py  由 Google Fonts 切片构建 700/900 子集 woff2 + glyphs.txt
 scripts/dom-check-*.js  各页面 DOM 验收（需 8088 服务 + Edge）
 scripts/cdp-shot.js / tools/mobile-shot.js  截图工具
+tools/e2e-test.js       真实浏览器端到端（Edge headless + 8088 mock，逐页查渲染/控制台错误/横向溢出）
 tools/bake-heightmap.py 生成 assets/map3d/heightmap.png（生成物，勿手改）
 samples/map3d/          地图方案探索样例，不是生产代码
 fonts/glyphs.txt        字重子集的字符快照（逐行一个字符），构建脚本的输入输出
 assets/route/*.webp     11 个节点封面图（nodes.js 的 images.cover 引用）
-assets/video/*.mp4      8 个节点的影像资料（nodes.js 的 video 块引用；720p H.264，合计约 71 MB）
+assets/video/*.mp4      11 个节点的影像资料（nodes.js 的 video 块引用；720p H.264，合计约 71 MB）
 competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + pub 离线单文件 + .tools 构建脚本（详见其 README）
 ```
 
@@ -112,18 +115,18 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 - **取数单一入口**：视图只调 `CZ_API.*`，不直接 `fetch`、不直接读 localStorage。`CZ_API` 返回 Promise，错误对象带 `code` / `message`。
 - **错误码契约**：`CZ_API` 失败时 `err.code` 为 `TIMEOUT`（10 秒超时）/ `BAD_RESPONSE`（后端返回非 JSON，如反代 HTML 错误页）/ 后端业务码（如 `RATE_LIMITED`、`TOO_MANY_REQUESTS`），视图按 `code` 分支给文案，不要只显示 `message`。
 - **状态单一来源**：节点态（`locked/open/checkedIn/quizPassed`）与毕业态只从 `CZ_PROGRESS.computeStates` 取，不要在各视图里另写判断。
-- **前后端同构**：`js/api.js` 的 mock 分支与 `server/game.js` / `server/contest.js` 是同一套规则的两份实现（60 分通关、10 题毕业考、20 题 × 5 分积分赛、30 分钟时限）。**改规则必须两边同时改**（`getConfigDoc` 也各有一份）。
+- **前后端同构**：`js/api.js` 的 mock 分支与 `server/game.js` / `server/contest.js` / `server/challenge.js` 是同一套规则的两份实现（节点答题 60 分通关；**毕业 = 11 个节点答题平均分 ≥ 70（`graduation.passScore`）后走 `POST /api/graduate` 申请**，不再有独立毕业考试；「综合练习」= 原毕业答题改名，10 题 / 3 分钟 / 只记成绩不直接发毕业；积分赛按 `getConfigDoc` 的 contest 配置，当前 10 题 × 5 分（满分 50）/ 30 分钟；答题挑战总分榜 = 各节点 best 之和）。**改规则必须两边同时改**（`getConfigDoc` 也各有一份）。
 - **风格**：2 空格缩进、单引号、不写行尾分号、中文注释解释「为什么」而不仅是「做什么」；每个文件头部注释说明职责。
 
 ## 数据与内容（完全数据驱动）
 
 - 节点/题目/文案全部在数据文件里，**视图不得硬编码内容文本**；换素材只换 `js/mock/*`。
 - 题目格式：`{ _id, nodeCode, type: 'single'|'multiple'|'judge', question, options[], answer: [下标], explanation }`（另有 `difficulty` / `status`）；`answer` 恒为下标数组，判断题 `options` 必须是 `["正确","错误"]`。
-- 文案交付状态：**9 个节点已按文案组 Word 交付**（瑞金/湘江/遵义/四渡赤水/金沙江/大渡河/雪山/草地/会宁），配套题目也已重写；**飞夺泸定桥、激战腊子口 仍是占位文案**，其「占位」标记要保留，别把整站都当成品描述。
-- 节点封面图已交付：`assets/route/<code>.webp`，由 `nodes.js` 的 `images.cover` 引用；画师的 `illustrations` 数组仍为空（渲染层需保留主题色块兜底）。
+- 文案交付状态：**11 个节点的文案与题目均已按文案组 Word 交付**（腊子口、泸定桥也已补齐）；剩余缺口只有**画师插图**：湘江 / 泸定 / 会宁 三处 `image` 块的 `src` 为空并标注「画师素材待交付」，渲染层需保留占位与主题色块兜底。
+- 节点封面图已交付：`assets/route/<code>.webp`，由 `nodes.js` 的 `images.cover` 引用；画师的 `illustrations` 数组仍为空。
 - `detail.blocks` 现有 7 种 type：`heading / paragraph / image / quote / video / timeline / dataCard`（未知 type 静默忽略）。`video` 形如 `{ type:'video', src:'assets/video/<code>.mp4', poster:'assets/route/<code>.webp', caption? }`，渲染为 `<video controls playsinline preload="metadata">`，**必须排在 heading 之前**（用户要求位于「历史背景」上方）。
-- 竞赛题库：出题人直接编辑 `server/question-bank.json`，重启服务自动导入。**导入按 `id` 幂等去重（INSERT OR IGNORE）——修改已有 id 的题干不会被更新**，需换新 id 或清掉 `bank_questions` 对应行；竞赛要求库内 ≥ 20 题。
-- 新增文案里的汉字若不在 `fonts/glyphs.txt` 中，会逐字回落到系统衬线（不会豆腐块，但一句话里两种字形）；出正式文案后需要重跑字体重建（见「已知坑」）。**当前就处于这个状态**：内容已交付但字体子集未重建。
+- 竞赛题库：出题人直接编辑 `server/question-bank.json`，重启服务自动导入。**导入按 `id` 幂等去重（INSERT OR IGNORE）——修改已有 id 的题干不会被更新**，需换新 id 或清掉 `bank_questions` 对应行；积分赛按 `contest.questionCount` 抽题（当前 10 题），库内题量不足会报 `BANK_TOO_SMALL`（当前 57 题）。
+- 新增文案里的汉字若不在 `fonts/glyphs.txt` 中，会逐字回落到系统衬线（不会豆腐块，但一句话里两种字形）；出正式文案后需要重跑字体重建（见「已知坑」）。**字体已在 `82457a7` 再次重建**（`glyphs.txt` 1665 行），但该提交新加的 3 个字仍未覆盖（见「已知坑」）。
 
 ## 不可破坏的约束
 
@@ -143,12 +146,12 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 
 - **换行符（Windows）**：仓库没有 `.gitattributes`，而全局 `core.autocrlf=true` 会把 LF 转成 CRLF，导致 `favicon.svg` 变成 684 B、字节级测试失败。本仓库已设 `core.autocrlf=false`；重装/换克隆后先确认这一点，必要时 `git rm --cached -r . && git reset --hard`。
 - **本机访问 GitHub 的两个坑**：① `schannel` 后端会报 `SEC_E_NO_CREDENTIALS`（curl 也一样），凡是 `git fetch/pull` 都加 `-c http.sslBackend=openssl`；② 若 `github.com` 解析到的 IP 连不上（曾出现 `20.205.243.166` 超时），可用本地 CONNECT 代理指向可用的 GitHub 边缘 IP（例如 `20.27.177.113`）后 `git -c http.proxy=http://127.0.0.1:<端口> -c http.sslBackend=openssl fetch`。两者都是环境问题，不属于项目代码。
-- **`scripts/test-api.js` 在本机沙箱下会有 2 项失败**（端口占用子进程用例：`child_process.spawn` 的管道 stdio 被 DSH 沙箱拦截，退出码记为 null、stderr 为空）。手工等价验证：占住端口后 `PORT=<端口> node server/server.js` 应以退出码 1 结束并打印「启动失败：端口 … 已被占用（EADDRINUSE）」+ 换端口/netstat 提示。正常终端预期 132/132。
+- **`scripts/test-api.js` 在本机沙箱下会有 2 项失败**（端口占用子进程用例：`child_process.spawn` 的管道 stdio 被 DSH 沙箱拦截，退出码记为 null、stderr 为空）。手工等价验证：占住端口后 `PORT=<端口> node server/server.js` 应以退出码 1 结束并打印「启动失败：端口 … 已被占用（EADDRINUSE）」+ 换端口/netstat 提示。正常终端预期 135/135。
 - `scripts/test-web.js` 在运行时把 `config.USE_MOCK` 改 true，验证的是 mock 分支；`js/api.js` 在 Node 下用内存存储兜底（无 localStorage）。
 - `scripts/test-api.js` 在 `require('../server/server')` **之前**设置 `DB_PATH` 指向临时库；测试自己负责清理，别指向 `server/data.db`（SQLite 还会留下 `-wal`/`-shm`，只删 `data.db` 删不干净）。
-- `README.md`（主站）有两处过期描述：开头「地图用 Leaflet CDN」（实际内联 SVG，零联网）与测试断言数「19 / 71 项」（实际 61 / 132）；另外根 README 完全没提 `competition-timeline` 专题站。以代码、测试与 `competition-timeline/README.md` 为准。
+- `README.md`（主站）有两处过期描述：开头「地图用 Leaflet CDN」（实际内联 SVG，零联网）与测试断言数「19 / 71 项」（实际 63 / 135）；另外根 README 完全没提 `competition-timeline` 专题站。以代码、测试与 `competition-timeline/README.md` 为准。
 - `scripts/build-fonts.py` 需要 fonttools + brotli；输入已全部入库（`fonts/urls.txt` 记录 101 个切片的来源，切片本身也在 `fonts/`），缺的只是这两个 Python 包（本机 runtime 未装）。装好后即可离线重建 `glyphs.txt` + 两个 woff2，不需要原始素材机；不要手写 @font-face 或伪造 woff2。
-- **内容交付后字体子集没重建（现存）**：`ea84a48` 填充了 9 个节点文案与全部题目，`43db922` 又加了省界与敌我态势文本，但 `fonts/glyphs.txt` / woff2 未更新；扫描 `js/**`（除 `vendor`）+ `server/**` + `index.html`（去 BOM）实测有 **118 个 ≥U+2000 字符不在子集内**（苏/晚/委/赶/赴/援/捐…，以及省名 京/津/蒙/辽/吉/浙/疆/港/澳 等），这些字会逐字回落系统宋体。`test-web` 的覆盖断言只查 `server/question-bank.json`，**测试全绿 ≠ 字形齐全**；重建后把 `fonts/glyphs.txt` 与两个 woff2 一起提交。
+- **字体子集又被新文案甩下 3 个字**：`82457a7` 已重建 `glyphs.txt`（1665 行）与两个 woff2，但同一提交新加的 **「综」「练」「申」** 不在子集里（`综合练习`、`申请毕业` 都会渲染，回落系统宋体）。按扫描口径（`js/**` 除 `vendor` + `server/**` + `index.html`，去 BOM）当前缺失 3 个字；再重建需 fonttools + brotli（本机 runtime 未装）。`test-web` 的覆盖断言只查 `server/question-bank.json`，**测试全绿 ≠ 字形齐全**；不要手改 woff2。
 - 浏览器验收脚本硬编码 Edge 路径 `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`；`scripts/dom-check-*` 与 `scripts/play-*` 还硬编码 `http://localhost:8088/?mock=1`——必须先起后端，换机器要改路径。
 - **视频依赖 Range**：静态服务对 `.mp4` 返回 `206 Partial Content` + `Content-Range`（iOS Safari 不拿到 206 就不播，拖进度条也依赖它），其他扩展名仍是整文件 200。改 `serveStatic` 时别把这段删了；新增视频用 `ffmpeg -c:v libx264 -crf 30 -preset medium -movflags +faststart -c:a aac -b:a 64k`（源素材 228 MB → 产出 71 MB）。
 - **省界/态势数据是生成物**：`js/map-provinces.js` 头部注明由 `samples/build_provinces_all.py` 从公开 GeoJSON 裁剪 + 简化生成（35 省，73–136°E / 3–54.5°N，容差 0.04°），但**该脚本未入库**——不要手改这份坐标，需要调整范围/精度时先补回生成脚本再重跑；`js/map-factions.js` 是手工维护的示意数据（坐标仅表走向，不作测绘依据），改它不算改生成物。
@@ -166,9 +169,9 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 
 ## 改完怎么验（Definition of Done）
 
-1. `node scripts/test-web.js` → `ALL PASSED（61 项）`
-2. `node scripts/test-api.js` → 本机沙箱 130 通过 / 2 失败（见「已知坑」，那 2 项要手工验证 EADDRINUSE）；正常终端应为 132/132
-3. 动了 UI：`node server/server.js` 后浏览 `http://localhost:8088/?mock=1#/`（建议带 `?live=1`），用 `scripts/cdp-shot.js` 或 `tools/mobile-shot.js` 出 390×844 截图自查首屏、tabBar 不遮挡、四态颜色、无横向滚动、焦点环可见。
+1. `node scripts/test-web.js` → `ALL PASSED（63 项）`
+2. `node scripts/test-api.js` → 本机沙箱 133 通过 / 2 失败（见「已知坑」，那 2 项要手工验证 EADDRINUSE）；正常终端应为 135/135
+3. 动了 UI：`node server/server.js` 后浏览 `http://localhost:8088/?mock=1#/`（建议带 `?live=1`），用 `scripts/cdp-shot.js` 或 `tools/mobile-shot.js` 出 390×844 截图自查首屏、tabBar 不遮挡、四态颜色、无横向滚动、焦点环可见；改了大流程（毕业/竞赛/导航）再跑 `node tools/e2e-test.js` 做真实浏览器逐页体检。
 4. 动了判分/账号/竞赛：两种模式都要走一遍真实流程（打卡 → 取题 → 交卷 → 毕业 → 竞赛），不能只跑单测。
 5. 动了专题站/托管：同时起主站 8088 与留言 8899，验证 `/competition-timeline/` 页面可开、`/competition-timeline/admin.html` 与 `/competition-timeline/server/server.js` 均 404、留言可读写、停掉 8899 后 `/api/comments` 返回 503。
 6. 改了文案/题目：确认新增汉字都在 `fonts/glyphs.txt` 里（不在就会回落系统宋体，见「已知坑」）；装好 fonttools + brotli 后重跑 `scripts/build-fonts.py`，把 `glyphs.txt` 与两个 woff2 一起提交。

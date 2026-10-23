@@ -42,3 +42,10 @@
   letter-spacing: 0.08em;
   color: var(--gold-deep);
 }
+
+/* 银奖徽章：银灰底 + 深色字（金奖保持 badge-passed 金底原样） */
+.badge-silver {
+  background: #C9CED6;
+  color: #2F333A;
+  border-color: #9AA1AB;
+}

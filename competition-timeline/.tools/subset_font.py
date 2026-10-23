@@ -56,7 +56,13 @@ for src, weight, out in jobs:
     print(f'{out}: {kb:.0f} KB (weight {weight})')
 
 # 生成精简的 font css（带版本号，避免浏览器缓存旧字体导致字形缺失）
-FONT_VER = '5'  # 5: 纳入「百炼成器 · 笃行致远」等新文案（v4 子集缺 32 字）
+FONT_VER = '14'  # 11: 纳入 series-2「评委视角」长段落新增的 18 字
+# 9: 纳入 index 引言（市赛 → 备赛 → 国赛）综述文案（v8 子集缺 遴/锋/众/封/搏）
+# 8: 纳入 index 学校新闻（以赛促教结硕果）文案与 news-1 配图 alt（后该块已删除，字形保留在子集里）
+# 8: 纳入 series-3「技术实现」卡片 tag「清洗」（v7 子集缺 U+6D17）
+# 7: 纳入 series-3「赛场图集」五张配图 alt（v6 子集缺厢/叮/嘱/床/房/散/晚/材/途/铁）
+# 6: 纳入 series-3「技术实现」板块（v5 子集缺 19 字：低况剔匹去垂域座情截敛残率纳追适针靠预）
+# 5: 纳入「百炼成器 · 笃行致远」等新文案（v4 子集缺 32 字）
 css_lines = ["/* Noto Serif SC 子集（仅含站点实际用到的字符，fontTools 生成） */"]
 for _, weight, out in jobs:
     css_lines.append(f"""@font-face {{

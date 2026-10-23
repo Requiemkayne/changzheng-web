@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#6E0918">
-  <meta name="description" content="2026年世界职业院校技能大赛新一代信息技术赛道金奖团队备赛攻坚纪实 —— 按赛前、赛中、赛后时间线梳理">
+  <meta name="description" content="2026年世界职业院校技能大赛新一代信息技术赛道金奖团队备赛攻坚纪实 —— 按岗位分工、项目侧重、朝夕备赛、鹭岛摘金、赛后复盘五部分梳理">
   <title>日夜磨一剑 · 鹭岛摘金奖 —— 备赛攻坚纪实时间线</title>
-  <link rel="stylesheet" href="fonts/noto-serif-sc.css?v=5">
+  <link rel="stylesheet" href="fonts/noto-serif-sc.css?v=14">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/tabbar.css">
 </head>
@@ -20,13 +20,14 @@
       <a class="shell-back" href="index.html" data-keep-search aria-label="返回总览">
         <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
       </a>
-      <a class="brand" href="#top">
+      <!-- 品牌条只做标识，不加交互：点击该区域不应触发跳转 -->
+      <div class="brand">
         <span class="brand-seal" aria-hidden="true">技</span>
         <span class="brand-text">
           <strong>技炫青春 · 能创未来</strong>
           <em>系列报道（一）</em>
         </span>
-      </a>
+      </div>
     </div>
   </header>
 
@@ -48,7 +49,6 @@
         <div class="stat"><dt>最终战绩</dt><dd><b>金奖</b></dd></div>
       </dl>
 
-      <p class="hero-meta">发布时间 2026-10-19　供稿：计算机系 25001班 魏楚禾　上海市经济管理学校</p>
     </div>
   </section>
 
@@ -58,82 +58,131 @@
       <!-- ========== 引言 ========== -->
       <section class="intro">
         <h2 class="block-title">引 言</h2>
-        <p>9月23日，厦门信息学校2026年世界职业院校技能大赛总决赛争夺赛新一代信息技术赛道（中职组）比赛现场，来自全国154支队伍的选手们同台竞技。由学校魏楚禾、金家科、陈俊帆、张芾源四位同学组成的参赛团队，在指导教师孔庆苹、叶胤翔的带领下，凭借自主研发创新项目和扎实的专业素养，成功斩获金奖。</p>
+        <p>9月23日，厦门信息学校2026年世界职业院校技能大赛总决赛争夺赛新一代信息技术赛道（中职组）比赛现场，来自全国154支队伍的选手们同台竞技。由我校魏楚禾、金家科、陈俊帆、张芾源四位同学组成的参赛团队，在指导教师孔庆苹、叶胤翔的带领下，凭借自主研发创新项目和扎实的专业素养，成功斩获金奖。</p>
+      </section>
+
+      <!-- 团队合影：置于岗位分工之前 -->
+      <figure class="figure">
+        <img src="assets/img/photo-5.jpg" alt="四名队员佩戴金牌，站在 2026 年世界职业院校技能大赛总决赛争夺赛主视觉展板前合影" width="1400" height="1050">
+        <figcaption>夺金合影：四名队员佩戴金牌留影</figcaption>
+      </figure>
+
+      <!-- =====================================================
+           团队组建（独立成节，置于项目与时间线之前）
+      ====================================================== -->
+      <section class="phase" id="team" aria-labelledby="team-title">
+        <div class="phase-head phase-head--single">
+          <span class="phase-index" aria-hidden="true">壹</span>
+            <h2 class="phase-title" id="team-title">岗位分工</h2>
+        </div>
+
+        <ol class="steps">
+          <li class="step">
+            <h3>团队组建 · 明确岗位职责</h3>
+            <div class="step-body">
+              <p>四名队员<strong>根据赛项要求</strong>明确岗位职责，<strong>各司其职、分工协作</strong>。</p>
+              <ul class="roster roster--photo">
+                <li>
+                  <img class="roster-photo" src="assets/img/member-chuhe.jpg" alt="魏楚禾的证件照" width="264" height="352" loading="lazy" decoding="async">
+                  <div class="roster-text"><b>魏楚禾</b><em class="roster-role">AI 安全架构师&队长</em><small><span>25001班</span><span class="rt">班主任 黄士彬</span></small></div>
+                </li>
+                <li>
+                  <img class="roster-photo" src="assets/img/member-jiake.jpg" alt="金家科的证件照" width="264" height="352" loading="lazy" decoding="async">
+                  <div class="roster-text"><b>金家科</b><em class="roster-role">渗透测试工程师</em><small><span>24005班</span><span class="rt">班主任 钱维娜</span></small></div>
+                </li>
+                <li>
+                  <img class="roster-photo" src="assets/img/member-junfan.jpg" alt="陈俊帆的证件照" width="264" height="352" loading="lazy" decoding="async">
+                  <div class="roster-text"><b>陈俊帆</b><em class="roster-role">具身运维工程师</em><small><span>25006班</span><span class="rt">班主任 黄铮</span></small></div>
+                </li>
+                <li>
+                  <img class="roster-photo" src="assets/img/member-fuyuan.jpg" alt="张芾源的证件照" width="264" height="352" loading="lazy" decoding="async">
+                  <div class="roster-text"><b>张芾源</b><em class="roster-role">应急响应工程师</em><small><span>24003班</span><span class="rt">班主任 朱虎声</span></small></div>
+                </li>
+              </ul>
+              <p class="coach">指导教师<b>孔庆苹</b><span class="coach-sep">、</span><b>叶胤翔</b></p>
+            </div>
+          </li>
+
+        </ol>
+      </section>
+
+      <!-- =====================================================
+           项目侧重（第二部分，独立成节，置于时间线之前）
+      ====================================================== -->
+      <section class="phase" id="project" aria-labelledby="project-title">
+        <div class="phase-head phase-head--single">
+          <span class="phase-index" aria-hidden="true">贰</span>
+            <h2 class="phase-title" id="project-title">项目侧重</h2>
+        </div>
+
+        <ol class="steps">
+          <li class="step">
+            <h3>攻防场景 · 双链并行入侵</h3>
+            <div class="step-body">
+              <p>项目在<strong>数字孪生授权靶场</strong>开展完整网络攻防实践，复现「提示注入 + WebShell 上传」双链并行入侵，依次完成资产测绘、日志溯源、样本解密与<strong>应急止损</strong>。</p>
+            </div>
+          </li>
+
+          <li class="step">
+            <h3>蓝红对抗 · 智能体与变种攻击</h3>
+            <div class="step-body">
+              <p>蓝方依托 <strong>MCP 协议</strong>调度多智能体承载防御能力、落地防御基线；红队构造变种话术、双后缀伪装后门与多源伪造 IP，发起<strong>语义变种、伪装上传、检索注入</strong>三线并发攻击。</p>
+            </div>
+          </li>
+
+          <li class="step">
+            <h3>闭环迭代 · 纠偏与诱捕反制</h3>
+            <div class="step-body">
+              <p>面对防御基线被绕过、AI 风险研判误判，通过<strong>专家人工纠偏</strong>修正防御技能、迭代新版策略；结合<strong>蜜罐诱捕</strong>捕获攻击会话与轨迹取证，形成「攻击溯源 → 基线防御 → 变种对抗 → 策略更新 → 诱捕反制」的<strong>完整攻防闭环</strong>。</p>
+            </div>
+          </li>
+        </ol>
       </section>
 
       <!-- =====================================================
            赛前
       ====================================================== -->
       <section class="phase" id="pre" aria-labelledby="pre-title">
-        <div class="phase-head">
-          <span class="phase-index" aria-hidden="true">壹</span>
-          <div>
-            <p class="phase-name">赛前</p>
-            <h2 class="phase-title" id="pre-title">日夜磨一剑</h2>
-            <p class="phase-sub">备赛攻坚 · 假期与周末扎根实训室</p>
-          </div>
+        <div class="phase-head phase-head--single">
+          <span class="phase-index" aria-hidden="true">叁</span>
+            <h2 class="phase-title" id="pre-title">朝夕备赛</h2>
         </div>
-
-        <figure class="figure">
-          <img src="assets/img/photo-2.jpg" alt="实训室里，四名队员与指导教师围坐在笔记本电脑旁，桌面摊着资料" width="1600" height="1200">
-          <figcaption>备赛集训：队员与指导教师围坐研讨，从方案梳理到技术难点逐一突破</figcaption>
-        </figure>
-
-        <figure class="figure">
-          <img src="assets/img/photo-3.jpg" alt="四名队员在实训室长桌前并排操作笔记本电脑，正前方弧形大屏显示项目代码，右侧立屏展示系统监测界面" width="1600" height="1200">
-          <figcaption>实训演练：四名队员在实训室按赛项流程演练，大屏同步展示项目代码与系统界面</figcaption>
-        </figure>
 
         <ol class="steps">
           <li class="step">
-            <h3>团队组建 · 明确岗位职责</h3>
+            <h3>朝夕与阵地・聚力深耕研</h3>
             <div class="step-body">
-              <p>四名队员根据赛项要求明确岗位职责，<strong>各司其职、分工协作</strong>，相互补位、彼此支撑。</p>
-              <ul class="roster">
-                <li><b>魏楚禾</b><small>25001班 · 班主任 黄士彬</small></li>
-                <li><b>金家科</b><small>24005班 · 班主任 钱维娜</small></li>
-                <li><b>陈俊帆</b><small>25006班 · 班主任 黄铮</small></li>
-                <li><b>张芾源</b><small>24003班 · 班主任 朱虎声</small></li>
-              </ul>
-              <p class="coach">指导教师<b>孔庆苹</b><span class="coach-sep">、</span><b>叶胤翔</b></p>
+              <p>备赛阶段，队员们利用<strong>假期与周末</strong>驻守实训室，反复打磨参赛方案，梳理展示逻辑，磨合团队协作流程。</p>
             </div>
           </li>
 
           <li class="step">
-            <h3>时间与场地 · 扎根实训室</h3>
+            <h3>攻坚与指导 · 在瓶颈中彼此托举</h3>
             <div class="step-body">
-              <p>为打磨最佳参赛状态，队员们主动利用<strong>假期和周末</strong>时间扎根<strong>实训室</strong>，反复打磨参赛方案、优化展示逻辑、磨合团队流程。</p>
-              <div class="tags">
-                <span>假期集训</span><span>周末集训</span><span>实训室</span>
-                <span>打磨方案</span><span>优化展示逻辑</span><span>磨合团队流程</span>
-              </div>
+              <p>训练过程充满挑战，时常遇到各类难题与瓶颈，团队没有轻言放弃，而是<strong>相互交流、共同研讨</strong>；指导教师孔庆苹、叶胤翔<strong>全程陪伴集训</strong>，从项目方案梳理到技术难点突破耐心点拨，在反复试错与高压备赛中，锤炼同学们的专业心态与职业素养。</p>
             </div>
           </li>
 
-          <li class="step">
-            <h3>应对困难 · 在瓶颈中突破</h3>
-            <div class="step-body">
-              <p>训练过程充满挑战，时常遇到各类难题与瓶颈。团队没有轻言放弃，而是<strong>相互交流、共同研讨</strong>，在反复试错与坚持中不断突破自我。</p>
-            </div>
-          </li>
-
-          <li class="step">
-            <h3>教师指导 · 全程陪伴集训</h3>
-            <div class="step-body">
-              <p>指导教师孔庆苹、叶胤翔<strong>全程陪伴集训</strong>，从项目方案梳理到技术难点突破，耐心指导、精准点拨，在高压备赛中锤炼同学们的专业心态与职业素养。</p>
-            </div>
-          </li>
+        <li class="step-plain">
+          <figure class="figure">
+            <img src="assets/img/photo-2.jpg" alt="实训室里，四名队员与指导教师围坐在笔记本电脑旁，桌面摊着资料" width="1600" height="1200">
+            <figcaption>备赛集训：队员与指导教师围坐研讨，从方案梳理到技术难点逐一突破</figcaption>
+          </figure>
+        </li>
 
           <li class="step">
             <h3>赛项要求 · 对标真实行业场景</h3>
             <div class="step-body">
-              <p>赛项立足数字产业前沿，综合考察选手的专业技能、创新思维、职业素养与团队协作能力，对标真实行业工作场景；内容繁杂、训练强度大，对综合实战能力、抗压能力和临场应变能力提出极高标准，竞争激烈、奖项分量重。</p>
-              <div class="tags">
-                <span>专业技能</span><span>创新思维</span><span>职业素养</span>
-                <span>团队协作</span><span>抗压能力</span><span>临场应变</span>
-              </div>
+              <p>赛项立足数字产业前沿，综合考察选手的<strong>专业技能、创新思维、职业素养与团队协作能力，对标真实行业工作场景</strong>；内容繁杂、训练强度大，对综合实战能力、抗压能力和临场应变能力提出极高标准，竞争激烈、奖项分量重。</p>
             </div>
           </li>
+        <li class="step-plain">
+          <figure class="figure">
+            <img src="assets/img/photo-3.jpg" alt="四名队员在实训室长桌前并排操作笔记本电脑，正前方弧形大屏显示项目代码，右侧立屏展示系统监测界面" width="1600" height="1200">
+            <figcaption>实训演练：四名队员在实训室按赛项流程演练，大屏同步展示项目代码与系统界面</figcaption>
+          </figure>
+        </li>
+
         </ol>
       </section>
 
@@ -141,35 +190,23 @@
            赛中
       ====================================================== -->
       <section class="phase" id="during" aria-labelledby="during-title">
-        <div class="phase-head">
-          <span class="phase-index" aria-hidden="true">贰</span>
-          <div>
-            <p class="phase-name">赛中</p>
-            <h2 class="phase-title" id="during-title">鹭岛摘金奖</h2>
-            <p class="phase-sub">9月23日 · 厦门信息学校 · 全国 154 支队伍同台竞技</p>
-          </div>
+        <div class="phase-head phase-head--single">
+          <span class="phase-index" aria-hidden="true">肆</span>
+            <h2 class="phase-title" id="during-title">鹭岛摘金</h2>
         </div>
 
         <ol class="steps">
           <li class="step">
-            <h3>时间地点 · 厦门赛场</h3>
+            <h3>赛场规模 </h3>
             <div class="step-body">
-              <p><time datetime="2026-09-23">9月23日</time>，比赛在厦门信息学校举行，赛项为 2026 年世界职业院校技能大赛总决赛争夺赛新一代信息技术赛道（中职组）。</p>
+              <p><time datetime="2026-09-23">9月23日</time>，比赛在厦门信息学校举行。来自全国<strong>154 支队伍</strong>的选手同台竞技，对手强劲、赛程紧张。</p>
             </div>
           </li>
 
           <li class="step">
-            <h3>赛场规模 · 强劲对手</h3>
+            <h3>现场表现 </h3>
             <div class="step-body">
-              <p>来自全国<strong>154 支队伍</strong>的选手同台竞技，对手强劲、赛程紧张。</p>
-            </div>
-          </li>
-
-          <li class="step">
-            <h3>现场表现 · 沉着应战</h3>
-            <div class="step-body">
-              <p>四名队员沉着冷静、从容应战，全程保持稳定心态，<strong>配合默契、流程流畅</strong>，完整展现了项目的创新亮点与团队专业风貌。</p>
-              <p>以良好的精神状态和扎实的综合能力，顺利完成全部赛项展示。</p>
+              <p>四名队员沉着冷静、从容应战，全程保持稳定心态，<strong>配合默契、流程流畅</strong>，完整展现了项目的创新亮点与团队专业风貌。以良好的精神状态和扎实的综合能力，顺利完成全部赛项展示。</p>
             </div>
           </li>
 
@@ -183,7 +220,7 @@
 
         <figure class="figure">
           <img src="assets/img/photo-1.jpg" alt="团队与指导教师在颁奖背景板前合影，队员胸前挂着金牌" width="1600" height="937">
-          <figcaption>赛场合影：金奖团队与指导教师</figcaption>
+          <figcaption>赛场合影：指导教师与金奖团队</figcaption>
         </figure>
       </section>
 
@@ -191,13 +228,9 @@
            赛后
       ====================================================== -->
       <section class="phase" id="post" aria-labelledby="post-title">
-        <div class="phase-head">
-          <span class="phase-index" aria-hidden="true">叁</span>
-          <div>
-            <p class="phase-name">赛后</p>
-            <h2 class="phase-title" id="post-title">能创未来</h2>
-            <p class="phase-sub">收获与成长 · 从技能比拼到职业素养的沉淀</p>
-          </div>
+        <div class="phase-head phase-head--single">
+          <span class="phase-index" aria-hidden="true">伍</span>
+            <h2 class="phase-title" id="post-title">赛后复盘</h2>
         </div>
 
         <figure class="figure">
@@ -207,21 +240,21 @@
 
         <ol class="steps">
           <li class="step">
-            <h3>专业能力 · 夯实基础</h3>
+            <h3>专业能力 · 筑基拓新</h3>
             <div class="step-body">
               <p>同学们表示，漫长的集训时光，不仅<strong>夯实了自身的专业基础</strong>，更<strong>拓宽了前沿技术视野</strong>。</p>
             </div>
           </li>
 
           <li class="step">
-            <h3>方法与素养 · 三大能力</h3>
+            <h3>方法素养 · 思判精进</h3>
             <div class="step-body">
               <p>在一次次攻坚克难中培养了<strong>独立思考</strong>、<strong>问题研判</strong>、<strong>高效复盘</strong>的专业能力。</p>
             </div>
           </li>
 
           <li class="step">
-            <h3>成长意义 · 不只是技能比拼</h3>
+            <h3>赛事成长 · 砺己突围</h3>
             <div class="step-body">
               <p>这场赛事不仅是一次技能比拼，更是一场<strong>自我磨砺、自我突破的成长修行</strong>，为今后专业学习和技能深耕积累了宝贵经验。</p>
             </div>
@@ -256,7 +289,7 @@
         <a class="page-next" href="series-2.html" data-keep-search>
           <span class="page-next-body">
             <span class="page-next-kicker">下一篇</span>
-            <span class="page-next-title">系列报道（二）· 把训练当比赛 闭环淬炼</span>
+            <span class="page-next-title">系列报道（二）· 千锤方成器 · 笃行赴赛场</span>
           </span>
           <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9.5 5.5 16 12l-6.5 6.5"/></svg>
         </a>
@@ -321,10 +354,9 @@
     </a>
   </nav>
 
-
   <!-- 1) 保留查询参数（?demo=1 / ?live=1），避免回主站被路由守卫弹到登录页；
         顶部分页返回链与页底下一篇入口同样带 data-keep-search，走同一段改写
-       2) 已在专题站内点「青春经管」不再重载当页（同页只滚回顶部），跨页（系列页→总览）仍照常跳转 -->
+       2) 专题站内点「青春经管」一律不跳转：首页与系列页均原地不动 -->
   <script>
   (function () {
     var q = location.search
@@ -334,22 +366,10 @@
       var parts = href.split('#')
       if (q) links[i].setAttribute('href', parts[0] + q + (parts[1] ? '#' + parts[1] : ''))
     }
-    // /dir/index.html 与 /dir/ 是同一页：按规范化后的路径判，避免凭写法差异漏判
-    function samePage(href) {
-      var norm = function (p) { return p.replace(/\/index\.html$/, '/') }
-      try {
-        return norm(new URL(href, location.href).pathname) === norm(location.pathname)
-      } catch (e) {
-        return false
-      }
-    }
     var self = document.querySelector('#tabbar .tab[aria-current="page"]')
     if (!self) return
     self.addEventListener('click', function (e) {
-      if (!samePage(self.getAttribute('href'))) return
       e.preventDefault()
-      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
     })
   })()
   </script>

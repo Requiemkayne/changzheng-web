@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#6E0918">
   <meta name="description" content="技炫青春 能创未来 —— 世界职业院校技能大赛系列报道总览：新一代信息技术赛道金奖、电子电器与集成电路赛道银奖、人工智能赛道银奖三篇的时间线入口">
   <title>技炫青春 能创未来 · 系列报道总览（一）（二）（三）</title>
-  <link rel="stylesheet" href="fonts/noto-serif-sc.css?v=5">
+  <link rel="stylesheet" href="fonts/noto-serif-sc.css?v=14">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/index.css">
   <link rel="stylesheet" href="css/tabbar.css">
@@ -18,16 +18,14 @@
   <!-- ============ 1. 顶部深红 shell ============ -->
   <header class="shell-bar">
     <div class="wrap shell-bar-inner">
-      <a class="shell-back" href="../index.html#/" data-keep-search aria-label="返回长征主站">
-        <svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
-      </a>
-      <a class="brand" href="#top">
+      <!-- 品牌条只做标识，不加交互：点击该区域不应触发跳转 -->
+      <div class="brand">
         <span class="brand-seal" aria-hidden="true">技</span>
         <span class="brand-text">
           <strong>技炫青春 · 能创未来</strong>
           <em>系列总览</em>
         </span>
-      </a>
+      </div>
     </div>
   </header>
 
@@ -50,6 +48,12 @@
   <main class="page">
     <div class="wrap">
 
+      <!-- ============ 2. 赛事综述（市赛 → 备赛 → 国赛，交代三篇的由来） ============ -->
+      <section class="intro" aria-labelledby="intro-title">
+        <h2 class="block-title" id="intro-title">引 言</h2>
+        <p>2026 年上海市职业院校学生技能大赛顺利举办。我校计算机系择优遴选优秀学子组建参赛队伍，与全市近三十支代表队同场比拼、以技争锋。参赛师生历经高强度、高标准的层层考核，在全市众多参赛强队中脱颖而出，取得优异竞赛成绩，成功获得世界职业院校技能大赛参赛资格。备赛阶段，团队开展封闭式专项集训，对标赛事标准精研方案、锤炼技能。在 2026 世界职业院校技能大赛争夺赛中奋勇拼搏，斩获新一代信息技术赛道金奖、电子电器与集成电路赛道银奖、人工智能赛道银奖。</p>
+      </section>
+
       <!-- ============ 3. 三篇系列报道入口 ============ -->
       <section class="series" id="list" aria-labelledby="list-title">
         <h2 class="block-title" id="list-title">系 列 报 道</h2>
@@ -67,20 +71,20 @@
 
           <li>
             <a class="step series-card" href="series-2.html" id="series-2">
-              <h3><span class="step-no" aria-hidden="true">贰</span>百炼成器 · 笃行致远</h3>
+              <h3><span class="step-no" aria-hidden="true">贰</span>千锤方成器 · 笃行赴赛场</h3>
               <div class="step-body">
-                <p>电子电器与集成电路赛道　<span class="badge badge-passed">银奖</span></p>
-                <p class="series-note">系列报道（二）· 备赛闭环纪实</p>
+                <p>电子电器与集成电路赛道　<span class="badge badge-silver">银奖</span></p>
+                <p class="series-note">系列报道（二）· 备赛攻坚纪实</p>
               </div>
             </a>
           </li>
 
           <li>
             <a class="step series-card" href="series-3.html" id="series-3">
-              <h3><span class="step-no" aria-hidden="true">叁</span>灯火长明 · 百次调试</h3>
+              <h3><span class="step-no" aria-hidden="true">叁</span>灯火伴求索 · 百调砺真知</h3>
               <div class="step-body">
-                <p>人工智能赛道　<span class="badge badge-passed">银奖</span></p>
-                <p class="series-note">系列报道（三）· 日夜攻坚纪实</p>
+                <p>人工智能赛道　<span class="badge badge-silver">银奖</span></p>
+                <p class="series-note">系列报道（三）· 备赛攻坚纪实</p>
               </div>
             </a>
           </li>
@@ -115,7 +119,7 @@
 
   <!-- 1) 保留查询参数（?demo=1 / ?live=1），避免回主站被路由守卫弹到登录页；
         页内返回链同样带 data-keep-search，走同一段改写
-       2) 已在专题站内点「青春经管」不再重载当页（同页只滚回顶部），跨页（系列页→总览）仍照常跳转 -->
+       2) 专题站内点「青春经管」一律不跳转：首页与系列页均原地不动 -->
   <script>
   (function () {
     var q = location.search
@@ -125,22 +129,10 @@
       var parts = href.split('#')
       if (q) links[i].setAttribute('href', parts[0] + q + (parts[1] ? '#' + parts[1] : ''))
     }
-    // /dir/index.html 与 /dir/ 是同一页：按规范化后的路径判，避免凭写法差异漏判
-    function samePage(href) {
-      var norm = function (p) { return p.replace(/\/index\.html$/, '/') }
-      try {
-        return norm(new URL(href, location.href).pathname) === norm(location.pathname)
-      } catch (e) {
-        return false
-      }
-    }
     var self = document.querySelector('#tabbar .tab[aria-current="page"]')
     if (!self) return
     self.addEventListener('click', function (e) {
-      if (!samePage(self.getAttribute('href'))) return
       e.preventDefault()
-      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
     })
   })()
   </script>

@@ -143,6 +143,7 @@ const MIME = {
   '.png': 'image/png',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
+  '.mp4': 'video/mp4',
 };
 
 function send(res, status, body, headers) {
@@ -333,20 +334,48 @@ function rateLimited(map, ip, limit) {
 
 /* ---------------- 静态文件 ---------------- */
 
-async function serveFile(res, filePath) {
-  try {
-    const stat = await fsp.stat(filePath);
-    const ext = path.extname(filePath).toLowerCase();
-    res.writeHead(200, {
-      'Content-Type': MIME[ext] || 'application/octet-stream',
-      'Content-Length': stat.size,
-      'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=600',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    fs.createReadStream(filePath).pipe(res);
-  } catch (e) {
-    send(res, 404, 'Not Found', { 'Content-Type': 'text/plain; charset=utf-8' });
+async function serveFile(req, res, filePath) {
+  let stat;
+  try { stat = await fsp.stat(filePath); } catch (e) {
+    return send(res, 404, 'Not Found', { 'Content-Type': 'text/plain; charset=utf-8' });
   }
+  const ext = path.extname(filePath).toLowerCase();
+  const base = {
+    'Content-Type': MIME[ext] || 'application/octet-stream',
+    'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=600',
+    'X-Content-Type-Options': 'nosniff',
+  };
+  // 视频必须支持 Range：iOS Safari 拿不到 206 不播，拖进度条也依赖它
+  if (ext === '.mp4') {
+    base['Accept-Ranges'] = 'bytes';
+    const range = req.headers.range;
+    if (range) {
+      const m = /^bytes=(\d*)-(\d*)$/.exec(String(range).trim());
+      if (m && (m[1] || m[2])) {
+        let start;
+        let end;
+        if (!m[1]) {
+          const tail = parseInt(m[2], 10);
+          start = Math.max(0, stat.size - tail);
+          end = stat.size - 1;
+        } else {
+          start = parseInt(m[1], 10);
+          end = m[2] ? Math.min(parseInt(m[2], 10), stat.size - 1) : stat.size - 1;
+        }
+        if (start >= stat.size || start > end) {
+          res.writeHead(416, Object.assign({ 'Content-Range': 'bytes */' + stat.size }, TEXT_PLAIN));
+          return res.end(JSON.stringify({ ok: false, error: 'RANGE_NOT_SATISFIABLE' }));
+        }
+        res.writeHead(206, Object.assign({}, base, {
+          'Content-Range': 'bytes ' + start + '-' + end + '/' + stat.size,
+          'Content-Length': String(end - start + 1),
+        }));
+        return fs.createReadStream(filePath, { start, end }).pipe(res);
+      }
+    }
+  }
+  res.writeHead(200, Object.assign({}, base, { 'Content-Length': stat.size }));
+  fs.createReadStream(filePath).pipe(res);
 }
 
 const TEXT_PLAIN = { 'Content-Type': 'text/plain; charset=utf-8' };
@@ -354,7 +383,8 @@ const TEXT_PLAIN = { 'Content-Type': 'text/plain; charset=utf-8' };
 // 静态资源白名单：只放行站点自身资源，仓库其余文件一律当作「不存在」
 const STATIC_DIRS = ['css', 'js', 'fonts', 'assets', 'pub'];   // 允许的子目录
 const STATIC_EXT = ['.html', '.css', '.js', '.woff2', '.woff', '.ttf', '.otf',
-  '.jpg', '.jpeg', '.png', '.svg', '.ico', '.webp'];           // 允许的扩展名
+  '.jpg', '.jpeg', '.png', '.svg', '.ico', '.webp',
+  '.mp4'];                                                      // .mp4：赛项现场影像
 // *.md / *.py / *.bat / *.db / *.db-wal / *.db-shm 等不在表内，天然被拒
 
 // 把 URL 路径解析成「经过白名单校验的路径段」；不合法一律返回 null（调用方给 404）
@@ -386,7 +416,7 @@ async function serveStatic(req, res, urlPath) {
   }
   const stat = await fsp.stat(full).catch(() => null);
   if (!stat || !stat.isFile()) return send(res, 404, 'Not Found', TEXT_PLAIN);
-  return serveFile(res, full);
+  return serveFile(req, res, full);
 }
 
 /* ---------------- 鉴权 / 同源 ---------------- */
