@@ -53,9 +53,21 @@
     })
 
     const finalExam = p.finalExam || {}
+    // 毕业判定：11 个节点答题成绩的平均分达到毕业线（不再单独考一次）
+    const gradLine = (config && config.graduation ? config.graduation.passScore : undefined) || 70
+    let scoreSum = 0
+    let scoreCount = 0
+    nodes.forEach(n => {
+      const q = p.quizScores && p.quizScores[n.code]
+      if (q && typeof q.best === 'number') { scoreSum += q.best; scoreCount++ }
+    })
+    // 没答过的节点按 0 分计入分母，避免「只答一两个节点却拿高分」就能毕业
+    const avgScore = nodes.length ? Math.round(scoreSum / nodes.length) : 0
+    const allChecked = checkedCount >= nodes.length
+    const ready = allChecked && avgScore >= gradLine
     const finalState = finalExam.passed
       ? 'passed'
-      : checkedCount >= nodes.length ? 'open' : 'locked'
+      : allChecked ? 'open' : 'locked'
 
     // 当前应到达的节点（第一个未打卡的，用于首页锚定）
     let currentCode = nodes.length ? nodes[0].code : null
@@ -70,7 +82,14 @@
       passedCount,
       total: nodes.length,
       currentCode,
-      finalBest: finalExam.best || 0
+      finalBest: finalExam.best || 0,
+      // 毕业申请用的体检数据：平均正确率 / 毕业线 / 是否达标
+      graduation: {
+        avgScore,
+        passScore: gradLine,
+        ready,
+        answeredCount: scoreCount
+      }
     }
   }
 

@@ -190,7 +190,9 @@
         sequentialUnlock: false,
         requireReadBeforeCheckin: true,
         defaultPassScore: 60,
-        finalExam: { questionCount: 10, passScore: 60, timeoutMs: 3 * 60 * 1000, title: '长征知识总结答题' },
+    // 毕业不看单独考试，而看 11 个节点答题的平均分是否达到这条线
+    graduation: { passScore: 70 },
+        finalExam: { questionCount: 10, passScore: 60, timeoutMs: 3 * 60 * 1000, title: '综合练习' },
         theme: { primary: '#C8102E', gold: '#D4A017' }
       }
     }
@@ -423,7 +425,7 @@
             ok: true,
             meta: {
               title: cfg.finalExam.title,
-              subtitle: '共' + n + '题，得分 ' + passScore + ' 分以上毕业，限时 ' + Math.round((cfg.finalExam.timeoutMs || 180000) / 60000) + ' 分钟',
+              subtitle: '随机抽取 ' + n + ' 道节点题 · 限时 ' + Math.round((cfg.finalExam.timeoutMs || 180000) / 60000) + ' 分钟 · 成绩不计入毕业',
               questionCount: n,
               passScore: passScore,
               timeoutMs: cfg.finalExam.timeoutMs || 0
@@ -478,7 +480,7 @@
           if (mode === 'final') {
             p.finalExam.attempts = (p.finalExam.attempts || 0) + 1
             p.finalExam.best = Math.max(p.finalExam.best || 0, score)
-            p.finalExam.passed = p.finalExam.passed || passed
+            // 练习成绩不参与毕业判定（毕业看 11 个节点平均分）
             p.finalExam.lastTime = Date.now()
           } else {
             const prev = p.quizScores[code] || { attempts: 0, best: 0, passed: false, lastTime: 0 }
@@ -559,19 +561,56 @@
     if (config.USE_MOCK) {
       return contestStatus().then(s => {
         if (!s.ok || !s.graduated) return { ok: false, error: 'NOT_GRADUATED' }
-        const pool = mockQuestions.filter(q => q.status === 'published')
+        // 竞赛只抽节点关卡题（final 池已废弃，毕业考也从节点题抽）
+        const pool = mockQuestions.filter(q => q.status === 'published' && q.nodeCode !== 'final')
         const n = Math.min(contestRules().questionCount, pool.length)
         const picked = shuffle(pool).slice(0, n)
         const contestId = Date.now()
         storeSet(STORAGE_CONTESTS, mockContests().concat([{ id: contestId, status: 'in_progress', questions: picked, createdAt: Date.now() }]))
         return {
           ok: true, contestId,
-          meta: { title: contestRules().title, subtitle: '共 ' + n + ' 题 · 每题 5 分 · 满分 ' + (n * 5), questionCount: n },
+          meta: { title: contestRules().title, subtitle: '共 ' + n + ' 题 · 每题 5 分 · 满分 ' + (n * 5) + ' · 限时 30 分钟', questionCount: n, timeoutMs: 30 * 60 * 1000 },
           questions: stripAnswers(picked)
         }
       })
     }
     return http('contest/start', {})
+  }
+
+  /**
+   * 申请毕业：不再单独答题，直接读 11 个节点答题的平均分判定。
+   * mock 分支本地算，http 分支交给 /api/graduate。
+   */
+  function graduate() {
+    if (!config.USE_MOCK) return http('graduate', {})
+    return Promise.all([getConfig(), getNodes()]).then(([cfg, nodes]) => {
+      const p = mockProgress()
+      const states = progressUtil.computeStates(nodes, p, cfg)
+      const grad = states.graduation || { avgScore: 0, passScore: 70, ready: false }
+      if (states.finalState === 'locked') {
+        return { ok: false, error: 'NOT_ALL_CHECKED_IN', message: '还有节点没有打卡，先走完全程再来申请' }
+      }
+      if (!grad.ready) {
+        return {
+          ok: false, error: 'SCORE_NOT_ENOUGH',
+          message: '节点答题平均分 ' + grad.avgScore + ' 分，未达到毕业线 ' + grad.passScore + ' 分',
+          avgScore: grad.avgScore, passScore: grad.passScore
+        }
+      }
+      if (!p.finalExam) p.finalExam = { attempts: 0, best: 0, passed: false, lastTime: null }
+      if (!p.finalExam.passed) {
+        p.finalExam.passed = true
+        p.finalExam.best = Math.max(p.finalExam.best || 0, grad.avgScore)
+        p.finalExam.lastTime = Date.now()
+        saveMockProgress(p)
+      }
+      return {
+        ok: true, graduated: true,
+        avgScore: grad.avgScore, passScore: grad.passScore,
+        allPassed: states.passedCount === states.total,
+        checkedCount: states.checkedCount, total: states.total
+      }
+    })
   }
 
   /** 交卷：判分 + 落库（mock 写 localStorage） */
@@ -705,6 +744,7 @@
     checkin,
     getQuiz,
     submitQuiz,
+    graduate,
     register,
     login,
     logout,

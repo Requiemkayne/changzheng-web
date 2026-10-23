@@ -8,12 +8,15 @@
   const api = root.CZ_API
   const UI = root.CZ_UI
 
-  // 返回：优先浏览器后退；直接打开的入口页（history 里没有站内上一页，或来自站外）退回首页，别把用户卡在原地
+  // 返回：优先浏览器后退；直接打开的入口页（history 空栈或站外跳来）退到 fallback，别把用户卡在原地
+  // 直接打开本页（history 空栈）时退到这里的 BACK_FALLBACK
+  const BACK_FALLBACK = '#/'
+
   function goBack() {
     const ref = document.referrer || ''
     const fromOtherSite = ref !== '' && ref.indexOf(location.origin) !== 0
     if (history.length > 1 && !fromOtherSite) history.back()
-    else location.hash = '#/'
+    else location.hash = BACK_FALLBACK
   }
 
   VIEWS.quiz = {
@@ -118,6 +121,13 @@
         if (timerId) { clearInterval(timerId); timerId = null }
       }
 
+      // 中途离开＝作废本次挑战：清掉开始时间，下次点开重新计时，而不是接着上一场的剩余时间
+      function abandonChallenge() {
+        stopTimer()
+        deadline = 0
+        try { sessionStorage.removeItem(FINAL_KEY) } catch (e) {}
+      }
+
       function renderQuiz() {
         const q = questions[step]
         const typeText = q.type === 'multiple' ? '多选题' : q.type === 'judge' ? '判断题' : '单选题'
@@ -138,7 +148,7 @@
 
         rootEl.innerHTML =
           '<div class="page">' +
-          '<button type="button" class="back-link">‹ 返回</button>' +
+          '<button type="button" class="back-link">‹ 退出答题</button>' +
           '<div class="quiz-head">' +
             '<div class="quiz-title">' + F.escapeHtml(meta.title) + '</div>' +
             '<div class="quiz-sub">' + F.escapeHtml(meta.subtitle) + '</div>' +
@@ -163,7 +173,7 @@
           '<div class="quiz-actions quiz-nav">' +
             '<button class="btn btn-ghost" id="btn-prev"' + (step === 0 ? ' disabled' : '') + '>上一题</button>' +
             '<button class="btn btn-primary' + (submitting ? ' btn-loading' : '') + '" id="btn-next"' + (submitting ? ' disabled' : '') + '>' +
-              (submitting ? '提交中…' : (isLast ? '提交答卷' : '下一题')) +
+              (submitting ? '提交中…' : (isLast ? '交卷' : '下一题')) +
             '</button>' +
           '</div>' +
           '</div>'
@@ -173,7 +183,22 @@
 
       function bindQuiz() {
         const backBtn = rootEl.querySelector('.back-link')
-        if (backBtn) backBtn.addEventListener('click', goBack)
+        if (backBtn) backBtn.addEventListener('click', () => {
+          // 已经答过题就确认一下，避免误触把答案丢了
+          if (answeredCount() > 0 && !submitting) {
+            UI.dialog('退出本次答题？',
+              mode === 'final'
+                ? '本次限时考试将被作废，已答内容不会保存；下次进入重新开始 3 分钟计时。'
+                : '已作答的内容不会保存，下次进入需要重新开始。',
+              [
+                { text: '继续答题', primary: false, onClick: () => {} },
+                { text: '退出答题', primary: true, onClick: () => { abandonChallenge(); goBack('#/') } }
+              ])
+          } else {
+            abandonChallenge()
+            goBack('#/')
+          }
+        })
 
         const q = questions[step]
         rootEl.querySelectorAll('.option').forEach(el => {
@@ -309,7 +334,8 @@
         })
 
         let cert = ''
-        if (r.isFinalPassed) {
+        // 结业证书只由「我的 → 申请毕业」发放；综合练习答得再好也不发
+        if (false) {
           cert =
             '<div class="certificate card">' +
               '<div class="cert-inner">' +
@@ -334,7 +360,7 @@
 
         rootEl.innerHTML =
           '<div class="page">' +
-          '<button type="button" class="back-link">‹ 返回节点列表</button>' +
+          '<button type="button" class="back-link">‹ 返回</button>' +
           '<div class="result-hero ' + (r.passed ? 'hero-passed' : 'hero-failed') + '">' +
             stamp +
             '<h1 class="result-title">' + (r.passed ? '恭喜通关' : '差一点，再试一次') + '</h1>' +

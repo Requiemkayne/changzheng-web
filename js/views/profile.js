@@ -46,9 +46,14 @@
     // mock：昵称存进度；http：昵称在账号里（服务端 users 表）
     const nickname = user ? (user.nickname || user.username) : (progress.nickname || '长征战士')
     const graduated = states.finalState === 'passed'
+    const grad = states.graduation || { avgScore: 0, passScore: 70, ready: false }
     const certSub = graduated
-      ? '已毕业 · 得分 ' + states.finalBest + ' 分'
-      : states.finalState === 'open' ? '全部节点已打卡，点击开始毕业考试' : '打卡全部节点后解锁'
+      ? '已毕业 · 节点答题平均 ' + (states.finalBest || grad.avgScore) + ' 分'
+      : states.finalState === 'open'
+        ? (grad.ready
+            ? '节点答题平均 ' + grad.avgScore + ' 分，已达毕业线，点此毕业'
+            : '节点答题平均 ' + grad.avgScore + ' 分 · 还差 ' + Math.max(0, grad.passScore - grad.avgScore) + ' 分')
+        : '打卡全部节点后解锁'
 
     // 成绩清单
     let scoreRows = ''
@@ -127,7 +132,7 @@
       '<div class="card cert-entry" id="cert-entry" role="button" tabindex="0">' +
         '<div class="final-icon">' + UI.icon('cap') + '</div>' +
         '<div style="flex:1">' +
-          '<h2 class="final-title">结业证书</h2>' +
+          '<h2 class="final-title">' + (graduated ? '结业证书' : '申请毕业') + '</h2>' +
           '<div class="final-sub">' + F.escapeHtml(certSub) + '</div>' +
         '</div>' +
         UI.icon('chevron', 'tl-arrow') +
@@ -143,6 +148,11 @@
           '<div class="entry-ic">' + UI.icon('medal') + '</div>' +
           '<h2 class="entry-name">排行榜</h2>' +
           '<div class="entry-sub">谁是先锋</div>' +
+        '</div>' +
+        '<div class="card entry-card" id="practice-entry" role="button" tabindex="0">' +
+          '<div class="entry-ic">' + UI.icon('replay') + '</div>' +
+          '<h2 class="entry-name">综合练习</h2>' +
+          '<div class="entry-sub">11 个节点随机 10 题 · 限时 3 分钟</div>' +
         '</div>' +
       '</div>' +
 
@@ -255,12 +265,72 @@
 
     // 毕业证书入口
     const certEntry = rootEl.querySelector('#cert-entry')
+    // 毕业不再单独考试：直接按 11 个节点的答题平均分判定
+    function showDiploma(r) {
+      const g = states.graduation || { avgScore: 0, passScore: 70 }
+      const score = (r && r.avgScore) || g.avgScore
+      const name = user ? (user.nickname || user.username) : (progress.nickname || '长征战士')
+      const mask = document.createElement('div')
+      mask.className = 'sheet-mask'
+      mask.innerHTML =
+        '<div class="sheet-panel diploma-panel" role="dialog" aria-modal="true" aria-label="结业证书">' +
+          '<div class="sheet-head">' +
+            '<h2 class="sheet-title">恭喜毕业</h2>' +
+            '<button type="button" class="sheet-close" aria-label="关闭">' + UI.icon('xmark') + '</button>' +
+          '</div>' +
+          '<div class="certificate card">' +
+            '<div class="cert-inner">' +
+              '<div class="cert-star">' + UI.icon('star') + '</div>' +
+              '<h2 class="cert-title">结业证书</h2>' +
+              '<div class="cert-line" aria-hidden="true"></div>' +
+              '<div class="cert-text">' + F.escapeHtml(name) + '</div>' +
+              '<div class="cert-text cert-text-tight">11 个节点全部完成 · 平均 ' + score + ' 分</div>' +
+              '<div class="cert-seal cert-seal-in">长征</div>' +
+            '</div>' +
+          '</div>' +
+          '<button type="button" class="btn btn-primary diploma-close">收下证书</button>' +
+        '</div>'
+      document.body.appendChild(mask)
+      function close() {
+        if (mask.parentNode) mask.parentNode.removeChild(mask)
+        document.removeEventListener('keydown', onKey)
+      }
+      function onKey(e) { if (e.key === 'Escape') close() }
+      mask.addEventListener('click', e => { if (e.target === mask) close() })
+      mask.querySelector('.sheet-close').addEventListener('click', close)
+      mask.querySelector('.diploma-close').addEventListener('click', close)
+      document.addEventListener('keydown', onKey)
+    }
+
     const goCert = () => {
       if (states.finalState === 'locked') {
-        UI.toast('打卡全部节点后解锁')
+        UI.toast('先走完全部 11 个节点')
         return
       }
-      location.hash = '#/quiz/final'
+      if (states.finalState === 'passed') { showDiploma(); return }
+      const g = states.graduation || { avgScore: 0, passScore: 70, ready: false }
+      if (!g.ready) {
+        UI.dialog('还不能毕业',
+          '11 个节点的答题平均分是 ' + g.avgScore + ' 分，毕业线 ' + g.passScore + ' 分。回去把答错过的节点再答一遍，成绩取每个节点的最好一次。',
+          [
+            { text: '去刷分', primary: true, onClick: () => { location.hash = '#/' } },
+            { text: '知道了', primary: false, onClick: () => {} }
+          ])
+        return
+      }
+      api.graduate().then(res => {
+        if (!res.ok) {
+          UI.dialog('还不能毕业', res.message || '条件未满足', [{ text: '知道了', primary: true, onClick: () => {} }])
+          return
+        }
+        if (!progress.finalExam) progress.finalExam = { attempts: 0, best: 0, passed: false, lastTime: null }
+        progress.finalExam.passed = true
+        states.finalState = 'passed'
+        showDiploma(res)
+        UI.toast('恭喜毕业')
+      }).catch(err => {
+        UI.toast((err && err.message) || '申请失败，请重试')
+      })
     }
     certEntry.addEventListener('click', goCert)
     onActivate(certEntry, goCert)
@@ -268,6 +338,12 @@
     // 竞赛 / 排行榜入口
     const contestEntry = rootEl.querySelector('#contest-entry')
     const lbEntry = rootEl.querySelector('#lb-entry')
+    const practiceEntry = rootEl.querySelector('#practice-entry')
+    const goPractice = () => { location.hash = '#/quiz/final' }
+    if (practiceEntry) {
+      practiceEntry.addEventListener('click', goPractice)
+      onActivate(practiceEntry, goPractice)
+    }
     const goContest = () => { location.hash = '#/contest' }
     const goLb = () => { location.hash = '#/leaderboard' }
     contestEntry.addEventListener('click', goContest)

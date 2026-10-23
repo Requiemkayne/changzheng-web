@@ -145,8 +145,10 @@ function startContest(db, userId) {
     contestId: Number(r.lastInsertRowid),
     meta: {
       title: cc.title,
-      subtitle: '共 ' + cc.questionCount + ' 题 · 每题 ' + cc.pointsPerQuestion + ' 分 · 满分 ' + cc.questionCount * cc.pointsPerQuestion,
-      questionCount: cc.questionCount
+      subtitle: '共 ' + cc.questionCount + ' 题 · 每题 ' + cc.pointsPerQuestion + ' 分 · 满分 ' + cc.questionCount * cc.pointsPerQuestion +
+        ' · 限时 ' + Math.round(cc.timeoutMs / 60000) + ' 分钟',
+      questionCount: cc.questionCount,
+      timeoutMs: cc.timeoutMs
     },
     questions: picked.map(q => ({ id: q.id, question: q.question, options: JSON.parse(q.options) }))
   }

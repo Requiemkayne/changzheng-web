@@ -31,11 +31,14 @@
   }
 
   // 返回：有站内上一页就后退，直接打开的（history 空栈或站外跳来）回首页
+  // 直接打开本页（history 空栈）时退到这里的 BACK_FALLBACK
+  const BACK_FALLBACK = '#/profile'
+
   function goBack() {
     const ref = document.referrer || ''
     const fromOtherSite = ref !== '' && ref.indexOf(location.origin) !== 0
     if (history.length > 1 && !fromOtherSite) history.back()
-    else location.hash = '#/'
+    else location.hash = BACK_FALLBACK
   }
 
   function medal(rank) {
@@ -71,7 +74,7 @@
 
     rootEl.innerHTML =
       '<div class="page">' +
-        '<button type="button" class="back-link">‹ 返回</button>' +
+        '<button type="button" class="back-link">‹ 返回我的</button>' +
         '<div class="map-title">' +
           '<h1 class="map-title-cn">竞赛排行榜</h1>' +
           '<div class="map-title-sub">知识竞赛 · 争当先锋</div>' +

@@ -9,12 +9,15 @@
   const api = root.CZ_API
   const UI = root.CZ_UI
 
-  // 返回：优先浏览器后退；直接打开的入口页（history 里没有站内上一页，或来自站外）退回首页，别把用户卡在原地
+  // 返回：优先浏览器后退；直接打开的入口页（history 空栈或站外跳来）退到 fallback，别把用户卡在原地
+  // 直接打开本页（history 空栈）时退到这里的 BACK_FALLBACK
+  const BACK_FALLBACK = '#/'
+
   function goBack() {
     const ref = document.referrer || ''
     const fromOtherSite = ref !== '' && ref.indexOf(location.origin) !== 0
     if (history.length > 1 && !fromOtherSite) history.back()
-    else location.hash = '#/'
+    else location.hash = BACK_FALLBACK
   }
 
   VIEWS.contest = {
@@ -64,7 +67,7 @@
 
     rootEl.innerHTML =
       '<div class="page">' +
-        '<button type="button" class="back-link">‹ 返回</button>' +
+        '<button type="button" class="back-link">‹ 返回我的</button>' +
         '<div class="contest-hero">' +
           (root.CZ_SPIRIT && root.CZ_SPIRIT.anniversary
             ? '<div class="contest-hero-badge">' + F.escapeHtml(root.CZ_SPIRIT.anniversary.badge) + '</div>'
@@ -124,11 +127,113 @@
     const answerMap = {}
     let submitting = false
 
+    // 竞赛有 30 分钟总时限：从开场算，到点前 60 秒转红
+    const limit = Number(r.meta.timeoutMs) > 0 ? Number(r.meta.timeoutMs) : 30 * 60 * 1000
+    const deadline = t0 + limit
+    let timerId = null
+
+    function fmtTime(ms) {
+      const total = Math.max(0, Math.ceil(ms / 1000))
+      const m = Math.floor(total / 60)
+      const s = total % 60
+      return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s
+    }
+
+    function tickTimer() {
+      const el = rootEl.querySelector('#quiz-timer')
+      const remain = deadline - Date.now()
+      if (el) {
+        el.textContent = fmtTime(remain)
+        if (remain <= 60000) el.classList.add('is-urgent')
+      }
+      if (remain <= 0 && !submitting) {
+        stopTimer()
+        submit(true)
+      }
+    }
+
+    function stopTimer() {
+      if (timerId) { clearInterval(timerId); timerId = null }
+    }
+
+    // 只在第一次渲染时挂上计时器，之后 renderStep 都会复用同一个
+    function startTimer() {
+      if (timerId) return
+      tickTimer()
+      timerId = setInterval(tickTimer, 500)
+    }
+
+    function answeredCount() {
+      let n = 0
+      for (let k = 0; k < questions.length; k++) {
+        const cur = k === step ? selected : answerMap[k]
+        if (cur && cur.length) n++
+      }
+      return n
+    }
+
+    function goStep(n) {
+      if (n < 0 || n >= questions.length) return
+      answerMap[step] = selected.slice()
+      step = n
+      selected = (answerMap[n] || []).slice()
+      renderStep()
+      try { window.scrollTo(0, 0) } catch (e) {}
+    }
+
+    function openSheet() {
+      answerMap[step] = selected.slice()
+      const done = answeredCount()
+      const cells = questions.map((_, k) => {
+        const cur = k === step ? selected : answerMap[k]
+        const has = cur && cur.length
+        return '<button type="button" class="sheet-cell' + (has ? ' is-done' : '') +
+          (k === step ? ' is-current' : '') + '" data-jump="' + k + '"' +
+          ' aria-label="第' + (k + 1) + '题' + (has ? '，已答' : '，未答') + '">' +
+          (k + 1) + '</button>'
+      }).join('')
+
+      const mask = document.createElement('div')
+      mask.className = 'sheet-mask'
+      mask.innerHTML =
+        '<div class="sheet-panel" role="dialog" aria-modal="true" aria-label="答题卡">' +
+          '<div class="sheet-head">' +
+            '<h2 class="sheet-title">答题卡</h2>' +
+            '<button type="button" class="sheet-close" aria-label="关闭">' + UI.icon('xmark') + '</button>' +
+          '</div>' +
+          '<div class="sheet-grid">' + cells + '</div>' +
+          '<div class="sheet-legend">' +
+            '<span><i class="sheet-dot is-done"></i>已答 ' + done + ' 题</span>' +
+            '<span><i class="sheet-dot"></i>未答 ' + (questions.length - done) + ' 题</span>' +
+          '</div>' +
+          '<button type="button" class="btn btn-primary sheet-done">继续答题</button>' +
+        '</div>'
+      document.body.appendChild(mask)
+
+      function close() {
+        if (mask.parentNode) mask.parentNode.removeChild(mask)
+        document.removeEventListener('keydown', onKey)
+      }
+      function onKey(e) { if (e.key === 'Escape') close() }
+      mask.addEventListener('click', e => { if (e.target === mask) close() })
+      mask.querySelector('.sheet-close').addEventListener('click', close)
+      mask.querySelector('.sheet-done').addEventListener('click', close)
+      mask.querySelectorAll('.sheet-cell').forEach(cell => {
+        cell.addEventListener('click', () => {
+          const n = Number(cell.dataset.jump)
+          close()
+          goStep(n)
+        })
+      })
+      document.addEventListener('keydown', onKey)
+    }
+
     function renderStep() {
       const q = questions[step]
       const isLast = step >= questions.length - 1
-      const canNext = selected.length > 0 && !submitting
       const percent = Math.round((step + 1) / questions.length * 100)
+      const done = answeredCount()
+      const remain = deadline - Date.now()
 
       let options = ''
       q.options.forEach((opt, i) => {
@@ -142,9 +247,18 @@
 
       rootEl.innerHTML =
         '<div class="page">' +
+        '<button type="button" class="back-link">‹ 退出竞赛</button>' +
         '<div class="quiz-head">' +
           '<h1 class="quiz-title">' + F.escapeHtml(r.meta.title) + '</h1>' +
           '<div class="quiz-sub">' + F.escapeHtml(r.meta.subtitle) + '</div>' +
+          '<div class="quiz-topbar">' +
+            '<button type="button" class="sheet-btn" id="btn-sheet">' +
+              UI.icon('list') + '答题卡' +
+              '<span class="sheet-count">' + done + '/' + questions.length + '</span>' +
+            '</button>' +
+            '<div class="quiz-timer' + (remain <= 60000 ? ' is-urgent' : '') + '" id="quiz-timer" role="timer" aria-label="剩余时间">' +
+              fmtTime(remain) + '</div>' +
+          '</div>' +
           '<div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + percent + '" aria-label="答题进度：第 ' + (step + 1) + ' 题，共 ' + questions.length + ' 题"><div class="progress-inner" aria-hidden="true" style="width:' + percent + '%"></div></div>' +
           '<div class="progress-num">' + (step + 1) + ' / ' + questions.length + '</div>' +
         '</div>' +
@@ -153,34 +267,56 @@
           '<h2 class="q-text">' + F.escapeHtml(q.question) + '</h2>' +
           options +
         '</div>' +
-        '<div class="quiz-actions">' +
-          '<button class="btn btn-primary' + (submitting ? ' btn-loading' : '') + '" id="btn-next" ' + (canNext ? '' : 'disabled') + '>' +
+        '<div class="quiz-actions quiz-nav">' +
+          '<button class="btn btn-ghost" id="btn-prev"' + (step === 0 ? ' disabled' : '') + '>上一题</button>' +
+          '<button class="btn btn-primary' + (submitting ? ' btn-loading' : '') + '" id="btn-next"' + (submitting ? ' disabled' : '') + '>' +
             (submitting ? '提交中…' : (isLast ? '交卷' : '下一题')) +
           '</button>' +
         '</div>' +
         '</div>'
 
+      const backBtn = rootEl.querySelector('.back-link')
+      if (backBtn) backBtn.addEventListener('click', () => {
+        UI.dialog('退出竞赛？', '本场进度不会保存，已答的题会作废。', [
+          { text: '继续答题', primary: false, onClick: () => {} },
+          { text: '退出竞赛', primary: true, onClick: () => { stopTimer(); location.hash = '#/contest' } }
+        ])
+      })
+
       rootEl.querySelectorAll('.option').forEach(el => {
         el.addEventListener('click', () => {
           selected = [Number(el.dataset.opt)]
+          answerMap[step] = selected.slice()
           renderStep()
         })
       })
+      const prev = rootEl.querySelector('#btn-prev')
+      if (prev) prev.addEventListener('click', () => goStep(step - 1))
+      const sheetBtn = rootEl.querySelector('#btn-sheet')
+      if (sheetBtn) sheetBtn.addEventListener('click', openSheet)
+
       rootEl.querySelector('#btn-next').addEventListener('click', () => {
         answerMap[step] = selected.slice()
-        if (step < questions.length - 1) {
-          step++
-          selected = []
-          renderStep()
-          window.scrollTo(0, 0)
-        } else {
-          submit()
+        if (step < questions.length - 1) goStep(step + 1)
+        else {
+          const left = questions.length - answeredCount()
+          if (left > 0) {
+            UI.dialog('还有题目没答', '还有 ' + left + ' 题未作答，未作答按 0 分计。确定交卷吗？', [
+              { text: '继续答题', primary: false, onClick: () => {} },
+              { text: '确定交卷', primary: true, onClick: () => submit(false) }
+            ])
+          } else {
+            submit(false)
+          }
         }
       })
+
+      startTimer()
     }
 
-    function submit() {
+    function submit(auto) {
       submitting = true
+      stopTimer()
       renderStep()
       const answers = questions.map((q, i) => ({ id: q.id, answer: answerMap[i] || [] }))
       const durationMs = Date.now() - t0
@@ -191,6 +327,7 @@
           submitting = false
           return renderStep()
         }
+        stopTimer()
         renderResult(rootEl, res)
       }).catch(err => {
         console.error('交卷失败', err)

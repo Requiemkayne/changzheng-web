@@ -36,9 +36,9 @@ for (const n of nodes) {
 }
 ok('11 节点 order 连续 / code 唯一 / 经纬度有效')
 
-assert.strictEqual(questions.length, 43, '题目总数应为 43')
-assert.strictEqual(new Set(questions.map(q => q._id)).size, 43, '题目 _id 应唯一')
-ok('43 题 _id 唯一')
+assert.strictEqual(questions.length, 39, '题目总数应为 39（11 节点 × 3 + 6 道故事延伸题）')
+assert.strictEqual(new Set(questions.map(q => q._id)).size, 39, '题目 _id 应唯一')
+ok('39 题 _id 唯一')
 
 for (const n of nodes) {
   assert.strictEqual(n.quiz.questionIds.length, n.quiz.questionCount, n.code + ' questionIds 与 questionCount 不符')
@@ -49,8 +49,9 @@ for (const n of nodes) {
     assert.strictEqual(q.nodeCode, n.code, qid + ' nodeCode 与引用不符')
   }
 }
-assert.strictEqual(questions.filter(q => q.nodeCode === 'final').length, 10, 'final 池应为 10 题')
-ok('questionIds 引用有效 / 每节点 3 题 / final 池 10 题')
+assert.strictEqual(questions.filter(q => q.nodeCode === 'final').length, 0,
+  '不再保留 final 题池：毕业考改为从 11 个节点的关卡题里随机抽')
+ok('questionIds 引用有效 / 每节点 3 题 / 无 final 占位题池')
 
 for (const q of questions) {
   assert(Array.isArray(q.answer) && q.answer.length >= 1, q._id + ' answer 应为非空数组')
@@ -281,28 +282,49 @@ async function chain() {
   assert.ok(p.stats && p.stats.totalCount === 9 && p.stats.correctCount === 5)
   ok('学习统计累计 9 题 / 5 对')
 
-  // final 毕业链路
+  // 综合练习（原毕业答题）：只记成绩，不再直接发毕业
   r = await api.getQuiz('final')
   assert.strictEqual(r.ok, true)
   assert.strictEqual(r.questions.length, 10)
-  for (const q of r.questions) assert(!('answer' in q), 'final 题目答案泄露')
+  for (const q of r.questions) assert(!('answer' in q), '综合练习题目答案泄露')
   r = await api.submitQuiz('final', null, r.questions.map(q => ({
     id: q.id, answer: questions.find(x => x._id === q.id).answer
   })))
   assert.strictEqual(r.score, 100)
-  assert.strictEqual(r.isFinalPassed, true)
   const p2 = await api.getProgress()
-  assert.strictEqual(p2.finalExam.passed, true)
-  assert.strictEqual(p2.finalExam.best, 100)
-  ok('final 满分毕业 / 毕业状态写入')
+  assert.strictEqual(p2.finalExam.passed, false, '综合练习答满分不该直接写毕业状态')
+  ok('综合练习满分只记成绩，不直接毕业')
+
+  // 毕业判定：按 11 个节点答题的平均分
+  const grad1 = await api.graduate()
+  assert.strictEqual(grad1.ok, false)
+  assert.strictEqual(grad1.error, 'SCORE_NOT_ENOUGH')
+  ok('只答了 1 个节点时申请毕业被拒（平均分不足）')
+
+  // 把剩下 10 个节点都答到满分
+  for (const n of nodes) {
+    const st = await api.getProgress()
+    if (st.quizScores && st.quizScores[n.code] && st.quizScores[n.code].passed) continue
+    const qz = await api.getQuiz('node', n.code)
+    if (!qz.ok) continue
+    await api.submitQuiz('node', n.code, qz.questions.map(q => ({
+      id: q.id, answer: questions.find(x => x._id === q.id).answer
+    })))
+  }
+  const grad2 = await api.graduate()
+  assert.strictEqual(grad2.ok, true, '11 个节点全对后应可毕业')
+  assert.strictEqual(grad2.avgScore, 100)
+  const p3 = await api.getProgress()
+  assert.strictEqual(p3.finalExam.passed, true)
+  ok('11 个节点满分 → 申请毕业通过 / 毕业状态写入')
 
   // 状态机最终态
-  const st = progress.computeStates(nodes, p2, { sequentialUnlock: false })
+  const st = progress.computeStates(nodes, p3, { sequentialUnlock: false })
   assert.strictEqual(st.finalState, 'passed')
   assert.strictEqual(st.checkedCount, 11)
-  assert.strictEqual(st.passedCount, 1)
+  assert.strictEqual(st.passedCount, 11)
   assert.strictEqual(st.byCode.ruijin.state, 'quizPassed')
-  assert.strictEqual(st.byCode.xiangjiang.state, 'checkedIn')
+  assert.strictEqual(st.byCode.xiangjiang.state, 'quizPassed')
   ok('状态机：finalState=passed / 各节点状态正确')
 
   // 顺序模式（独立空进度）
@@ -1192,7 +1214,7 @@ async function chain() {
   ok('js/**.js + index.html 零处 javascript: 伪协议（扫描 ' + jsScan.length + ' 个文件）')
 
   // ②【静态】3 个视图的 .back-link 必须是 <button type="button">，且同文件定义并绑定了 goBack
-  const backExpect = { 'js/views/contest.js': 1, 'js/views/node-detail.js': 1, 'js/views/quiz.js': 2, 'js/views/leaderboard.js': 1, 'js/views/result.js': 1 }
+  const backExpect = { 'js/views/contest.js': 2, 'js/views/node-detail.js': 1, 'js/views/quiz.js': 2, 'js/views/leaderboard.js': 1, 'js/views/result.js': 1 }
   const backReport = []
   let backTotal = 0
   for (const rel of Object.keys(backExpect)) {
@@ -1212,13 +1234,16 @@ async function chain() {
     }
     assert(/function\s+goBack\s*\(/.test(src),
       rel + ' 期望同文件定义 goBack()（history.length>1 且无站外 referrer 才 back()，否则回 #/）')
-    assert(/addEventListener\('click',\s*goBack\)/.test(src),
+    // 允许直接绑 goBack，也允许包一层（如「已答过先确认再退出」）；只要最终真的调用 goBack
+    const boundDirect = /addEventListener\('click',\s*goBack\)/.test(src)
+    const boundWrapped = /addEventListener\('click',\s*\(\)\s*=>[\s\S]{0,900}?goBack\(/.test(src)
+    assert(boundDirect || boundWrapped,
       rel + ' 期望把 goBack 绑到 .back-link 的 click 上，实际 ' +
       JSON.stringify((src.match(/\.back-link'\)[\s\S]{0,60}/) || ['(未找到 .back-link 绑定)'])[0]))
     backTotal += tags.length
   }
-  assert.strictEqual(backTotal, 6, '工单是 6 处 .back-link，实际 ' + backTotal)
-  ok('.back-link 全为 <button type="button">：共 6 处，且各自定义并绑定 goBack —— ' + backReport.join(' '))
+  assert.strictEqual(backTotal, 7, '工单是 7 处 .back-link，实际 ' + backTotal)
+  ok('.back-link 全为 <button type="button">：共 7 处，且各自定义并绑定 goBack —— ' + backReport.join(' '))
 
   // ③【静态】map.js 的三条 3D 状态写入全部经过 set3dStatus()，且写前摘掉容器的 role
   const mapSrc8 = fs.readFileSync(path.join(STATIC_ROOT, 'js', 'views', 'map.js'), 'utf8')

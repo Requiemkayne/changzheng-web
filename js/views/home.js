@@ -68,10 +68,9 @@
 
   function render(rootEl, config, nodes, progress, states) {
     const graduated = states.finalState === 'passed'
-    const finalCardCls = 'card final-card' + (states.finalState === 'locked' ? ' final-locked' : '')
-    const finalText = graduated
-      ? '已毕业 · 得分 ' + states.finalBest + ' 分'
-      : states.finalState === 'open' ? '全部节点已打卡，点击开始毕业考试' : '打卡全部 ' + nodes.length + ' 个节点后解锁'
+    // 毕业入口只在「打完卡 + 节点平均分达标 + 尚未毕业」时出现；其余情况整块隐藏
+    const grad = states.graduation || { avgScore: 0, passScore: 70, ready: false }
+    const canGraduate = !graduated && states.finalState === 'open' && grad.ready
 
     const spirit = root.CZ_SPIRIT
     const ann = spirit ? spirit.anniversary : null
@@ -122,16 +121,18 @@
         '</div>'
     }
 
-    // 总结答题入口
-    html +=
-      '<div class="' + finalCardCls + '" id="final-entry">' +
-        '<div class="final-icon">' + UI.icon(graduated ? 'medal' : 'trophy') + '</div>' +
-        '<div style="flex:1">' +
-          '<div class="final-title">' + F.escapeHtml(config.finalExam.title) + '</div>' +
-          '<div class="final-sub">' + F.escapeHtml(finalText) + '</div>' +
-        '</div>' +
-        UI.icon('chevron', 'tl-arrow') +
-      '</div>'
+    // 申请毕业：只在分数达标后短暂出现，点完就没了
+    if (canGraduate) {
+      html +=
+        '<div class="card final-card" id="final-entry">' +
+          '<div class="final-icon">' + UI.icon('cap') + '</div>' +
+          '<div style="flex:1">' +
+            '<div class="final-title">申请毕业</div>' +
+            '<div class="final-sub">节点答题平均 ' + grad.avgScore + ' 分，已达毕业线 ' + grad.passScore + ' 分，点此领取结业证书</div>' +
+          '</div>' +
+          UI.icon('chevron', 'tl-arrow') +
+        '</div>'
+    }
 
     // 竞赛入口（毕业解锁后展示）
     if (graduated) {
@@ -281,15 +282,26 @@
         bindRows(wrap)
       })
     })
-    // 总结答题入口
+    // 申请毕业（卡片只在达标时渲染）
     const entry = rootEl.querySelector('#final-entry')
-    entry.addEventListener('click', () => {
-      if (states.finalState === 'locked') {
-        UI.toast('打卡全部节点后解锁')
-        return
-      }
-      location.hash = '#/quiz/final'
-    })
+    if (entry) {
+      entry.addEventListener('click', () => {
+        entry.classList.add('final-card-busy')
+        api.graduate().then(r => {
+          if (!r.ok) {
+            entry.classList.remove('final-card-busy')
+            UI.toast(r.message || '还不能毕业')
+            return
+          }
+          // 毕业成功：整块消失，证书去「我的」查看
+          entry.remove()
+          UI.toast('恭喜毕业，证书已发放到「我的」')
+        }).catch(err => {
+          entry.classList.remove('final-card-busy')
+          UI.toast((err && err.message) || '申请失败，请重试')
+        })
+      })
+    }
     // 竞赛 / 排行榜入口（毕业解锁后渲染）
     const contestEntry = rootEl.querySelector('#contest-entry')
     const lbEntry = rootEl.querySelector('#lb-entry')

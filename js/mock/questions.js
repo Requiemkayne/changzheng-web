@@ -302,86 +302,55 @@
       difficulty: 2, status: 'published'
     },
 
-    // ===== 总结答题池（final，10 题）=====
+
+    // ===== 站内故事延伸题（知识竞赛用） =====
     {
-      _id: 'q-final-1', nodeCode: 'final', type: 'single',
-      question: '（占位题）中央红军长征出发地是？',
-      options: ['江西瑞金', '贵州遵义', '甘肃会宁', '陕西延安'],
-      answer: [0],
-      explanation: '（占位解析）中央红军从江西瑞金出发。',
-      difficulty: 1, status: 'published'
+      _id: 'q-story-1', nodeCode: 'general', type: 'single',
+      question: '1934年10月，中央红军夜渡于都河，于都百姓拆下自家门板、床板送上河边，还捐出了什么来架浮桥？',
+      options: ['金银首饰', '老人的寿材板', '过冬的棉衣', '耕地的水牛'],
+      answer: [1],
+      explanation: '于都百姓拆下门板、床板，连老人的寿材板都抬了出来。浮桥每天黄昏架起、天亮拆除，连架连拆七天七夜。',
+      difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-final-2', nodeCode: 'final', type: 'single',
-      question: '（占位题）长征胜利结束的标志是？',
-      options: ['遵义会议召开', '四渡赤水', '三大主力会师', '飞夺泸定桥'],
+      _id: 'q-story-2', nodeCode: 'general', type: 'single',
+      question: '1934年12月湘江战役中，担任全军后卫的红三十四师师长陈树湘重伤被俘，他最后是怎样牺牲的？',
+      options: ['跳崖殉国', '引爆手榴弹', '从伤口处扯断肠子', '绝食抗争'],
       answer: [2],
-      explanation: '（占位解析）1936年10月三大主力会师，长征胜利结束。',
-      difficulty: 1, status: 'published'
+      explanation: '陈树湘在昏迷中被俘，敌人抬他去邀功，半路他从伤口处扯断自己的肠子，壮烈牺牲，年仅29岁。',
+      difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-final-3', nodeCode: 'final', type: 'single',
-      question: '（占位题）长征历时约多少年？',
-      options: ['一年', '两年', '三年', '四年'],
+      _id: 'q-story-3', nodeCode: 'general', type: 'single',
+      question: '1935年红军三渡赤水途经贵州茅台镇时药品已经用尽，卫生员用什么给伤员擦洗、消毒伤口？',
+      options: ['盐水', '茅台酒', '烧酒兑草药', '山泉水'],
       answer: [1],
-      explanation: '（占位解析）长征从1934年10月至1936年10月，历时两年。',
-      difficulty: 1, status: 'published'
-    },
-    {
-      _id: 'q-final-4', nodeCode: 'final', type: 'single',
-      question: '（占位题）长征中最惨烈的一战是？',
-      options: ['湘江战役', '四渡赤水', '巧渡金沙江', '腊子口战役'],
-      answer: [0],
-      explanation: '（占位解析）湘江战役中红军损失过半，最为惨烈。',
+      explanation: '老乡告诉卫生员当地酒能洗伤口，红军用茅台酒给伤员擦洗消毒、搓脚活血，离开时按价付了钱。',
       difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-final-5', nodeCode: 'final', type: 'single',
-      question: '（占位题）党的历史上生死攸关的转折点指哪次会议？',
-      options: ['古田会议', '遵义会议', '八七会议', '瓦窑堡会议'],
+      _id: 'q-story-4', nodeCode: 'general', type: 'single',
+      question: '1935年5月红军在云南皎平渡抢渡金沙江，只找到七只小船，靠多少名船工昼夜轮班摇橹才把全军送过江？',
+      options: ['十七名', '二十名', '三十七名', '五十名'],
+      answer: [2],
+      explanation: '三十七名船工分班摇橹、人歇船不歇，七天七夜把红军送过金沙江，渡完后红军把船凿沉。',
+      difficulty: 2, status: 'published'
+    },
+    {
+      _id: 'q-story-5', nodeCode: 'general', type: 'single',
+      question: '1935年红军翻越党岭山时，战士刘志海牺牲后，战友发现他伸出雪面的拳头里握着什么？',
+      options: ['一封家书', '党证和一块银元', '半块干粮', '一面军旗'],
       answer: [1],
-      explanation: '（占位解析）遵义会议是党的历史上生死攸关的转折点。',
-      difficulty: 1, status: 'published'
-    },
-    {
-      _id: 'q-final-6', nodeCode: 'final', type: 'multiple',
-      question: '（占位题）下列属于长征途中重要事件的有（多选）：',
-      options: ['遵义会议', '四渡赤水', '飞夺泸定桥', '九一八事变'],
-      answer: [0, 1, 2],
-      explanation: '（占位解析）九一八事变发生于1931年，早于长征开始。',
+      explanation: '掌心里是一张写着「刘志海，中共正式党员」的党证和一块银元，像在交最后一次党费。',
       difficulty: 2, status: 'published'
     },
     {
-      _id: 'q-final-7', nodeCode: 'final', type: 'multiple',
-      question: '（占位题）长征途中红军翻越的雪山有（多选）：',
-      options: ['夹金山', '梦笔山', '珠穆朗玛峰', '岷山'],
-      answer: [0, 1, 3],
-      explanation: '（占位解析）红军翻越夹金山、梦笔山、岷山等多座雪山。',
-      difficulty: 2, status: 'published'
-    },
-    {
-      _id: 'q-final-8', nodeCode: 'final', type: 'judge',
-      question: '（占位题）"金沙水拍云崖暖，大渡桥横铁索寒"出自《七律·长征》。',
-      options: ['正确', '错误'],
-      answer: [0],
-      explanation: '（占位解析）此句出自毛泽东《七律·长征》。',
-      difficulty: 1, status: 'published'
-    },
-    {
-      _id: 'q-final-9', nodeCode: 'final', type: 'judge',
-      question: '（占位题）飞夺泸定桥的突击队员共17名。',
-      options: ['正确', '错误'],
+      _id: 'q-story-6', nodeCode: 'general', type: 'single',
+      question: '1935年8月红军过松潘草地时断粮，一位炊事班长把什么弯成鱼钩，钓鱼给三个伤病员补身体？',
+      options: ['铁丝', '缝衣针', '别针', '银簪'],
       answer: [1],
-      explanation: '（占位解析）飞夺泸定桥突击队员22名；17名是强渡大渡河的勇士。',
+      explanation: '老班长把缝衣针弯成鱼钩，在泥沼水洼里钓鱼，鱼汤留给伤员，自己只嚼草根和鱼骨头。',
       difficulty: 2, status: 'published'
     },
-    {
-      _id: 'q-final-10', nodeCode: 'final', type: 'judge',
-      question: '（占位题）长征精神是中国革命走向胜利的强大精神动力。',
-      options: ['正确', '错误'],
-      answer: [0],
-      explanation: '（占位解析）长征精神是中国共产党人和红军将士革命风范的生动反映。',
-      difficulty: 1, status: 'published'
-    }
   ]
 })

@@ -294,7 +294,24 @@ async function main() {
         return src && src.nodeCode !== 'final'
       }))
     r = await req('POST', '/api/quiz/submit', { mode: 'final', code: '', answers: pickedAnswers }, t2)
-    ok('final 全对 → 毕业 isFinalPassed', r.body.score === 100 && r.body.isFinalPassed === true)
+    ok('综合练习全对 → 100 分（只记成绩）', r.body.score === 100)
+
+    // 还没答过节点题 → 平均分不足，申请毕业应被拒
+    r = await req('POST', '/api/graduate', {}, t2)
+    ok('节点没答过 → 申请毕业被拒 SCORE_NOT_ENOUGH', r.body.ok === false && r.body.error === 'SCORE_NOT_ENOUGH')
+
+    // 把 11 个节点都答到满分，再申请毕业
+    for (const n of nodes) {
+      const qz = await req('GET', '/api/quiz?mode=node&code=' + n.code, undefined, t2)
+      if (!qz.body.questions) continue
+      const ans = qz.body.questions.map(q => {
+        const src = mockQuestions.find(m => m._id === q.id)
+        return { id: q.id, answer: src.answer }
+      })
+      await req('POST', '/api/quiz/submit', { mode: 'node', code: n.code, answers: ans }, t2)
+    }
+    r = await req('POST', '/api/graduate', {}, t2)
+    ok('11 节点满分 → 申请毕业通过', r.body.ok === true && r.body.avgScore === 100 && r.body.graduated === true)
 
     /* ---------- 8.5 竞赛 ---------- */
     console.log('\n[8.5] 竞赛（毕业解锁 + 积分赛 + 排行榜）')

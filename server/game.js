@@ -16,7 +16,9 @@ function getConfigDoc() {
     sequentialUnlock: false,
     requireReadBeforeCheckin: true,
     defaultPassScore: 60,
-    finalExam: { questionCount: 10, passScore: 60, timeoutMs: 3 * 60 * 1000, title: '长征知识总结答题' },
+    // 毕业不看单独考试，而看 11 个节点答题的平均分是否达到这条线
+    graduation: { passScore: 70 },
+    finalExam: { questionCount: 10, passScore: 60, timeoutMs: 3 * 60 * 1000, title: '综合练习' },
     contest: { questionCount: 10, pointsPerQuestion: 5, timeoutMs: 30 * 60 * 1000, title: '长征知识竞赛' },
     theme: { primary: '#C8102E', gold: '#D4A017' }
   }
@@ -180,7 +182,7 @@ function getQuiz(db, userId, mode, code) {
     ok: true,
     meta: {
       title: cfg.finalExam.title,
-      subtitle: '共' + n + '题，得分 ' + cfg.finalExam.passScore + ' 分以上毕业，限时 ' + Math.round((cfg.finalExam.timeoutMs || 180000) / 60000) + ' 分钟',
+      subtitle: '随机抽取 ' + n + ' 道节点题 · 限时 ' + Math.round((cfg.finalExam.timeoutMs || 180000) / 60000) + ' 分钟 · 成绩不计入毕业',
       questionCount: n,
       passScore: cfg.finalExam.passScore
     },
@@ -211,6 +213,47 @@ function pickAcrossNodes(pool, n) {
     while (out.length < n && k < rest.length) out.push(rest[k++])
   }
   return shuffle(out)
+}
+
+/**
+ * 申请毕业：不再单独答题，直接按 11 个节点的答题平均分判定。
+ * 平均分不足毕业线、或还有节点没打卡，都不给毕业。
+ */
+function graduate(db, userId) {
+  const cfg = getConfigDoc()
+  const nodes = getPublishedNodes()
+  const p = loadProgress(db, userId)
+  const states = computeStates(nodes, p, cfg)
+  const grad = states.graduation || { avgScore: 0, passScore: 70, ready: false }
+
+  if (states.finalState === 'locked') {
+    return { ok: false, error: 'NOT_ALL_CHECKED_IN', message: '还有节点没有打卡，先走完全程再来申请' }
+  }
+  if (!grad.ready) {
+    return {
+      ok: false,
+      error: 'SCORE_NOT_ENOUGH',
+      message: '节点答题平均分 ' + grad.avgScore + ' 分，未达到毕业线 ' + grad.passScore + ' 分',
+      avgScore: grad.avgScore,
+      passScore: grad.passScore
+    }
+  }
+  if (!p.finalExam) p.finalExam = { attempts: 0, best: 0, passed: false, lastTime: null }
+  if (!p.finalExam.passed) {
+    p.finalExam.passed = true
+    p.finalExam.best = Math.max(p.finalExam.best || 0, grad.avgScore)
+    p.finalExam.lastTime = Date.now()
+    saveProgress(db, userId, p)
+  }
+  return {
+    ok: true,
+    graduated: true,
+    avgScore: grad.avgScore,
+    passScore: grad.passScore,
+    allPassed: states.passedCount === states.total,
+    checkedCount: states.checkedCount,
+    total: states.total
+  }
 }
 
 /* ---------- 判分 ---------- */
@@ -277,7 +320,8 @@ function submitQuiz(db, userId, mode, code, answers) {
   if (mode === 'final') {
     p.finalExam.attempts = (p.finalExam.attempts || 0) + 1
     p.finalExam.best = Math.max(p.finalExam.best || 0, score)
-    p.finalExam.passed = p.finalExam.passed || passed
+    // 毕业只看 11 个节点的平均分（graduate 接口），综合练习答对不再直接发毕业
+  // p.finalExam.passed 保持只由 graduate() 写入
     p.finalExam.lastTime = Date.now()
   } else {
     const prev = p.quizScores[code] || { attempts: 0, best: 0, passed: false, lastTime: 0 }
@@ -322,6 +366,7 @@ module.exports = {
   doCheckin,
   getQuiz,
   submitQuiz,
+  graduate,
   getCheckinLogs,
   saveNickname,
   emptyProgress

@@ -9,12 +9,15 @@
   const progressUtil = root.CZ_PROGRESS
   const UI = root.CZ_UI
 
-  // 返回：优先浏览器后退；直接打开的入口页（history 里没有站内上一页，或来自站外）退回首页，别把用户卡在原地
+  // 返回：优先浏览器后退；直接打开的入口页（history 空栈或站外跳来）退到 fallback，别把用户卡在原地
+  // 直接打开本页（history 空栈）时退到这里的 BACK_FALLBACK
+  const BACK_FALLBACK = '#/'
+
   function goBack() {
     const ref = document.referrer || ''
     const fromOtherSite = ref !== '' && ref.indexOf(location.origin) !== 0
     if (history.length > 1 && !fromOtherSite) history.back()
-    else location.hash = '#/'
+    else location.hash = BACK_FALLBACK
   }
 
   VIEWS.node = {
@@ -160,7 +163,7 @@
 
     let html =
       '<div class="page">' +
-      '<button type="button" class="back-link">‹ 返回</button>' +
+      '<button type="button" class="back-link">‹ 返回路线</button>' +
       '<div class="cover' + (hasImg ? ' has-img' : '') + '">' +
         (hasImg ? '<img src="' + F.escapeHtml(cover) + '" alt="">' : '') +
         '<div class="cover-name">' + F.escapeHtml(node.name) + '</div>' +

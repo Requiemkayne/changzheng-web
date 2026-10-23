@@ -309,7 +309,13 @@ async function handleApi(db, req, res, pathname, query) {
     if (!r.ok) return fail(res, 400, r.error, r.message)
     return json(res, 200, r)
   }
-  if (req.method === 'POST' && pathname === '/api/quiz/submit') {
+  if (req.method === 'POST' && pathname === '/api/graduate') {
+    // 毕业判定：按 11 个节点答题平均分，达标才写 passed
+    const r = game.graduate(db, user.id)
+    return json(res, r.ok ? 200 : 400, r)
+  }
+
+    if (req.method === 'POST' && pathname === '/api/quiz/submit') {
     const b = await readBody(req)
     const r = game.submitQuiz(db, user.id, b.mode, b.code, b.answers)
     if (!r.ok) return fail(res, 400, r.error, r.message)

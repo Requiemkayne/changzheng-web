@@ -2783,3 +2783,26 @@ a { color: var(--red-mid); text-decoration: none; }
 }
 .profile-fold[open] .fold-cue { transform: rotate(-135deg); }
 .profile-fold > .card { margin-top: 2px; }
+
+/* ---------- 页面缩放兜底 + 首页「长征之路」入口暂时隐藏 ---------- */
+/* 移动端禁掉文字自动放大（iOS 横屏会把字号撑大，破坏版式） */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+
+/* 长征之路入口卡：暂时隐藏，恢复时删掉这条规则即可（HTML 与绑定都还在） */
+.journey-entry { display: none !important; }
+
+/* 证书弹窗：正文给右下角印章留出空间，避免压字 */
+.diploma-panel .cert-inner { padding-bottom: 64px; }
+.cert-text-tight { padding-right: 56px; }
+.diploma-panel .sheet-title { letter-spacing: 4px; }
+.diploma-close { margin-top: 14px; width: 100%; }
+
+/* 我的页：三张入口卡（竞赛 / 排行榜 / 综合练习） */
+.entry-grid { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 360px) {
+  .entry-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.entry-card .entry-sub { line-height: 1.5; }
+
+/* 首页申请毕业卡：点击后短暂等待态 */
+.final-card-busy { opacity: .6; pointer-events: none; }

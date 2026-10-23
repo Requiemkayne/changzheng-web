@@ -9,11 +9,14 @@
   const UI = root.CZ_UI
 
   // 返回：有站内上一页就后退，直接打开的（history 空栈或站外跳来）回首页
+  // 直接打开本页（history 空栈）时退到这里的 BACK_FALLBACK
+  const BACK_FALLBACK = '#/contest'
+
   function goBack() {
     const ref = document.referrer || ''
     const fromOtherSite = ref !== '' && ref.indexOf(location.origin) !== 0
     if (history.length > 1 && !fromOtherSite) history.back()
-    else location.hash = '#/'
+    else location.hash = BACK_FALLBACK
   }
 
   VIEWS.result = {
@@ -65,7 +68,7 @@
 
     rootEl.innerHTML =
       '<div class="page">' +
-      '<button type="button" class="back-link">‹ 返回</button>' +
+      '<button type="button" class="back-link">‹ 返回竞赛</button>' +
       '<div class="result-hero hero-result">' +
         '<div class="result-title">总分结算</div>' +
         '<div class="result-score"><span class="score-num score-num-big">' + total + '</span><span class="score-unit">分</span></div>' +
