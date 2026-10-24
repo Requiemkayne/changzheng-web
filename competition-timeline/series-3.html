@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#6E0918">
   <meta name="description" content="2026年世界职业院校技能大赛总决赛争夺赛人工智能赛道（中职组）银奖团队 —— 灯火长明、百次调试的备赛阶段、赛事角逐阶段、赛后复盘阶段时间线整理">
   <title>灯火伴求索 · 百调砺真知 —— 人工智能赛道银奖团队日夜攻坚纪实</title>
-  <link rel="stylesheet" href="fonts/noto-serif-sc.css?v=14">
+  <link rel="stylesheet" href="fonts/noto-serif-sc.css?v=15">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/series-3.css">
   <link rel="stylesheet" href="css/tabbar.css">
@@ -33,7 +33,8 @@
   </header>
 
   <!-- ============ 2. Hero ============ -->
-  <section class="hero" id="top" aria-labelledby="hero-title">
+  <section class="hero" id="top" aria-labelledby="hero-title" data-medal="银奖">
+    <span class="hero-index" aria-hidden="true">03</span>
     <div class="hero-glow" aria-hidden="true"></div>
     <div class="wrap hero-inner">
       <p class="hero-eyebrow">2026年世界职业院校技能大赛 · 总决赛争夺赛 · 人工智能赛道（中职组）</p>
@@ -56,14 +57,15 @@
   </section>
 
   <main class="page">
-    <div class="wrap">
+    <div class="wrap has-toc">
+      <div class="article-body">
       <!-- ============ 3. 引言 ============ -->
       <section class="intro" id="intro" aria-labelledby="intro-title">
         <h2 class="block-title" id="intro-title">引 言</h2>
-        <p>9月21日至25日，2026年世界职业院校技能大赛总决赛争夺赛人工智能赛道（中职组）由北京市丰台区中英实验学校承办，全国119支队伍同场竞技。计算机系李文杨、李美熙、刘华栋、马明阳四位同学在指导教师柯宇、陈奕扬带领下，登上<strong>银奖</strong>领奖台。</p>
+        <p>9月21日至25日，2026年世界职业院校技能大赛总决赛争夺赛人工智能赛道（中职组）由北京市丰台区中英实验学校承办，全国119支队伍同场竞技。</p>
+        <p>计算机系李文杨、李美熙、刘华栋、马明阳四位同学在指导教师柯宇、陈奕扬带领下，登上<strong>银奖</strong>领奖台。</p>
 
       </section>
-
       <figure class="figure figure--full">
         <img src="assets/img/s3-1.jpg" alt="蓝色赛事背景板前，四位队员与指导教师合影比赞" width="1600" height="1206" loading="lazy">
         <figcaption>赛场合影：四位队员与指导教师在赛事背景板前合影</figcaption>
@@ -296,34 +298,74 @@
       <section class="comments" id="comments" aria-labelledby="comments-title">
         <h2 class="block-title" id="comments-title">留 言 区</h2>
 
-        <div class="cmt-panel">
-          <form class="cmt-form" id="cmt-form" novalidate>
-            <label class="field" for="cmt-name">
-              <span class="field-label">昵称</span>
-              <input class="cmt-input" id="cmt-name" name="name" type="text" maxlength="16"
-                     placeholder="可不填，默认显示「匿名」" autocomplete="nickname">
-            </label>
-
-            <label class="field" for="cmt-text">
-              <span class="field-label">留言</span>
-              <textarea class="cmt-textarea" id="cmt-text" name="text" rows="3" maxlength="200"
-                        placeholder="写下你对这一篇的观后感、祝福或建议…" required
-                        aria-describedby="cmt-hint"></textarea>
-            </label>
-
-            <div class="cmt-actions">
-              <span class="cmt-count">还可输入 <b id="cmt-left">200</b> 字</span>
-              <button class="cmt-submit" type="submit">发表留言</button>
+<div class="cmt-panel">
+          <!-- 他人留言：默认就摊开给人看 -->
+          <div class="cmt-view" id="cmt-view">
+            <div class="cmt-view-head">
+              <span class="cmt-view-title">大家怎么说</span>
+              <span class="cmt-view-count" id="cmt-total"></span>
             </div>
-          </form>
+            <ul class="cmt-list" id="cmt-list" aria-label="留言列表"></ul>
+            <p class="cmt-empty" id="cmt-empty">还没有留言，来说第一句吧</p>
+          </div>
 
-          <p class="cmt-hint" id="cmt-hint" role="status" aria-live="polite"></p>
+          <!-- 写留言：点底部按钮后浮起来盖住列表 -->
+          <div class="cmt-compose" id="cmt-compose" hidden>
+            <div class="cmt-compose-head">
+              <span class="cmt-compose-title">写留言</span>
+              <button type="button" class="cmt-compose-close" id="cmt-close" aria-label="收起写留言面板">×</button>
+            </div>
 
-          <ul class="cmt-list" id="cmt-list" aria-label="留言列表"></ul>
-          <p class="cmt-empty" id="cmt-empty">还没有留言，来说第一句吧</p>
+            <form class="cmt-form" id="cmt-form" novalidate>
+              <label class="field" for="cmt-name">
+                <span class="field-label">昵称</span>
+                <input class="cmt-input" id="cmt-name" name="name" type="text" maxlength="16"
+                       placeholder="可不填，默认显示「匿名」" autocomplete="nickname">
+              </label>
+
+              <label class="field" for="cmt-text">
+                <span class="field-label">留言</span>
+                <textarea class="cmt-textarea" id="cmt-text" name="text" rows="3" maxlength="200"
+                          placeholder="写下你的观后感、祝福或建议…" required
+                          aria-describedby="cmt-hint"></textarea>
+              </label>
+
+              <div class="cmt-actions">
+                <span class="cmt-count">还可输入 <b id="cmt-left">200</b> 字</span>
+                <button class="cmt-submit" type="submit">发表留言</button>
+              </div>
+            </form>
+
+            <p class="cmt-hint" id="cmt-hint" role="status" aria-live="polite"></p>
+          </div>
+
+          <!-- 底部触发条：平时只有这一条 -->
+          <button type="button" class="cmt-open" id="cmt-open">
+            <span class="cmt-open-ic" aria-hidden="true">✎</span> 写留言
+          </button>
         </div>
       </section>
 
+    </div>
+
+      <nav class="toc" id="toc" aria-label="本文目录">
+        <div class="toc-head">
+          <span class="toc-title">本文目录</span>
+          <button type="button" class="toc-toggle" id="toc-toggle" aria-expanded="true">收起</button>
+        </div>
+        <ol class="toc-list">
+          <li><a href="#team"><i aria-hidden="true">01</i>岗位分工</a></li>
+          <li><a href="#tech"><i aria-hidden="true">02</i>项目侧重</a></li>
+          <li><a href="#pre"><i aria-hidden="true">03</i>朝夕备赛</a></li>
+          <li><a href="#during"><i aria-hidden="true">04</i>赛场夺银</a></li>
+          <li><a href="#post"><i aria-hidden="true">05</i>赛后复盘</a></li>
+          <li><a href="#gallery"><i aria-hidden="true">06</i>赛场图集</a></li>
+        </ol>
+      </nav>
+
+      <button type="button" class="toc-fab" id="toc-open" aria-controls="toc" aria-expanded="false">
+        <span aria-hidden="true">☰</span> 目录
+      </button>
     </div>
   </main>
 
@@ -331,6 +373,7 @@
 
 <script src="js/gallery.js"></script>
 <script src="js/comments.js"></script>
+<script src="js/tl-ui.js?v=6"></script>
 
   <!-- 底部四栏导航：与长征主站一致，保证随时能回到主站各栏目 -->
   <nav id="tabbar" aria-label="主导航">
@@ -372,5 +415,10 @@
   })()
   </script>
 
+
+<div class="read-progress" aria-hidden="true"><i id="read-bar"></i></div>
+<button type="button" class="to-top" id="to-top" aria-label="回到顶部">
+  <span aria-hidden="true">↑</span>
+</button>
 </body>
 </html>

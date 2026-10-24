@@ -33,6 +33,10 @@
   var listEl = document.getElementById('cmt-list');
   var emptyEl = document.getElementById('cmt-empty');
   var submitEl = form ? form.querySelector('.cmt-submit') : null;
+  var openEl = document.getElementById('cmt-open');
+  var composeEl = document.getElementById('cmt-compose');
+  var closeEl = document.getElementById('cmt-close');
+  var totalEl = document.getElementById('cmt-total');
 
   if (!form || !textEl || !listEl) return;
 
@@ -195,6 +199,27 @@
     return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + ' ' + hm;
   }
 
+  /* ---------------- 写留言浮层 ---------------- */
+
+  function openCompose() {
+    if (!composeEl) return;
+    composeEl.hidden = false;
+    if (openEl) openEl.hidden = true;
+    // 浮层是绝对定位，不会撑高父容器，这里用 class 明确给面板留出高度
+    var panel = composeEl.closest ? composeEl.closest('.cmt-panel') : null;
+    if (panel) panel.classList.add('is-composing');
+    // 等浮层显示后再聚焦，否则 iOS 会把页面顶上去
+    setTimeout(function () { if (textEl) textEl.focus(); }, 60);
+  }
+
+  function closeCompose() {
+    if (!composeEl || composeEl.hidden) return;
+    composeEl.hidden = true;
+    if (openEl) openEl.hidden = false;
+    var panel = composeEl.closest ? composeEl.closest('.cmt-panel') : null;
+    if (panel) panel.classList.remove('is-composing');
+  }
+
   function showHint(msg, ok) {
     if (!hintEl) return;
     hintEl.textContent = msg || '';
@@ -204,6 +229,7 @@
   function renderList(items) {
     listEl.textContent = '';
     if (emptyEl) emptyEl.style.display = items.length ? 'none' : '';
+    if (totalEl) totalEl.textContent = items.length ? '共 ' + items.length + ' 条' : '暂无';
 
     items.forEach(function (m) {
       var li = document.createElement('li');
@@ -296,6 +322,12 @@
 
   /* ---------------- 事件 ---------------- */
 
+  if (openEl) openEl.addEventListener('click', openCompose);
+  if (closeEl) closeEl.addEventListener('click', closeCompose);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') closeCompose();
+  });
+
   textEl.addEventListener('input', function () {
     updateCount();
     if (textEl.getAttribute('aria-invalid') === 'true') {
@@ -341,9 +373,11 @@
         if (res && res.pending) {
           // 审核制：不立即出现在列表里
           showHint('留言已提交，等待管理员审核', true);
+          closeCompose();
           return null;
         }
         showHint('留言已发布', true);
+        closeCompose();
         return refresh();
       })
       .then(function () { textEl.focus(); })
