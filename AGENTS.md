@@ -26,8 +26,9 @@
 | 后端 API 全链路测试（135 项断言） | `node scripts/test-api.js`（自起随机端口 + 临时数据库） |
 | 真实浏览器端到端（mock，需 8088 服务 + Edge） | `node tools/e2e-test.js`（欢迎/路线/11 节点/答题/综合练习/申请毕业/竞赛/排行榜/我的，逐页查渲染、控制台错误、横向溢出） |
 | 专题站（静态页 + 留言服务 + 后台） | `node competition-timeline/server/server.js` → http://127.0.0.1:8899（后台 `/admin`；初始口令首次启动打印并写入 `server/初始管理员.txt`） |
+| 专题站管理员密码重置 | `node tools/reset-admin-password.js <新密码>`（直接改 `competition-timeline/server/data.db`，≥3 位；`初始管理员.txt` 过期/忘记密码时用） |
 | 专题站单文件构建（离线发布） | `python competition-timeline/.tools/build_single.py <入口页> <输出>`（产物入库到 `competition-timeline/pub/`） |
-| 专题站字体子集重建 | `python competition-timeline/.tools/subset_font.py`（之后把各页 `?v=` 递增，当前统一 `?v=4`） |
+| 专题站字体子集重建 | `python competition-timeline/.tools/subset_font.py`（之后把各页 `?v=` 递增，当前统一 `?v=14`） |
 | 数据库备份（SQLite 三件套 + SHA256 清单 + 轮转） | `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-db.ps1 -All`（默认只备主站库，`-All` 连留言库一起备；`-ServiceName` 配合 nssm 停服取一致快照） |
 | 字体重建（内容新增汉字后） | `python scripts/build-fonts.py`（输入已全部入库，只缺 fonttools + brotli，见「已知坑」） |
 | 截图（Edge headless，CDP） | `node scripts/cdp-shot.js "<url>" out.png 390 844 3000` |
@@ -52,14 +53,15 @@
 
 ## 专题站 competition-timeline（第二站点，独立留言服务）
 
-- 页面：`index.html`（总览，无留言区）+ `series-1/2/3.html`（三个正文页各自带按篇隔离的留言区）+ `admin.html`（后台，仅 :8899 直连可见；经主站访问一律 404）；四个前台页面底部都带四栏导航（`css/tabbar.css`），链回主站「路线/地图/我的」并保留 `?demo=1 / ?live=1` 查询参数。
+- 页面：`index.html`（总览，无留言区）+ `series-1/2/3.html`（三个正文页各自带按篇隔离的留言区）+ `admin.html`（后台，仅 :8899 直连可见；经主站访问一律 404）；四个前台页面底部都带四栏导航（`css/tabbar.css`），链回主站「路线/地图/我的」并保留 `?demo=1 / ?live=1` 查询参数；页面含成员介绍、新闻配图等图片内容（`assets/img/`，原图备份在 `assets/img-orig/`）。
+- 报道页版式与交互：三篇正文页已改为「侧边目录 + 卡片版式」，留言区可收放；`js/tl-ui.js` 负责目录抽屉/侧栏、阅读进度、回到顶部（纯展示层，不碰正文）。
 - 服务：`node competition-timeline/server/server.js` → :8899，零依赖；环境变量 `PORT`（默认 8899）、`DB_PATH`（默认 `server/data.db`）、`ADMIN_PASSWORD`（首次启动的初始口令，控制台打印并写入 `server/初始管理员.txt`，该文件已 gitignore）。
 - 主站托管：主站 `server/server.js` 用**嵌套白名单**（`STATIC_NESTED`）在 `/competition-timeline/` 下只放行 `index/series-1/2/3.html` 与 `css/ js/ fonts/ assets/ pub/`；`admin.html`、`server/`（源码 + SQLite）、`.tools/`、`.draft/`、README 一律 404（`scripts/test-api.js` 有断言）。
 - 留言反代：主站把 `/api/comments`（含 `/:id`）反代到 `COMMENTS_UPSTREAM`（默认 `http://127.0.0.1:8899`），**不反代 `/api/admin/*`**；上游不可用返回 503 `{ ok:false, code:'COMMENTS_UNAVAILABLE' }`（注释流式透传，5s 超时）。
 - 专题站自己的白名单（:8899）相反：根目录 `*.html` 全放行（含 `admin.html`），`/server/**`、`.tools`、`.draft`、`*.md|py|bat|db` 拒绝。
 - 留言模型：按篇隔离，服务端 `PAGES = ['series-1', 'series-2', 'series-3']` 白名单 + 缺省 `series-1`（`pickPage` / `pickPageFilter`）；归属篇目由页面根节点 `<html data-page="series-N">` 声明，公开读取 `GET /api/comments?page=<篇目>` 按篇过滤（缺省 series-1，非法值 400 `BAD_PAGE`），发表由请求体 `page` 决定归属；后台按 `status × page` 组合过滤（`page=all` 为全部）并返回按篇 `counts`；发表返回 `ownerToken`（服务端只存 SHA-256，浏览器存 `localStorage['tl-comments-own']`），删除需令牌；管理端 scrypt + HttpOnly / SameSite=Strict Cookie（8h）；单 IP 发表 20 条/10 分钟、登录失败 5 次/10 分钟。
 - 离线单文件：`pub/` 全部是 `python .tools/build_single.py <入口> <输出>` 的产物（CSS/字体/图片/脚本内嵌），**不要手改**。
-- 字体：`competition-timeline/fonts/` 是 400/700/900 三档子集，各页 `?v=` 当前统一为 4；改文案后跑 `python .tools/subset_font.py` 并递增 `?v=`。
+- 字体：`competition-timeline/fonts/` 是 400/700/900 三档子集，各页 `?v=` 当前统一为 **14**；改文案后跑 `python .tools/subset_font.py` 并递增 `?v=`。
 - `.draft/` 是本地草稿/探针目录（已 gitignore），其中 `page-column/test.js` 断言留言按篇分栏语义，与当前实现一致，可作回归参考。
 
 ## 目录与职责
@@ -126,7 +128,7 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 - 节点封面图已交付：`assets/route/<code>.webp`，由 `nodes.js` 的 `images.cover` 引用；画师的 `illustrations` 数组仍为空。
 - `detail.blocks` 现有 7 种 type：`heading / paragraph / image / quote / video / timeline / dataCard`（未知 type 静默忽略）。`video` 形如 `{ type:'video', src:'assets/video/<code>.mp4', poster:'assets/route/<code>.webp', caption? }`，渲染为 `<video controls playsinline preload="metadata">`，**必须排在 heading 之前**（用户要求位于「历史背景」上方）。
 - 竞赛题库：出题人直接编辑 `server/question-bank.json`，重启服务自动导入。**导入按 `id` 幂等去重（INSERT OR IGNORE）——修改已有 id 的题干不会被更新**，需换新 id 或清掉 `bank_questions` 对应行；积分赛按 `contest.questionCount` 抽题（当前 10 题），库内题量不足会报 `BANK_TOO_SMALL`（当前 57 题）。
-- 新增文案里的汉字若不在 `fonts/glyphs.txt` 中，会逐字回落到系统衬线（不会豆腐块，但一句话里两种字形）；出正式文案后需要重跑字体重建（见「已知坑」）。**字体已在 `82457a7` 再次重建**（`glyphs.txt` 1665 行），但该提交新加的 3 个字仍未覆盖（见「已知坑」）。
+- 新增文案里的汉字若不在 `fonts/glyphs.txt` 中，会逐字回落到系统衬线（不会豆腐块，但一句话里两种字形）；出正式文案后需要重跑字体重建（见「已知坑」）。**当前字体已重建、扫描口径 0 缺字**（`glyphs.txt` 1667 行）。
 
 ## 不可破坏的约束
 
@@ -151,9 +153,9 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 - `scripts/test-api.js` 在 `require('../server/server')` **之前**设置 `DB_PATH` 指向临时库；测试自己负责清理，别指向 `server/data.db`（SQLite 还会留下 `-wal`/`-shm`，只删 `data.db` 删不干净）。
 - `README.md`（主站）有两处过期描述：开头「地图用 Leaflet CDN」（实际内联 SVG，零联网）与测试断言数「19 / 71 项」（实际 63 / 135）；另外根 README 完全没提 `competition-timeline` 专题站。以代码、测试与 `competition-timeline/README.md` 为准。
 - `scripts/build-fonts.py` 需要 fonttools + brotli；输入已全部入库（`fonts/urls.txt` 记录 101 个切片的来源，切片本身也在 `fonts/`），缺的只是这两个 Python 包（本机 runtime 未装）。装好后即可离线重建 `glyphs.txt` + 两个 woff2，不需要原始素材机；不要手写 @font-face 或伪造 woff2。
-- **字体子集又被新文案甩下 3 个字**：`82457a7` 已重建 `glyphs.txt`（1665 行）与两个 woff2，但同一提交新加的 **「综」「练」「申」** 不在子集里（`综合练习`、`申请毕业` 都会渲染，回落系统宋体）。按扫描口径（`js/**` 除 `vendor` + `server/**` + `index.html`，去 BOM）当前缺失 3 个字；再重建需 fonttools + brotli（本机 runtime 未装）。`test-web` 的覆盖断言只查 `server/question-bank.json`，**测试全绿 ≠ 字形齐全**；不要手改 woff2。
+- **字体覆盖当前已补齐（0 缺字）**：`7eda700` 一带重建后 `glyphs.txt` 1667 行，按扫描口径（`js/**` 除 `vendor` + `server/**` + `index.html`，去 BOM）无缺失。注意 `test-web` 的覆盖断言仍只查 `server/question-bank.json`，以后新增文案时测试不一定变红，改完请手动核对或重跑 `scripts/build-fonts.py`（需 fonttools + brotli，本机 runtime 未装）；不要手改 woff2。
 - 浏览器验收脚本硬编码 Edge 路径 `C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`；`scripts/dom-check-*` 与 `scripts/play-*` 还硬编码 `http://localhost:8088/?mock=1`——必须先起后端，换机器要改路径。
-- **视频依赖 Range**：静态服务对 `.mp4` 返回 `206 Partial Content` + `Content-Range`（iOS Safari 不拿到 206 就不播，拖进度条也依赖它），其他扩展名仍是整文件 200。改 `serveStatic` 时别把这段删了；新增视频用 `ffmpeg -c:v libx264 -crf 30 -preset medium -movflags +faststart -c:a aac -b:a 64k`（源素材 228 MB → 产出 71 MB）。
+- **视频依赖 Range**：静态服务对 `.mp4` 返回 `206 Partial Content` + `Content-Range`（iOS Safari 不拿到 206 就不播，拖进度条也依赖它），其他扩展名仍是整文件 200；专题站 `:8899` 的静态服务也实现了同一套 Range。改任一处 `serveStatic` 时别把这段删了；新增视频用 `ffmpeg -c:v libx264 -crf 30 -preset medium -movflags +faststart -c:a aac -b:a 64k`（源素材 228 MB → 产出 71 MB）。
 - **省界/态势数据是生成物**：`js/map-provinces.js` 头部注明由 `samples/build_provinces_all.py` 从公开 GeoJSON 裁剪 + 简化生成（35 省，73–136°E / 3–54.5°N，容差 0.04°），但**该脚本未入库**——不要手改这份坐标，需要调整范围/精度时先补回生成脚本再重跑；`js/map-factions.js` 是手工维护的示意数据（坐标仅表走向，不作测绘依据），改它不算改生成物。
 - 静态响应按扩展名分层：html/css/js/json 走 `no-cache` + ETag（可拿 304），图片/字体给 1 天；文本类按 `Accept-Encoding` 返回 gzip 并带 `Vary`。**HEAD 请求仍是 405**（测试锁定为「保持改造前语义」），不要顺手加 HEAD 分支。
 - `/__version` 忽略 `js/vendor/`，改其他 js/css 会触发 `?live=1` 重载。
@@ -163,7 +165,7 @@ competition-timeline/   专题站：4 个页面 + admin + :8899 留言服务 + p
 - **部署要起两个服务**：主站 `:8088` + 专题站留言 `:8899`（建议 nssm 各注册一个服务）。`docs/DEPLOY-WINDOWS.md` 的 2.3 与 §4 已写清 8899 服务、`COMMENTS_UPSTREAM` 与「8899 不得对外暴露」；只起主站时 `/api/comments` 返回 503 属预期，不是 bug。
 - **专题站初始管理员口令**：`competition-timeline/server/初始管理员.txt` 只是首次启动的明文提示，改密后不会更新，**不代表当前密码**；该文件已 gitignore，改密后直接删除。
 - **留言反代有自动化测试**：`scripts/test-api.js` 的 `[14] 留言反代` 用进程内假上游锁定 GET/POST 透传（含 body 与 Cookie）、`X-Forwarded-For`、`/api/admin/*` 不转发（落主站 401 兜底）、上游下线回 503 `COMMENTS_UNAVAILABLE`；真机部署后仍建议起 8899 用 `curl http://127.0.0.1:8088/api/comments` 复核一次。
-- `competition-timeline/pub/*.html` 是 `build_single.py` 的产物；改页面/样式/字体后必须重跑构建，不要手改产物（与 `fonts/` 生成物同规则）。
+- `competition-timeline/pub/*.html` 是 `build_single.py` 的产物；改页面/样式/字体后必须重跑构建，不要手改产物（与 `fonts/` 生成物同规则）。注意 `dfb8fe3` 改了三篇源页但**没有重建 pub**，所以 `pub/` 可能滞后于源页——改完源页请对 `index / series-1 / series-2 / series-3` 四页分别重跑构建再提交。
 - file:// 模式下没有 fetch/后端，任何新的网络调用都要有 mock 分支，否则双击预览会坏。
 - 静态模式下长按「我的」页昵称卡片可重置本地进度（调试用），别再叠加其他隐藏手势。
 
