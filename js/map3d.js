@@ -355,8 +355,13 @@
         const PROBE = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]
         const PROBE_STEP = 0.16
         const nearSea = (x, z) => {
-          for (let d = 0; d < PROBE.length; d++) {
-            if (groundY(x + PROBE[d][0] * PROBE_STEP, z + PROBE[d][1] * PROBE_STEP) < SEA) return true
+          // 两档步长：近处判岸线；远处（约 15 km）把岛屿内部也纳入，
+          // 否则台湾、海南、舟山这些岛的中部探不到海，会被当成内陆国界画成蓝线。
+          const STEPS = [PROBE_STEP, 0.55]
+          for (let si = 0; si < STEPS.length; si++) {
+            for (let d = 0; d < PROBE.length; d++) {
+              if (groundY(x + PROBE[d][0] * STEPS[si], z + PROBE[d][1] * STEPS[si]) < SEA) return true
+            }
           }
           return false
         }
@@ -406,30 +411,32 @@
         
         const seen = new Set()
         
-        // 落一段折线成 Tube；role: 'prov'（省界/国界/沿海段，蓝）｜'coast'（海岸白框）
+        // 落一段折线成 Tube
+        //   role 'prov'  → 省界 / 陆上国界：蓝色细线（只在陆地内部出现）
+        //   role 'coast' → 海岸线：只画白色虚线，绝不叠蓝线（海上要干净）
         const putRun = (pts, role) => {
           if (pts.length < 2) return
           const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.02)
           if (role === 'coast') {
-            // 先铺白色粗框
-            const wide = new THREE.Mesh(
-              new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.34, 4, false),
+            const coast = new THREE.Mesh(
+              new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.26, 4, false),
               coastMat
             )
-            wide.renderOrder = 2
-            scene.add(wide)
+            coast.renderOrder = 3
+            scene.add(coast)
+            return
           }
-          // 蓝色细线压在最后（海岸段也走这条，于是白框里套着蓝线）
           const thin = new THREE.Mesh(
             new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.19, 4, false),
             provMat
           )
-          thin.renderOrder = 3
+          thin.renderOrder = 2
           scene.add(thin)
         }
         
         // 按边类型把折线切成「连续同类段」，再逐段落笔
-        const emitSeg = (seg, kind) => {
+        // forceCoast = true：岛屿省（台湾、海南等）整圈都是海岸线，只画白线
+        const emitSeg = (seg, forceCoast) => {
           let curType = null
           let curPts = []
           const flush = () => {
@@ -464,8 +471,20 @@
             const midLat = (seg[i][1] + seg[i + 1][1]) / 2
             const mx = worldX(midLng)
             const mz = worldZ(midLat)
-            // 2 = 临海的外沿（海岸线）；1 = 内陆外沿（国界）；0 = 两省共享（省界）
-            const type = cnt >= 2 ? 0 : (nearSea(mx, mz) ? 2 : 1)
+            // 2 = 海岸线（白）；1 = 内陆外沿国界（蓝）；0 = 两省共享省界（蓝）
+            // 岛屿省的内部边也一律算海岸线 —— 否则台湾/海南中部会被判成国界画蓝线，
+            // 海面（视觉上包括岛屿）就会出现蓝线。
+            // 外沿（cnt=1）再分两类：
+            //   离海远 → 陆上国界（蓝）
+            //   靠海   → 海岸线（白）
+            // 用大步长 3.0（≈0.9°）判「远离海」：台湾岛宽度不到 1.6°，
+            // 小步长探不到海，会让整岛被误判成国界画蓝线（海面出现蓝线的根源）。
+            const FAR = 3.0
+            let farFromSea = true
+            for (let d = 0; d < PROBE.length; d++) {
+              if (groundY(mx + PROBE[d][0] * FAR, mz + PROBE[d][1] * FAR) < SEA) { farFromSea = false; break }
+            }
+            const type = cnt >= 2 ? 0 : (farFromSea ? 1 : 2)
             if (curPts.length === 0) push(seg[i], type)
             push(seg[i + 1], type)
           }
@@ -475,13 +494,30 @@
         provData.forEach(p => {
           // 九段线（100000_JD）是海域标识，不参与陆地描边
           if (p.name === '100000_JD') return
+
+          // 岛屿省判定
+          // ① 省名白名单：这些完全是岛，整圈按海岸线上白线
+          // ② 几何判定：整省没有任何一条边与别的省共享（纯孤立多边形）
+          // 注意台湾省数据里有少量边与福建重复（14/52），只靠 ② 判不出来，
+          // 否则岛内会被当成国界画蓝线。
+          const ISLAND_NAMES = { '台湾省': 1, '海南省': 1, '香港特别行政区': 1, '澳门特别行政区': 1 }
+          let island = !!ISLAND_NAMES[p.name]
+          if (!island) {
+            island = true
+            p.segs.forEach(seg => {
+              for (let i = 0; i < seg.length - 1 && island; i++) {
+                if ((edgeCount.get(edgeKey(seg[i], seg[i + 1])) || 1) >= 2) island = false
+              }
+            })
+          }
+
           p.segs.forEach(seg => {
             // 同一条边（正反两种走向）只画一次，避免相邻省重复描同一条省界
             const fwd = seg.map(pt => pt[0] + ',' + pt[1]).join('|')
             const rev = seg.slice().reverse().map(pt => pt[0] + ',' + pt[1]).join('|')
             if (seen.has(fwd) || seen.has(rev)) return
             seen.add(fwd)
-            emitSeg(seg)
+            emitSeg(seg, island)
           })
         })
 
