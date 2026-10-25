@@ -337,8 +337,8 @@
         const provMat = new THREE.MeshBasicMaterial({
           map: provTex,
           transparent: true,
-          opacity: 0.58,
-          alphaTest: 0.4,
+          opacity: 0.7,
+          alphaTest: 0.36,
           depthWrite: false,
           fog: false
         })
@@ -352,23 +352,45 @@
             if (seen.has(fwd) || seen.has(rev)) return
             seen.add(fwd)
 
-            // 完整描边：省界数据是闭合多边形（332 段首尾重合），
-            // 沿海段那些点就是海岸线本身 —— 不描它们，沿海省（江苏/浙江/福建/广东）
-            // 的陆地轮廓就缺一段，截图里「海岸线没有虚线」正是高程过滤造成的。
-            // 因此这里**不做高程过滤**，逐点全画。
+            // 省界只在「陆地内部」画：海面、海岸线一圈都不要。
             //
-            // 守住两条就不会跨海（此前横穿东海的成因）：
+            // 阈值换算：groundY = 高程(m) × 7 / 4500，所以
+            //   SEA = 0.005 ≈ 3 m  —— 只把真正的海（0 m）与滩涂排掉。
+            // 上一版误用 SEA = 0.1，等于切掉所有低于 64 m 的地形，
+            // 平原省份整段消失，才会出现「沿海省没有省界」的假象。
+            //
+            // 光按自身高度不够：海岸线的点本身就在几米高处，照样会被画出来。
+            // 所以再加一圈邻域采样 —— 周围 8 个方向任意一处是海，就判为「临海点」，
+            // 直接断开不画。这样沿海省只在海侧开口，内陆边线完整保留。
+            //
+            // 两条铁律（此前跨海虚线的成因）：
             //   ① 不做 return 截断（一截断，剩余点会被连成直线）；
             //   ② 不把断点 / 终点补进同一串。
-            // 数据本身相邻点间距中位数仅 0.15°，正常边界足够密。
+            const SEA = 0.005
+            const PROBE = [            // 邻域采样方向（世界单位步长 0.35 ≈ 0.1°）
+              [-1, 0], [1, 0], [0, -1], [0, 1],
+              [-1, -1], [1, -1], [-1, 1], [1, 1]
+            ]
+            const PROBE_STEP = 0.16
+            const nearSea = (x, z) => {
+              for (let d = 0; d < PROBE.length; d++) {
+                if (groundY(x + PROBE[d][0] * PROBE_STEP, z + PROBE[d][1] * PROBE_STEP) < SEA) return true
+              }
+              return false
+            }
+
             const runs = []
-            const cur = []
+            let cur = []
             for (let i = 0; i < seg.length; i += 1) {
               const x = worldX(seg[i][0])
               const z = worldZ(seg[i][1])
               const y = groundY(x, z)
-              // 海岸点高程≈0：抬 0.12 贴住地形，避免半截埋进地面或沉到水面下
-              cur.push(new THREE.Vector3(x, Math.max(0.12, y + 0.12), z))
+              if (y < SEA || nearSea(x, z)) {    // 海面 / 海岸线：断开，不落笔
+                if (cur.length >= 3) runs.push(cur)
+                cur = []
+                continue
+              }
+              cur.push(new THREE.Vector3(x, y + 0.12, z))
             }
             if (cur.length >= 3) runs.push(cur)
 
