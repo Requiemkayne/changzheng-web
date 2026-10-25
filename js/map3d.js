@@ -375,15 +375,16 @@
           }
         }))
         
-        // 国界用金色凸线：比省界更粗更亮，一眼能分出「国」与「省」
-        const borderTex = (() => {
+        // 边界配色统一为蓝（省界 / 国界 / 沿海段都用它），
+        // 海岸线额外套一圈白色粗虚线做「整体外框」，蓝色细线压在白线之上。
+        const makeDashTex = (color) => {
           const W = 32
           const H = 4
           const cv = document.createElement('canvas')
           cv.width = W
           cv.height = H
           const c = cv.getContext('2d')
-          c.fillStyle = '#D9B24C'
+          c.fillStyle = color
           c.fillRect(0, 0, 24, H)
           const tex = new THREE.CanvasTexture(cv)
           tex.wrapS = THREE.RepeatWrapping
@@ -391,29 +392,40 @@
           tex.encoding = THREE.sRGBEncoding
           tex.repeat.set(24, 1)
           return tex
-        })()
-        const borderMat = new THREE.MeshBasicMaterial({
-          map: borderTex,
+        }
+        
+        // 海岸线外框：白色粗虚线
+        const coastMat = new THREE.MeshBasicMaterial({
+          map: makeDashTex('#FFFDF5'),
           transparent: true,
-          opacity: 0.92,
-          alphaTest: 0.4,
+          opacity: 0.95,
+          alphaTest: 0.36,
           depthWrite: false,
           fog: false
         })
         
         const seen = new Set()
         
-        // 把一段折线（点数组）落成 Tube；type: 'prov' | 'border'
-        const putRun = (pts, type) => {
-          if (pts.length < 3) return
+        // 落一段折线成 Tube；role: 'prov'（省界/国界/沿海段，蓝）｜'coast'（海岸白框）
+        const putRun = (pts, role) => {
+          if (pts.length < 2) return
           const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.02)
-          const radius = type === 'border' ? 0.30 : 0.19
-          const tube = new THREE.Mesh(
-            new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), radius, 4, false),
-            type === 'border' ? borderMat : provMat
+          if (role === 'coast') {
+            // 先铺白色粗框
+            const wide = new THREE.Mesh(
+              new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.34, 4, false),
+              coastMat
+            )
+            wide.renderOrder = 2
+            scene.add(wide)
+          }
+          // 蓝色细线压在最后（海岸段也走这条，于是白框里套着蓝线）
+          const thin = new THREE.Mesh(
+            new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.19, 4, false),
+            provMat
           )
-          tube.renderOrder = type === 'border' ? 3 : 2
-          scene.add(tube)
+          thin.renderOrder = 3
+          scene.add(thin)
         }
         
         // 按边类型把折线切成「连续同类段」，再逐段落笔
@@ -421,15 +433,20 @@
           let curType = null
           let curPts = []
           const flush = () => {
-            if (curPts.length >= 3) putRun(curPts, curType === 1 ? 'border' : 'prov')
+            // type 2 = 海岸线（白框 + 蓝线）；其余 = 蓝色边界
+            // 海岸段与陆上段交替出现，每段常只有两三个点，门槛放宽到 2
+            if (curPts.length >= 2) putRun(curPts, curType === 2 ? 'coast' : 'prov')
             curPts = []
           }
           const push = (pt, type) => {
             const x = worldX(pt[0])
             const z = worldZ(pt[1])
             const y = groundY(x, z)
-            // 海面 / 海岸线：断开，不落笔（国界也一样，海岸不画）
-            if (y < SEA || nearSea(x, z)) {
+            // 只把「真正沉在海里」的点排除。
+            // 不能用邻域找陆地来判：珠三角/长三角这些沿海平原整体就低于 3 m，
+            // 邻域内一个「高地」都没有，海岸线会被整段误删（白框画不出来的原因）。
+            // 省界数据本身沿真实岸线走，落点就是岸上，不需要额外地形佐证。
+            if (y < -0.002) {
               flush()
               curType = null
               return
@@ -442,7 +459,13 @@
           }
           for (let i = 0; i < seg.length - 1; i++) {
             const cnt = edgeCount.get(edgeKey(seg[i], seg[i + 1])) || 1
-            const type = cnt >= 2 ? 0 : 1     // 0 = 省界共享边，1 = 外沿（国界/海岸）
+            // 用边中点判类型：海岸线是锯齿状的（海/陆交替），用起点判会把段切碎
+            const midLng = (seg[i][0] + seg[i + 1][0]) / 2
+            const midLat = (seg[i][1] + seg[i + 1][1]) / 2
+            const mx = worldX(midLng)
+            const mz = worldZ(midLat)
+            // 2 = 临海的外沿（海岸线）；1 = 内陆外沿（国界）；0 = 两省共享（省界）
+            const type = cnt >= 2 ? 0 : (nearSea(mx, mz) ? 2 : 1)
             if (curPts.length === 0) push(seg[i], type)
             push(seg[i + 1], type)
           }
