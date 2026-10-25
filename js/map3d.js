@@ -337,8 +337,8 @@
         const provMat = new THREE.MeshBasicMaterial({
           map: provTex,
           transparent: true,
-          opacity: 0.42,
-          alphaTest: 0.42,
+          opacity: 0.58,
+          alphaTest: 0.4,
           depthWrite: false,
           fog: false
         })
@@ -352,38 +352,37 @@
             if (seen.has(fwd) || seen.has(rev)) return
             seen.add(fwd)
 
-            // 省界数据本身是闭合多边形（332 段首尾重合），沿海段就是海岸线，
-            // 因此直接按原始点连成完整闭合曲线：不做海域断开、也不做跨度断开 ——
-            // 一断，沿海省就会缺一段（看起来像「省界没画完」）。
-            // 真正的跨海 bug 来自早先「遇海点 return 截断 + 终点强行补点」，
-            // 这里既不截断也不补点，曲线自然沿真实边界走。
-            const run = []
-            // 不抽稀：每 2 点取 1 会让稀疏段（岛屿、半岛尖端）过度平滑，
-            // CatmullRom 会在点与点之间冲出海岸线，看起来就是「海里多出的蓝虚线」。
-            // 全量点虽然多，但 Tube 分段已按点数封顶 220，性能可接受。
+            // 方案 B：只画陆地段，海上不留任何线。
+            // 省界数据是闭合多边形（332 段首尾重合），沿海段就是海岸线；
+            // 这里按地形高程把每段切成若干「陆地块」，只在陆地上落笔，
+            // 海上部分直接不画 —— 于是沿海省会开口，但海面绝对干净。
+            // 注意：绝不把「断点」和「终点」连成一条线（早先跨海 bug 就是这么来的）。
+            const SEA = 0.1
+            const runs = []
+            let cur = []
             for (let i = 0; i < seg.length; i += 1) {
               const x = worldX(seg[i][0])
               const z = worldZ(seg[i][1])
-              // 沿海点落在海平面上，抬 0.12 贴住地形，避免半截埋进地面
-              run.push(new THREE.Vector3(x, Math.max(0.12, groundY(x, z) + 0.12), z))
+              const y = groundY(x, z)
+              if (y < SEA) {                    // 海上：断开，不落点
+                if (cur.length >= 3) runs.push(cur)
+                cur = []
+                continue
+              }
+              cur.push(new THREE.Vector3(x, y + 0.12, z))
             }
-            // 抽稀可能丢掉闭合点：补回末点，保证首尾相接
-            const tailPt = seg[seg.length - 1]
-            const tx = worldX(tailPt[0])
-            const tz = worldZ(tailPt[1])
-            const tail = run[run.length - 1]
-            if (!tail || Math.abs(tail.x - tx) > 1e-6 || Math.abs(tail.z - tz) > 1e-6) {
-              run.push(new THREE.Vector3(tx, Math.max(0.12, groundY(tx, tz) + 0.12), tz))
-            }
-            if (run.length < 3) return
-            // 张力压到 0.02：越接近折线越贴合真实边界，避免平滑冲出海岸
-            const curve = new THREE.CatmullRomCurve3(run, false, 'catmullrom', 0.02)
-            const tube = new THREE.Mesh(
-              new THREE.TubeGeometry(curve, Math.min(run.length * 2, 220), 0.19, 4, false),
-              provMat
-            )
-            tube.renderOrder = 2
-            scene.add(tube)
+            if (cur.length >= 3) runs.push(cur)
+            
+            runs.forEach(run => {
+              // 张力 0.02：贴近折线，避免平滑冲出陆地
+              const curve = new THREE.CatmullRomCurve3(run, false, 'catmullrom', 0.02)
+              const tube = new THREE.Mesh(
+                new THREE.TubeGeometry(curve, Math.min(run.length * 2, 220), 0.19, 4, false),
+                provMat
+              )
+              tube.renderOrder = 2
+              scene.add(tube)
+            })
           })
         })
 
