@@ -342,68 +342,123 @@
           depthWrite: false,
           fog: false
         })
+        // 省界与国界分开画。
+        //
+        // 判定方法：把每段省界的「相邻两点」当成一条边，统计它被几个省拥有 ——
+        //   2 次 → 两省共享 → 省界；
+        //   1 次 → 只有本省拥有 → 外沿（陆上国界 或 海岸线）。
+        // 外沿再按「是否临海」二分：临海=海岸线（不画），不临海=陆上国界（画金色凸线）。
+        //
+        // 高程阈值：groundY = 高程(m) × 7 / 4500，SEA = 0.005 约等于 3 m，
+        // 只排掉真正的海与滩涂（早先误用 0.1 = 砍掉 64 m 以下平原，平原省份会整段消失）。
+        const SEA = 0.005
+        const PROBE = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]
+        const PROBE_STEP = 0.16
+        const nearSea = (x, z) => {
+          for (let d = 0; d < PROBE.length; d++) {
+            if (groundY(x + PROBE[d][0] * PROBE_STEP, z + PROBE[d][1] * PROBE_STEP) < SEA) return true
+          }
+          return false
+        }
+        
+        // 边频次统计（无向边，端点排序后作为 key）
+        const edgeKey = (a, b) => {
+          const ka = a[0] + ',' + a[1]
+          const kb = b[0] + ',' + b[1]
+          return ka < kb ? ka + '#' + kb : kb + '#' + ka
+        }
+        const edgeCount = new Map()
+        provData.forEach(p => p.segs.forEach(seg => {
+          for (let i = 0; i < seg.length - 1; i++) {
+            const k = edgeKey(seg[i], seg[i + 1])
+            edgeCount.set(k, (edgeCount.get(k) || 0) + 1)
+          }
+        }))
+        
+        // 国界用金色凸线：比省界更粗更亮，一眼能分出「国」与「省」
+        const borderTex = (() => {
+          const W = 32
+          const H = 4
+          const cv = document.createElement('canvas')
+          cv.width = W
+          cv.height = H
+          const c = cv.getContext('2d')
+          c.fillStyle = '#D9B24C'
+          c.fillRect(0, 0, 24, H)
+          const tex = new THREE.CanvasTexture(cv)
+          tex.wrapS = THREE.RepeatWrapping
+          tex.wrapT = THREE.ClampToEdgeWrapping
+          tex.encoding = THREE.sRGBEncoding
+          tex.repeat.set(24, 1)
+          return tex
+        })()
+        const borderMat = new THREE.MeshBasicMaterial({
+          map: borderTex,
+          transparent: true,
+          opacity: 0.92,
+          alphaTest: 0.4,
+          depthWrite: false,
+          fog: false
+        })
+        
         const seen = new Set()
+        
+        // 把一段折线（点数组）落成 Tube；type: 'prov' | 'border'
+        const putRun = (pts, type) => {
+          if (pts.length < 3) return
+          const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.02)
+          const radius = type === 'border' ? 0.30 : 0.19
+          const tube = new THREE.Mesh(
+            new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), radius, 4, false),
+            type === 'border' ? borderMat : provMat
+          )
+          tube.renderOrder = type === 'border' ? 3 : 2
+          scene.add(tube)
+        }
+        
+        // 按边类型把折线切成「连续同类段」，再逐段落笔
+        const emitSeg = (seg, kind) => {
+          let curType = null
+          let curPts = []
+          const flush = () => {
+            if (curPts.length >= 3) putRun(curPts, curType === 1 ? 'border' : 'prov')
+            curPts = []
+          }
+          const push = (pt, type) => {
+            const x = worldX(pt[0])
+            const z = worldZ(pt[1])
+            const y = groundY(x, z)
+            // 海面 / 海岸线：断开，不落笔（国界也一样，海岸不画）
+            if (y < SEA || nearSea(x, z)) {
+              flush()
+              curType = null
+              return
+            }
+            if (type !== curType) {
+              flush()
+              curType = type
+            }
+            curPts.push(new THREE.Vector3(x, y + 0.12, z))
+          }
+          for (let i = 0; i < seg.length - 1; i++) {
+            const cnt = edgeCount.get(edgeKey(seg[i], seg[i + 1])) || 1
+            const type = cnt >= 2 ? 0 : 1     // 0 = 省界共享边，1 = 外沿（国界/海岸）
+            if (curPts.length === 0) push(seg[i], type)
+            push(seg[i + 1], type)
+          }
+          flush()
+        }
+        
         provData.forEach(p => {
-          // 九段线（100000_JD）只画南海上，其余省界按陆地块分段落笔
+          // 九段线（100000_JD）是海域标识，不参与陆地描边
+          if (p.name === '100000_JD') return
           p.segs.forEach(seg => {
-            // 同一条边（正反两种走向）只画一次
+            // 同一条边（正反两种走向）只画一次，避免相邻省重复描同一条省界
             const fwd = seg.map(pt => pt[0] + ',' + pt[1]).join('|')
             const rev = seg.slice().reverse().map(pt => pt[0] + ',' + pt[1]).join('|')
             if (seen.has(fwd) || seen.has(rev)) return
             seen.add(fwd)
-
-            // 省界只在「陆地内部」画：海面、海岸线一圈都不要。
-            //
-            // 阈值换算：groundY = 高程(m) × 7 / 4500，所以
-            //   SEA = 0.005 ≈ 3 m  —— 只把真正的海（0 m）与滩涂排掉。
-            // 上一版误用 SEA = 0.1，等于切掉所有低于 64 m 的地形，
-            // 平原省份整段消失，才会出现「沿海省没有省界」的假象。
-            //
-            // 光按自身高度不够：海岸线的点本身就在几米高处，照样会被画出来。
-            // 所以再加一圈邻域采样 —— 周围 8 个方向任意一处是海，就判为「临海点」，
-            // 直接断开不画。这样沿海省只在海侧开口，内陆边线完整保留。
-            //
-            // 两条铁律（此前跨海虚线的成因）：
-            //   ① 不做 return 截断（一截断，剩余点会被连成直线）；
-            //   ② 不把断点 / 终点补进同一串。
-            const SEA = 0.005
-            const PROBE = [            // 邻域采样方向（世界单位步长 0.35 ≈ 0.1°）
-              [-1, 0], [1, 0], [0, -1], [0, 1],
-              [-1, -1], [1, -1], [-1, 1], [1, 1]
-            ]
-            const PROBE_STEP = 0.16
-            const nearSea = (x, z) => {
-              for (let d = 0; d < PROBE.length; d++) {
-                if (groundY(x + PROBE[d][0] * PROBE_STEP, z + PROBE[d][1] * PROBE_STEP) < SEA) return true
-              }
-              return false
-            }
-
-            const runs = []
-            let cur = []
-            for (let i = 0; i < seg.length; i += 1) {
-              const x = worldX(seg[i][0])
-              const z = worldZ(seg[i][1])
-              const y = groundY(x, z)
-              if (y < SEA || nearSea(x, z)) {    // 海面 / 海岸线：断开，不落笔
-                if (cur.length >= 3) runs.push(cur)
-                cur = []
-                continue
-              }
-              cur.push(new THREE.Vector3(x, y + 0.12, z))
-            }
-            if (cur.length >= 3) runs.push(cur)
-
-            runs.forEach(run => {
-              // 张力 0.02：贴近折线，避免平滑冲出陆地
-              const curve = new THREE.CatmullRomCurve3(run, false, 'catmullrom', 0.02)
-              const tube = new THREE.Mesh(
-                new THREE.TubeGeometry(curve, Math.min(run.length * 2, 220), 0.19, 4, false),
-                provMat
-              )
-              tube.renderOrder = 2
-              scene.add(tube)
-            })
+            emitSeg(seg)
           })
         })
 
