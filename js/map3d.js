@@ -366,36 +366,63 @@
         })
         const seen = new Set()
         provData.forEach(p => {
+          // 九段线（100000_JD）只画南海上，其余省界按陆地块分段落笔
           p.segs.forEach(seg => {
             // 同一条边（正反两种走向）只画一次
             const fwd = seg.map(pt => pt[0] + ',' + pt[1]).join('|')
             const rev = seg.slice().reverse().map(pt => pt[0] + ',' + pt[1]).join('|')
             if (seen.has(fwd) || seen.has(rev)) return
             seen.add(fwd)
-            // 抽稀一半，Tube 半径给到 0.16，视觉上明显但仍是细线
-            const pts = []
-            for (let i = 0; i < seg.length; i += 2) {
-              const lng = seg[i][0]
-              const lat = seg[i][1]
-              const x = worldX(lng)
-              const z = worldZ(lat)
-              const y = groundY(x, z) + 0.12
-              if (y < 0.06) return
-              pts.push(new THREE.Vector3(x, y, z))
+
+            // 抽稀一半（保留末点），再按「陆地块」切开 —— 关键：
+            // 原来遇到海域点直接 return，会把整段截断后用剩余点硬连曲线，
+            // 于是海边出现横跨海面的蓝虚线（东海、台湾海峡、渤海都有）。
+            // 现在改为遇海即断，每块陆地单独成线，绝不跨海连点。
+            const raw = []
+            for (let i = 0; i < seg.length; i += 2) raw.push(seg[i])
+            const lastPt = seg[seg.length - 1]
+            if (raw.length === 0 || raw[raw.length - 1][0] !== lastPt[0] || raw[raw.length - 1][1] !== lastPt[1]) {
+              raw.push(lastPt)
             }
-            const last = seg[seg.length - 1]
-            const lx = worldX(last[0])
-            const lz = worldZ(last[1])
-            const ly = groundY(lx, lz) + 0.12
-            if (ly >= 0.06) pts.push(new THREE.Vector3(lx, ly, lz))
-            if (pts.length < 2) return
-            const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.06)
-            const tube = new THREE.Mesh(
-              new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.16, 4, false),
-              provMat
-            )
-            tube.renderOrder = 2
-            scene.add(tube)
+
+            // 断开条件有两条：
+            // ① 点落在海里（高程低于海平面）—— 新高程图范围扩到 136°E 后，
+            //    远海 DEM 偶尔返回正值，光靠地形高度不足以判断，见 ②；
+            // ② 相邻两点跨度过大（> 1.6°）—— 省界本身连续，如此大的跳变只可能来自
+            //    抽稀后的错误连线（岛屿与大陆、南海诸岛与台湾），必须断开，
+            //    否则曲线会横穿东海/台湾海峡，也就是截图里那些「悬在海上的蓝色虚线」。
+            const MAX_STEP = 1.6
+            const runs = []
+            let cur = []
+            let prev = null
+            raw.forEach(pt => {
+              const x = worldX(pt[0])
+              const z = worldZ(pt[1])
+              const y = groundY(x, z)
+              const sea = y < 0.1
+              const jump = prev && (Math.abs(pt[0] - prev[0]) > MAX_STEP || Math.abs(pt[1] - prev[1]) > MAX_STEP)
+              if (sea || jump) {
+                if (cur.length >= 3) runs.push(cur)
+                cur = []
+                if (jump) prev = null
+                if (!sea) { cur.push(new THREE.Vector3(x, y + 0.12, z)); prev = pt }
+                return
+              }
+              cur.push(new THREE.Vector3(x, y + 0.12, z))
+              prev = pt
+            })
+            if (cur.length >= 3) runs.push(cur)
+
+            runs.forEach(run => {
+              // 张力压到 0.02：越接近折线越贴合真实边界，避免平滑冲出海岸
+              const curve = new THREE.CatmullRomCurve3(run, false, 'catmullrom', 0.02)
+              const tube = new THREE.Mesh(
+                new THREE.TubeGeometry(curve, Math.min(run.length * 2, 220), 0.19, 4, false),
+                provMat
+              )
+              tube.renderOrder = 2
+              scene.add(tube)
+            })
           })
         })
 
@@ -693,6 +720,16 @@ function cityLabelSprite(text) {
         transparent: true, opacity: 0.2, side: THREE.DoubleSide,
         depthWrite: false, fog: false
       })
+      // 海域高度钳制：根据地是示意多边形，会伸到海岸线外。
+      // 直接贴地形高度会把红色扇形摊在东海/台湾海峡上（截图里福建东侧那片红），
+      // 所以海上顶点压到海平面，且整块三角形都在海上就跳过不画。
+      const SEA_Y = 0.03
+      // 注意：海上的点不能再 +0.16，否则永远高于 SEA_Y，下面「跳过海上扇形」的判断
+      // 就永远不成立 —— 这正是红色扇形摊到福建以东海面上的原因。
+      const clampY = (x, z) => {
+        const g = groundY(x, z)
+        return g < 0.06 ? SEA_Y : g + 0.16
+      }
       ;(FACTION.bases || []).forEach(b => {
         const ring = b.ring
         if (!ring || ring.length < 3) return
@@ -701,7 +738,7 @@ function cityLabelSprite(text) {
         ring.forEach(p => { cx += worldX(p[0]); cz += worldZ(p[1]) })
         cx /= ring.length
         cz /= ring.length
-        const cy = groundY(cx, cz) + 0.16
+        const cy = clampY(cx, cz)
         const pos = []
         for (let i = 0; i < ring.length; i++) {
           const p = ring[i]
@@ -710,10 +747,17 @@ function cityLabelSprite(text) {
           const pz = worldZ(p[1])
           const qx = worldX(q[0])
           const qz = worldZ(q[1])
+          const py = clampY(px, pz)
+          const qy = clampY(qx, qz)
+          // 任一顶点落在海上就跳过这一块扇形：
+          // 根据地是示意多边形，压到海岸线外的那部分是「画出海面的红块」的根源，
+          // 只钳高度不够 —— 三角形仍会摊在海面上，必须整块不画。
+          if (py <= SEA_Y || qy <= SEA_Y) continue
           pos.push(cx, cy, cz)
-          pos.push(px, groundY(px, pz) + 0.16, pz)
-          pos.push(qx, groundY(qx, qz) + 0.16, qz)
+          pos.push(px, py, pz)
+          pos.push(qx, qy, qz)
         }
+        if (!pos.length) return
         const geo = new THREE.BufferGeometry()
         geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
         geo.computeVertexNormals()
