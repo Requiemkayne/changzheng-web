@@ -374,55 +374,35 @@
             if (seen.has(fwd) || seen.has(rev)) return
             seen.add(fwd)
 
-            // 抽稀一半（保留末点），再按「陆地块」切开 —— 关键：
-            // 原来遇到海域点直接 return，会把整段截断后用剩余点硬连曲线，
-            // 于是海边出现横跨海面的蓝虚线（东海、台湾海峡、渤海都有）。
-            // 现在改为遇海即断，每块陆地单独成线，绝不跨海连点。
-            const raw = []
-            for (let i = 0; i < seg.length; i += 2) raw.push(seg[i])
-            const lastPt = seg[seg.length - 1]
-            if (raw.length === 0 || raw[raw.length - 1][0] !== lastPt[0] || raw[raw.length - 1][1] !== lastPt[1]) {
-              raw.push(lastPt)
+            // 省界数据本身是闭合多边形（332 段首尾重合），沿海段就是海岸线，
+            // 因此直接按原始点连成完整闭合曲线：不做海域断开、也不做跨度断开 ——
+            // 一断，沿海省就会缺一段（看起来像「省界没画完」）。
+            // 真正的跨海 bug 来自早先「遇海点 return 截断 + 终点强行补点」，
+            // 这里既不截断也不补点，曲线自然沿真实边界走。
+            const run = []
+            for (let i = 0; i < seg.length; i += 2) {
+              const x = worldX(seg[i][0])
+              const z = worldZ(seg[i][1])
+              // 沿海点落在海平面上，抬 0.12 贴住地形，避免半截埋进地面
+              run.push(new THREE.Vector3(x, Math.max(0.12, groundY(x, z) + 0.12), z))
             }
-
-            // 断开条件有两条：
-            // ① 点落在海里（高程低于海平面）—— 新高程图范围扩到 136°E 后，
-            //    远海 DEM 偶尔返回正值，光靠地形高度不足以判断，见 ②；
-            // ② 相邻两点跨度过大（> 1.6°）—— 省界本身连续，如此大的跳变只可能来自
-            //    抽稀后的错误连线（岛屿与大陆、南海诸岛与台湾），必须断开，
-            //    否则曲线会横穿东海/台湾海峡，也就是截图里那些「悬在海上的蓝色虚线」。
-            const MAX_STEP = 1.6
-            const runs = []
-            let cur = []
-            let prev = null
-            raw.forEach(pt => {
-              const x = worldX(pt[0])
-              const z = worldZ(pt[1])
-              const y = groundY(x, z)
-              const sea = y < 0.1
-              const jump = prev && (Math.abs(pt[0] - prev[0]) > MAX_STEP || Math.abs(pt[1] - prev[1]) > MAX_STEP)
-              if (sea || jump) {
-                if (cur.length >= 3) runs.push(cur)
-                cur = []
-                if (jump) prev = null
-                if (!sea) { cur.push(new THREE.Vector3(x, y + 0.12, z)); prev = pt }
-                return
-              }
-              cur.push(new THREE.Vector3(x, y + 0.12, z))
-              prev = pt
-            })
-            if (cur.length >= 3) runs.push(cur)
-
-            runs.forEach(run => {
-              // 张力压到 0.02：越接近折线越贴合真实边界，避免平滑冲出海岸
-              const curve = new THREE.CatmullRomCurve3(run, false, 'catmullrom', 0.02)
-              const tube = new THREE.Mesh(
-                new THREE.TubeGeometry(curve, Math.min(run.length * 2, 220), 0.19, 4, false),
-                provMat
-              )
-              tube.renderOrder = 2
-              scene.add(tube)
-            })
+            // 抽稀可能丢掉闭合点：补回末点，保证首尾相接
+            const tailPt = seg[seg.length - 1]
+            const tx = worldX(tailPt[0])
+            const tz = worldZ(tailPt[1])
+            const tail = run[run.length - 1]
+            if (!tail || Math.abs(tail.x - tx) > 1e-6 || Math.abs(tail.z - tz) > 1e-6) {
+              run.push(new THREE.Vector3(tx, Math.max(0.12, groundY(tx, tz) + 0.12), tz))
+            }
+            if (run.length < 3) return
+            // 张力压到 0.02：越接近折线越贴合真实边界，避免平滑冲出海岸
+            const curve = new THREE.CatmullRomCurve3(run, false, 'catmullrom', 0.02)
+            const tube = new THREE.Mesh(
+              new THREE.TubeGeometry(curve, Math.min(run.length * 2, 220), 0.19, 4, false),
+              provMat
+            )
+            tube.renderOrder = 2
+            scene.add(tube)
           })
         })
 
