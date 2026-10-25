@@ -7,6 +7,7 @@
 说明：只需在联网环境跑一次；浏览器端只读本地 PNG，运行时不联网。
 """
 import io
+import time
 import json
 import math
 import os
@@ -16,11 +17,13 @@ import numpy as np
 from PIL import Image
 
 Z = 6
-LNG0, LNG1 = 80.0, 140.0       # 大范围：让 3D 沙盘铺满视野，不露纸边
-LAT0, LAT1 = 0.0, 60.0
-OUT_W = 1200                    # 输出分辨率（范围变大，需更高分辨率保住细节）
+# 与 js/map-provinces.js 完全一致：73–136°E / 3–54.5°N
+# 之前是 80–140 / 0–60，新疆西缘与南海诸岛落在图外，省界会画到地形之外
+LNG0, LNG1 = 73.0, 136.0
+LAT0, LAT1 = 3.0, 54.5
+OUT_W = 1400                    # 范围收敛后提高分辨率，保住地形细节
 
-OUT_DIR = os.path.join(os.path.dirname(__file__), '..', '..', '..', 'assets', 'map3d')
+OUT_DIR = os.path.join(os.path.dirname(__file__), '..', 'assets', 'map3d')
 
 
 def lon2px(lon, z):
@@ -33,9 +36,24 @@ def lat2px(lat, z):
 
 
 def fetch(tx, ty):
+    """下载一块地形瓦片；本机 SSL 偶发 UNEXPECTED_EOF，故带重试并用 curl 兜底"""
     url = f'https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{Z}/{tx}/{ty}.png'
-    with urllib.request.urlopen(url, timeout=30) as r:
-        return np.asarray(Image.open(io.BytesIO(r.read())).convert('RGB'), dtype=np.float32)
+    last = None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(url, timeout=30) as r:
+                return np.asarray(Image.open(io.BytesIO(r.read())).convert('RGB'), dtype=np.float32)
+        except Exception as e:      # noqa: BLE001 - 网络问题统一重试
+            last = e
+            time.sleep(1.5 * (attempt + 1))
+    # 兜底：curl 走系统 TLS 栈，往往比 Python 的 ssl 稳
+    try:
+        tmp = os.path.join(os.path.dirname(__file__), '_tile.png')
+        subprocess.run(['curl.exe', '-s', '-f', '--max-time', '40', '-o', tmp, url], check=True)
+        with open(tmp, 'rb') as f:
+            return np.asarray(Image.open(io.BytesIO(f.read())).convert('RGB'), dtype=np.float32)
+    except Exception:
+        raise last
 
 
 def main():

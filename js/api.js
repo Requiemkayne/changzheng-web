@@ -27,9 +27,50 @@
   const REQUEST_TIMEOUT = 10000    // 请求超时（ms）
   const DEFAULT_PASS_SCORE = 60    // meta 缺 passScore 时的回落值
 
-  // 答案题库仅在 mock 模式被加载（见 js/mock/loader.js），http 模式下为 undefined：
-  // 兜底成空数组，保证任何读取路径都不会因为缺文件而抛异常
-  const mockQuestions = mockQuestionsDoc || []
+  // 答案题库：mock 模式下按需加载（见 ensureQuestions）。
+  // 首屏不再注入整包题库，避免页面源码里直接看到全部题目与答案。
+  let mockQuestions = mockQuestionsDoc || []
+  let questionsReady = !!mockQuestionsDoc
+  let questionsLoading = null
+
+  /** 取题库（mock 模式首次取题/交卷时触发；http 模式不会走到这里） */
+  function ensureQuestions() {
+    if (questionsReady) return Promise.resolve(mockQuestions)
+    if (questionsLoading) return questionsLoading
+    questionsLoading = new Promise(resolve => {
+      // file:// 场景由 loader.js 同步注入，直接读全局即可
+      if (mockQuestionsDoc && mockQuestionsDoc.length) {
+        mockQuestions = mockQuestionsDoc
+        questionsReady = true
+        resolve(mockQuestions)
+        return
+      }
+      var proto2 = (typeof location !== 'undefined' && location.protocol) || ''
+      if (typeof document === 'undefined' || proto2 === 'file:') {
+        // 没有 fetch 能力：��能返回空数组，调用方按「无题」处理
+        questionsReady = true
+        resolve(mockQuestions)
+        return
+      }
+      const sc = document.createElement('script')
+      sc.src = 'js/mock/questions.js'
+      sc.onload = () => {
+        const g = typeof self !== 'undefined' ? self : (typeof window !== 'undefined' ? window : {})
+        mockQuestions = g.CZ_MOCK_QUESTIONS || []
+        questionsReady = true
+        resolve(mockQuestions)
+      }
+      sc.onerror = () => {
+        questionsReady = true
+        resolve(mockQuestions)
+      }
+      document.head.appendChild(sc)
+    }).then(list => {
+      questionsLoading = null
+      return list
+    })
+    return questionsLoading
+  }
 
   /* ================= 存储抽象（浏览器 localStorage；node 测试用内存兜底） ================= */
 
@@ -390,7 +431,7 @@
    */
   function getQuiz(mode, code) {
     if (config.USE_MOCK) {
-      return getConfig().then(cfg => {
+      return ensureQuestions().then(() => getConfig()).then(cfg => {
         return getNodes().then(nodes => {
           const p = mockProgress()
           const states = progressUtil.computeStates(nodes, p, cfg)
@@ -444,7 +485,7 @@
    */
   function submitQuiz(mode, code, answers) {
     if (config.USE_MOCK) {
-      return getConfig().then(cfg => {
+      return ensureQuestions().then(() => getConfig()).then(cfg => {
         return getNodes().then(nodes => {
           const p = mockProgress()
           const states = progressUtil.computeStates(nodes, p, cfg)
@@ -539,7 +580,7 @@
   /** 竞赛状态（解锁 / 我的成绩 / 题库规模） */
   function contestStatus() {
     if (config.USE_MOCK) {
-      return getConfig().then(cfg => {
+      return ensureQuestions().then(() => getConfig()).then(cfg => {
         return getNodes().then(nodes => {
           const p = mockProgress()
           const states = progressUtil.computeStates(nodes, p, cfg)

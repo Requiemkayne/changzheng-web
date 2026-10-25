@@ -214,6 +214,26 @@
     return html
   }
 
+  /** 城市：省会/首府、直辖市、长征重点城市。点 + 小字，压在省名之上、路线之下 */
+  function cityLabels() {
+    const list = root.CZ_MAP_CITIES
+    if (!list || !list.length) return ''
+    let html = ''
+    list.forEach(ct => {
+      if (!ct.c) return
+      const xy = geo(ct.c[0], ct.c[1])
+      const cx = xy[0]
+      const cy = xy[1]
+      if (cx < 18 || cx > W - 18 || cy < 24 || cy > H - 18) return
+      const cls = 'map-city map-city-' + (ct.lv || 'capital')
+      const r = ct.lv === 'municipality' ? 2.1 : (ct.lv === 'key' ? 1.5 : 1.7)
+      html += '<circle class="' + cls + '-dot" cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + r + '"/>' +
+        '<text class="' + cls + '" x="' + (cx + 3.2).toFixed(1) + '" y="' + (cy + 2.4).toFixed(1) + '">' +
+        F.escapeHtml(ct.name) + '</text>'
+    })
+    return html
+  }
+
   /* ---------- 渲染 ---------- */
 
   function renderMap(rootEl, nodes, states) {
@@ -441,6 +461,7 @@
             ENEMY_ZONES.map(d => '<path class="map-enemy-zone" d="' + d + '"/>').join('') +
             PROVINCE_FALLBACK.map(d => '<path class="map-province" d="' + d + '"/>').join('') +
             (PROV_DATA && PROV_DATA.length ? provinceLabels() : '') +
+        cityLabels() +
             RIVERS.map(d => '<path class="map-river" d="' + d + '"/>').join('') +
             MOUNTAINS.map(m =>
               '<path class="map-mountain" d="M' + (m[0] - 7) + ' ' + (m[1] + 4) + ' L' + m[0] + ' ' + (m[1] - 6) + ' L' + (m[0] + 7) + ' ' + (m[1] + 4) + ' Z"/>'
@@ -449,7 +470,7 @@
             ALLY_ROUTES.map(r =>
               '<path class="map-route-ally ally-' + r.key + '" d="' + r.d + '"' +
               ' stroke="' + r.color + '"' +
-              (r.dashed ? ' stroke-dasharray="5 3"' : '') +
+              (r.dashed ? ' stroke-dasharray="5.4 1.8"' : '') +
               ' marker-end="url(#arrowAlly-' + r.key + ')"/>'
             ).join('') +
             // 国军封锁线与追堵方向

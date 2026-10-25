@@ -14,7 +14,7 @@
 ;(function (root) {
   const DEM_PATH = 'assets/map3d/heightmap.png'
   const DEM = {
-    lngMin: 80.0, lngMax: 140.0, latMin: 0.0, latMax: 60.0,
+    lngMin: 73.0, lngMax: 136.0, latMin: 3.0, latMax: 54.5,
     elevMin: 0, elevMax: 6000
   }
 
@@ -348,12 +348,12 @@
           cv.height = H
           const c = cv.getContext('2d')
           c.fillStyle = '#1E4A78'
-          c.fillRect(0, 0, 19, H)
+          c.fillRect(0, 0, 24, H)  // 32px 周期里 24 实 8 空，空隙比原来 19/13 短
           const tex = new THREE.CanvasTexture(cv)
           tex.wrapS = THREE.RepeatWrapping
           tex.wrapT = THREE.ClampToEdgeWrapping
           tex.encoding = THREE.sRGBEncoding
-          tex.repeat.set(18, 1)
+          tex.repeat.set(24, 1)
           return tex
         })()
         const provMat = new THREE.MeshBasicMaterial({
@@ -411,6 +411,22 @@
           sp.position.set(lx, ly + 1.4, lz)
           scene.add(sp)
         })
+
+        // 城市：直辖市 / 省会首府 / 长征重点城市，字号比省名小、偏暖，不抢省名
+        const cityData = root.CZ_MAP_CITIES
+        if (cityData && cityData.length) {
+          cityData.forEach(ct => {
+            if (!ct.c) return
+            const cx = worldX(ct.c[0])
+            const cz = worldZ(ct.c[1])
+            const cy = groundY(cx, cz)
+            if (cy < 0.05) return
+            const sp = cityLabelSprite(ct.name)
+            if (!sp) return
+            sp.position.set(cx, cy + (ct.lv === 'key' ? 1.95 : 2.25), cz)
+            scene.add(sp)
+          })
+        }
       }
 
       // 远景"雾色围裙"：比图幅大得多，任何越界处都落进雾里，而不是露出空白
@@ -486,7 +502,39 @@
       return sp
     }
 
-    /* ---------- 省名标签（白色文字 + 深色描边） ---------- */
+    /* ---------- 城市标签（比省名小、偏暖，只标省会与重点城市） ---------- */
+function cityLabelSprite(text) {
+  const short = String(text || '').replace(/市$/, '')
+  if (!short) return null
+  const FS = 30
+  const PAD = 8
+  const cv = document.createElement('canvas')
+  let c = cv.getContext('2d')
+  c.font = '700 ' + FS + 'px "Noto Serif SC", serif'
+  const tw = Math.ceil(c.measureText(short).width)
+  cv.width = tw + PAD * 2
+  cv.height = FS + PAD * 2
+  c = cv.getContext('2d')
+  c.font = '700 ' + FS + 'px "Noto Serif SC", serif'
+  c.textAlign = 'center'
+  c.textBaseline = 'middle'
+  c.lineWidth = 6
+  c.strokeStyle = 'rgba(38,28,18,0.72)'
+  c.strokeText(short, cv.width / 2, cv.height / 2)
+  c.fillStyle = '#FFE9B8'
+  c.fillText(short, cv.width / 2, cv.height / 2)
+  const tex = new THREE.CanvasTexture(cv)
+  tex.encoding = THREE.sRGBEncoding
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: tex, transparent: true, depthWrite: false, depthTest: false, fog: false
+  }))
+  const hUnit = 1.5
+  sp.scale.set(hUnit * cv.width / cv.height, hUnit, 1)
+  sp.renderOrder = 7
+  return sp
+}
+
+/* ---------- 省名标签（白色文字 + 深色描边） ---------- */
     function provinceLabelSprite(text) {
       const short = String(text || '')
         .replace(/(壮族|回族|维吾尔|特别)?自治区$/, '')
@@ -530,7 +578,7 @@
       cv.height = H
       const c = cv.getContext('2d')
       c.fillStyle = color || '#D95555'
-      c.fillRect(0, 0, 40, H)
+      c.fillRect(0, 0, 48, H)
       const tex = new THREE.CanvasTexture(cv)
       tex.wrapS = THREE.RepeatWrapping
       tex.wrapT = THREE.ClampToEdgeWrapping
