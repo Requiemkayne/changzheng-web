@@ -308,33 +308,11 @@
       water.position.y = -0.02
       scene.add(water)
 
-      // 海岸线：相邻顶点跨越海平面处补一段亮线，边界一眼可辨
-      const W = seg + 1
-      const segs = []
-      const isSea = idx => pos.getY(idx) < -0.5
-      for (let r = 0; r < W; r++) {
-        for (let c = 0; c < W; c++) {
-          const i0 = r * W + c
-          if (c + 1 < W) {
-            const i1 = i0 + 1
-            if (isSea(i0) !== isSea(i1)) {
-              segs.push(pos.getX(i0), 0.06, pos.getZ(i0), pos.getX(i1), 0.06, pos.getZ(i1))
-            }
-          }
-          if (r + 1 < W) {
-            const i1 = i0 + W
-            if (isSea(i0) !== isSea(i1)) {
-              segs.push(pos.getX(i0), 0.06, pos.getZ(i0), pos.getX(i1), 0.06, pos.getZ(i1))
-            }
-          }
-        }
-      }
-      const coastGeo = new THREE.BufferGeometry()
-      coastGeo.setAttribute('position', new THREE.Float32BufferAttribute(segs, 3))
-      scene.add(new THREE.LineSegments(coastGeo, new THREE.LineBasicMaterial({
-        color: new THREE.Color('#EFE2C0').convertSRGBToLinear(),
-        transparent: true, opacity: 0.46
-      })))
+      // 海岸线已移除：
+      // 这段是按 1400×1383 的地形网格逐格比对海陆画出来的，本质是像素级锯齿，
+      // 在高程图上还原不出真实岸线，反而会在黄海/东海海面绕出一堆碎线，
+      // 看起来像「省界画到海上」。省界数据（332 段闭合多边形）本身含沿海段，
+      // 岸线轮廓由省界提供，不再需要这条额外的海岸线。
 
       // 省界：蓝色管状线（真正有粗细），贴着地形走，不压主路线
       const provData = root.CZ_MAP_PROVINCES
@@ -380,7 +358,10 @@
             // 真正的跨海 bug 来自早先「遇海点 return 截断 + 终点强行补点」，
             // 这里既不截断也不补点，曲线自然沿真实边界走。
             const run = []
-            for (let i = 0; i < seg.length; i += 2) {
+            // 不抽稀：每 2 点取 1 会让稀疏段（岛屿、半岛尖端）过度平滑，
+            // CatmullRom 会在点与点之间冲出海岸线，看起来就是「海里多出的蓝虚线」。
+            // 全量点虽然多，但 Tube 分段已按点数封顶 220，性能可接受。
+            for (let i = 0; i < seg.length; i += 1) {
               const x = worldX(seg[i][0])
               const z = worldZ(seg[i][1])
               // 沿海点落在海平面上，抬 0.12 贴住地形，避免半截埋进地面
