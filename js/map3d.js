@@ -1433,16 +1433,17 @@ function cityLabelSprite(text) {
       return Math.min(240, Math.max(78, need / Math.tan(hFov / 2)))
     }
 
-    // 按当前俯角算出"地平线不会越过图幅边缘"的最大距离，超出就自动收回。
-    // 这样放宽了缩放范围也不会露出空白。
+    // 缩放范围只由 zoom 自己决定（0.7–1.12），不再按俯角反向压。
+    //
+    // 早先这里用「地平线不出图幅边缘」反算 maxZoom = maxD / baseDist()，
+    // 而 need 提到 88 后 baseDist 变成约 160，maxD 只有 147 →
+    // maxZoom 算成 0.92，把初始 zoom=1 直接压掉，表现就是「缩放出错」：
+    // 滚轮只能在 0.7–0.92 之间动，且一进 3D 就被强制拉近。
+    //
+    // 地平线越过图幅边缘时本来就有「雾色围裙」兜底（与页面底色同色），
+    // 不会露白，不需要这个约束。
     function fitZoom() {
-      const halfDepth = SIZE_Z / 2 - 4
-      const theta = Math.max(0.06, pitch - camera.fov * Math.PI / 360)
-      const denom = Math.sin(pitch) / Math.tan(theta) - Math.cos(pitch)
-      if (denom <= 0.0001) return
-      const maxD = halfDepth / denom
-      const maxZoom = Math.min(1.12, maxD / baseDist())
-      if (zoom > maxZoom) zoom = Math.max(0.45, maxZoom)
+      zoom = Math.max(0.7, Math.min(1.12, zoom))
     }
 
     // 镜头对准「路线包围盒中心」而不是图幅中心——地形比路线大得多，
