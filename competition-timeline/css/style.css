@@ -327,7 +327,13 @@ b, time, dd { font-variant-numeric: tabular-nums; }
   border-left: 3px solid var(--gold);
 }
 .intro .block-title { margin-top: 0; }
-.intro p {
+/* 引言之外的正文块（总览页「学校重视与保障」段）：共用同一套正文排版；
+   不挂引言那根金色竖线，也没有首字下沉 */
+.copy-block { margin: 0 0 30px; }
+.copy-block .figure { margin: 0 0 14px; }
+
+.intro p,
+.copy-block p {
   font-size: 16.5px;
   line-height: 1.95;
   color: #3E3128;

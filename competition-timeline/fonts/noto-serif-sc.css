@@ -4,19 +4,19 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url(noto-serif-sc-400.woff2?v=15) format('woff2');
+  src: url(noto-serif-sc-400.woff2?v=16) format('woff2');
 }
 @font-face {
   font-family: 'Noto Serif SC';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url(noto-serif-sc-700.woff2?v=15) format('woff2');
+  src: url(noto-serif-sc-700.woff2?v=16) format('woff2');
 }
 @font-face {
   font-family: 'Noto Serif SC';
   font-style: normal;
   font-weight: 900;
   font-display: swap;
-  src: url(noto-serif-sc-900.woff2?v=15) format('woff2');
+  src: url(noto-serif-sc-900.woff2?v=16) format('woff2');
 }
