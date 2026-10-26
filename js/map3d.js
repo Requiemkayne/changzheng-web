@@ -287,9 +287,12 @@ function clampYaw(v) {
           tmp.copy(SEA_BED)                    // 海床沉到水面以下
           pos.setY(i, SEA_FLOOR)
         } else {
-          tmp.copy(tintByClimate(biomeColor(elev + jitter), elev, x, z))
+          // 100 m 以下视作同一档低地：DEM 8 位量化（约 25 m/级）在平原上
+        // 会产生台阶，逐级取色就显成条纹；压平后平原是整片低地色。
+        const elevForColor = elev < 100 ? 40 : elev
+        tmp.copy(tintByClimate(biomeColor(elevForColor + jitter), elevForColor, x, z))
           // 近岸浅滩染沙色，强化陆地与水的分界
-          if (elev < 30) tmp.lerp(BEACH, (1 - elev / 30) * 0.55)
+          if (elev < 8) tmp.lerp(BEACH, (1 - elev / 8) * 0.5)
           // 坡度 + 曲率明暗：陡坡压暗；山脊提亮、沟谷加深，立体感更明确
           const st = 0.0032
           const hL = elevAt(u - st, v), hR = elevAt(u + st, v)
