@@ -86,8 +86,10 @@ def main():
     img = Image.fromarray(crop.astype(np.float32), mode='F').resize((OUT_W, out_h), Image.BILINEAR)
     arr = np.asarray(img, dtype=np.float32)
 
-    e_min, e_max = 0.0, 6000.0   # 固定 0~6000 m，保证雪线、配色在任何范围下一致
-    norm = np.clip((arr - e_min) / max(1.0, e_max - e_min), 0, 1)
+    # 保留海平面以下：海底取到 -500 m 就够（再深也只是同一个色），
+    # 这样 0 m 以上是陆地、0 m 以下是海，平原与海才不会混在一起。
+    e_min, e_max = -500.0, 6000.0
+    norm = np.clip((arr - e_min) / (e_max - e_min), 0, 1)
     gray = (norm * 255.0).round().astype(np.uint8)
 
     png_path = os.path.join(OUT_DIR, 'heightmap.png')

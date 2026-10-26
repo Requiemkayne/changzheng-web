@@ -15,7 +15,7 @@
   const DEM_PATH = 'assets/map3d/heightmap.png'
   const DEM = {
     lngMin: 73.0, lngMax: 136.0, latMin: 3.0, latMax: 54.5,
-    elevMin: 0, elevMax: 6000
+    elevMin: -500, elevMax: 6000     // 保留海底负值，海与平原才分得开
   }
 
   const K = 3.4                      // 每经度世界单位（比桌面版更紧凑）
@@ -204,7 +204,8 @@ function clampYaw(v) {
     }
     const uvX = x => x / SIZE_X + 0.5
     const uvZ = z => z / SIZE_Z + 0.5
-    const groundY = (x, z) => hAt(uvX(x), uvZ(z)) * 6000 * ELEV_SCALE
+    const elevAt = (u, v) => hAt(u, v) * (DEM.elevMax - DEM.elevMin) + DEM.elevMin
+    const groundY = (x, z) => Math.max(0.04, Math.max(0, elevAt(uvX(x), uvZ(z))) * ELEV_SCALE)
     const worldX = lng => (lng - LNG_C) * K
     const worldZ = lat => -(mercY(lat) - mercY(LAT_C)) * R2D * K
 
@@ -274,26 +275,27 @@ function clampYaw(v) {
       for (let i = 0; i < pos.count; i++) {
         const x = pos.getX(i), z = pos.getZ(i)
         const u = uvX(x), v = uvZ(z)
-        const t = hAt(u, v)
-        const elev = t * 6000                    // 米
+        const elev = elevAt(u, v)                // 米（负数＝海平面以下）
         const d = Math.min(u, 1 - u, v, 1 - v)
         const lift = smooth(Math.min(1, Math.max(0, d / EDGE)))
         pos.setY(i, elev * ELEV_SCALE * lift)
         // 轻微噪声打散色带，避免等高线式硬边
         const jitter = (Math.sin(x * 0.7) + Math.cos(z * 0.9)) * 60
-        if (elev < 3) {
+        // 0 m 以下才是海。原来用 3 m，把华北平原、江苏平原、辽河平原
+        // （海拔 0–3 m）整片压到水面以下，陆地看起来缺失。
+        if (elev < 0) {
           tmp.copy(SEA_BED)                    // 海床沉到水面以下
           pos.setY(i, SEA_FLOOR)
         } else {
           tmp.copy(tintByClimate(biomeColor(elev + jitter), elev, x, z))
           // 近岸浅滩染沙色，强化陆地与水的分界
-          if (elev < 220) tmp.lerp(BEACH, (1 - elev / 220) * 0.62)
+          if (elev < 30) tmp.lerp(BEACH, (1 - elev / 30) * 0.55)
           // 坡度 + 曲率明暗：陡坡压暗；山脊提亮、沟谷加深，立体感更明确
           const st = 0.0032
-          const hL = hAt(u - st, v), hR = hAt(u + st, v)
-          const hD = hAt(u, v - st), hU = hAt(u, v + st)
-          const grad = Math.hypot(hR - hL, hU - hD) * 6000
-          const lap = ((hL + hR + hD + hU) * 0.25 - hAt(u, v)) * 6000
+          const hL = elevAt(u - st, v), hR = elevAt(u + st, v)
+          const hD = elevAt(u, v - st), hU = elevAt(u, v + st)
+          const grad = Math.hypot(hR - hL, hU - hD)
+          const lap = (hL + hR + hD + hU) * 0.25 - elev
           let shade = 1 - Math.min(0.2, grad * 0.0016)
           shade += Math.max(-0.13, Math.min(0.13, -lap * 0.02))
           tmp.multiplyScalar(Math.max(0.55, shade))
@@ -316,7 +318,9 @@ function clampYaw(v) {
         })
       )
       water.rotation.x = -Math.PI / 2
-      water.position.y = -0.02
+      // 水面必须明显低于平原地面（海拔 0–10 m ≈ 0–0.016 世界单位），
+      // 否则半透明水面会把华北/江苏平原整片盖成「海」。
+      water.position.y = -0.5
       scene.add(water)
 
       // 海岸线已移除：
