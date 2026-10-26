@@ -412,6 +412,16 @@ function clampYaw(v) {
           return tex
         }
         
+        // 海岸线描边：深蓝灰，给白线垫一层对比
+        const coastEdgeMat = new THREE.MeshBasicMaterial({
+          map: makeDashTex('#5A7796'),
+          transparent: true,
+          opacity: 0.75,
+          alphaTest: 0.22,
+          depthWrite: false,
+          fog: false
+        })
+
         // 海岸线外框：白色粗虚线
         const coastMat = new THREE.MeshBasicMaterial({
           map: makeDashTex('#FFFDF5'),
@@ -431,11 +441,21 @@ function clampYaw(v) {
           if (pts.length < 2) return
           const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.02)
           if (role === 'coast') {
+            // 双层：外层深蓝灰做描边、内层白色做本体。
+            // 单层白线在米白迷雾上没有对比（江苏、上海正好在浓雾里，
+            // 白线会被「洗没」，看起来就是陆地缺口）。
+            const edge = new THREE.Mesh(
+              new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.42, 4, false),
+              coastEdgeMat
+            )
+            edge.renderOrder = 10
+            scene.add(edge)
+
             const coast = new THREE.Mesh(
-              new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.32, 4, false),
+              new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.26, 4, false),
               coastMat
             )
-            coast.renderOrder = 11   // 高于区域迷雾（9）：海岸线要透出来
+            coast.renderOrder = 11
             scene.add(coast)
             return
           }
@@ -487,17 +507,17 @@ function clampYaw(v) {
             // 2 = 海岸线（白）；1 = 内陆外沿国界（蓝）；0 = 两省共享省界（蓝）
             // 岛屿省的内部边也一律算海岸线 —— 否则台湾/海南中部会被判成国界画蓝线，
             // 海面（视觉上包括岛屿）就会出现蓝线。
-            // 外沿（cnt=1）再分两类：
-            //   离海远 → 陆上国界（蓝）
-            //   靠海   → 海岸线（白）
-            // 用大步长 3.0（≈0.9°）判「远离海」：台湾岛宽度不到 1.6°，
-            // 小步长探不到海，会让整岛被误判成国界画蓝线（海面出现蓝线的根源）。
-            const FAR = 3.0
-            let farFromSea = true
+            // 外沿（cnt=1）二分：临海 → 海岸线（白）；内陆 → 国界（蓝）
+            // 判定用小步长 NEAR = 0.5（≈0.15°）：
+            // 之前用大发 FAR = 3.0，江苏这类「全境离海都不到 0.9°」的省份
+            // 会被整体判成内陆国界，海岸段一条白线都不画（江苏陆地看起来缺口）。
+            // 台湾/海南/港澳已在上面按白名单跳过描线，不再需要大发判定兜底。
+            const NEAR = 0.5
+            let coastal = false
             for (let d = 0; d < PROBE.length; d++) {
-              if (groundY(mx + PROBE[d][0] * FAR, mz + PROBE[d][1] * FAR) < SEA) { farFromSea = false; break }
+              if (groundY(mx + PROBE[d][0] * NEAR, mz + PROBE[d][1] * NEAR) < SEA) { coastal = true; break }
             }
-            const type = cnt >= 2 ? 0 : (farFromSea ? 1 : 2)
+            const type = cnt >= 2 ? 0 : (coastal ? 2 : 1)
             if (curPts.length === 0) push(seg[i], type)
             push(seg[i + 1], type)
           }
