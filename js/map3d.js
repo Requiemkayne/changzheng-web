@@ -172,6 +172,17 @@
     let lost = false
     let destroying = false
     const HOME = { yaw: 0.14, pitch: 0.86, zoom: 1 }
+
+// 水平旋转范围：只允许正面偏左右的小角度。
+// 目的：长征路线在图幅中偏西，允许大幅旋转时镜头会扫到东部沿海与台湾，
+// 把不该强调的区域带进画面。±0.40 rad ≈ ±23°。
+const YAW_LIMIT = 0.40
+function clampYaw(v) {
+  let a = v
+  while (a > Math.PI) a -= Math.PI * 2
+  while (a < -Math.PI) a += Math.PI * 2
+  return Math.max(-YAW_LIMIT, Math.min(YAW_LIMIT, a))
+}
     let yaw = HOME.yaw, pitch = HOME.pitch, zoom = HOME.zoom
     let dragging = false, moved = 0, lastX = 0, lastY = 0
     let yawVel = 0, lastTapAt = 0, twoPrev = null
@@ -550,6 +561,71 @@
           })
         }
       }
+
+      // ---------- 区域迷雾：长征主线以外按距离渐白 ----------
+      // 目的：沙盘只交代长征经过的地带，其余省份（含台湾、海南、东北、
+      // 新疆西藏等）一律被雾遮住，视线与缩放也被限制在主线附近。
+      // 实现：一张径向渐变贴图铺在地形之上 —— 中心（路线包围盒）完全透明，
+      // 越往外越接近纸色，最外圈几乎不透。
+      const MIST_CORE = (() => {
+        // 长征节点包围盒，再各向外扩 2°，让主路线周边留一点可读余量
+        let minLng = 999, maxLng = -999, minLat = 999, maxLat = -999
+        nodes.forEach(n => {
+          const lng = lngOf(n), lat = latOf(n)
+          if (lng < minLng) minLng = lng
+          if (lng > maxLng) maxLng = lng
+          if (lat < minLat) minLat = lat
+          if (lat > maxLat) maxLat = lat
+        })
+        return { lng0: minLng - 2.0, lng1: maxLng + 2.0, lat0: minLat - 2.0, lat1: maxLat + 2.0 }
+      })()
+
+      const mistTex = (() => {
+        const W = 512
+        const cv = document.createElement('canvas')
+        cv.width = W
+        cv.height = W
+        const c = cv.getContext('2d')
+
+        const px = lng => (lng - DEM.lngMin) / (DEM.lngMax - DEM.lngMin) * W
+        const py = lat => (DEM.latMax - lat) / (DEM.latMax - DEM.latMin) * W
+
+        const cx = px((MIST_CORE.lng0 + MIST_CORE.lng1) / 2)
+        const cy = py((MIST_CORE.lat0 + MIST_CORE.lat1) / 2)
+        // 透明半径覆盖主线，之后快速过渡到不透明
+        const r0 = Math.max(px(MIST_CORE.lng1) - px(MIST_CORE.lng0), py(MIST_CORE.lat0) - py(MIST_CORE.lat1)) * 0.52
+        const r1 = r0 * 2.5
+
+        c.clearRect(0, 0, W, W)
+        const g = c.createRadialGradient(cx, cy, r0 * 0.55, cx, cy, r1)
+        g.addColorStop(0, 'rgba(247, 240, 223, 0)')
+        g.addColorStop(0.42, 'rgba(247, 240, 223, 0.10)')
+        g.addColorStop(0.68, 'rgba(247, 240, 223, 0.80)')
+        g.addColorStop(0.86, 'rgba(247, 240, 223, 0.95)')
+        g.addColorStop(1, 'rgba(247, 240, 223, 0.99)')
+        c.fillStyle = g
+        c.fillRect(0, 0, W, W)
+
+        const tex = new THREE.CanvasTexture(cv)
+        tex.encoding = THREE.sRGBEncoding
+        return tex
+      })()
+
+      const mist = new THREE.Mesh(
+        new THREE.PlaneGeometry(SIZE_X, SIZE_Z),
+        new THREE.MeshBasicMaterial({
+          map: mistTex,
+          transparent: true,
+          depthWrite: false,
+          depthTest: false,      // 始终压在场景最上层：雾不该被山挡住
+          fog: false
+        })
+      )
+      mist.rotation.x = -Math.PI / 2
+      mist.position.y = 13
+      mist.renderOrder = 9
+      mist.raycast = () => {}    // 不参与拾取，别挡住节点点击
+      scene.add(mist)
 
       // 远景"雾色围裙"：比图幅大得多，任何越界处都落进雾里，而不是露出空白
       const apron = new THREE.Mesh(
@@ -1392,9 +1468,10 @@ function cityLabelSprite(text) {
       // 死区：轻触/微动不转动视角，避免误触把画面带歪
       if (moved < 8) return
 
-      // 水平：自由旋转，但灵敏度调低，滑动更稳
+      // 水平：只允许小幅左右转动（±23°），不再 360° 自由旋转。
+      // 长征路线在图幅偏西，一旦允许大幅旋转，镜头会扫到东部沿海与台湾。
       const k = e.pointerType === 'touch' ? 0.0058 : 0.0038
-      yaw -= dx * k
+      yaw = clampYaw(yaw - dx * k)
       // 惯性很轻：只在明确甩动时给一点点余量，随即停下；减少动态效果下直接不甩
       yawVel = !REDUCED && Math.abs(dx) > 5 ? -dx * k * 0.68 : 0
       // 鼠标还可以用纵向拖拽调俯仰；触摸的纵向留给页面滚动
@@ -1427,7 +1504,7 @@ function cityLabelSprite(text) {
     dom.addEventListener('wheel', e => {
       e.preventDefault()
       yawVel = 0
-      zoom = Math.max(0.7, Math.min(1.55, zoom * (1 + e.deltaY * 0.0008)))
+      zoom = Math.max(0.7, Math.min(1.18, zoom * (1 + e.deltaY * 0.0008)))
       updateCamera()
     }, { passive: false })
 
@@ -1440,7 +1517,7 @@ function cityLabelSprite(text) {
       const midY = (a.clientY + b.clientY) / 2
       if (twoPrev) {
         if (twoPrev.dist > 10 && dist > 10) {
-          zoom = Math.max(0.7, Math.min(1.55, zoom * (twoPrev.dist / dist)))
+          zoom = Math.max(0.7, Math.min(1.18, zoom * (twoPrev.dist / dist)))
         }
         pitch = Math.max(0.72, Math.min(1.38, pitch - (midY - twoPrev.midY) * 0.0038))
         updateCamera()
@@ -1481,7 +1558,7 @@ function cityLabelSprite(text) {
 
         // 松手余量：只保留很短的一点自转，很快停住，避免甩过头
         if (!dragging && Math.abs(yawVel) > 0.0006) {
-          yaw += yawVel
+          yaw = clampYaw(yaw + yawVel)
           yawVel *= 0.85
           updateCamera()
         } else if (!dragging && yawVel) {
