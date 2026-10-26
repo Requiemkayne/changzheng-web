@@ -412,7 +412,7 @@ function clampYaw(v) {
           tex.wrapS = THREE.RepeatWrapping
           tex.wrapT = THREE.ClampToEdgeWrapping
           tex.encoding = THREE.sRGBEncoding
-          tex.repeat.set(24, 1)
+          tex.repeat.set(10, 1)
           return tex
         }
         
@@ -443,20 +443,22 @@ function clampYaw(v) {
         //   role 'coast' → 海岸线：只画白色虚线，绝不叠蓝线（海上要干净）
         const putRun = (pts, role) => {
           if (pts.length < 2) return
-          const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.02)
+          // 张力 0.35：0.02 近似折线，省界点（数据本身简化过 0.04°）的每个拐角
+      // 都会显出毛边；抬高张力让拐角圆润，又不会像 1.0 那样过冲。
+      const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35)
           if (role === 'coast') {
             // 双层：外层深蓝灰做描边、内层白色做本体。
             // 单层白线在米白迷雾上没有对比（江苏、上海正好在浓雾里，
             // 白线会被「洗没」，看起来就是陆地缺口）。
             const edge = new THREE.Mesh(
-              new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.42, 4, false),
+              new THREE.TubeGeometry(curve, Math.min(Math.max(pts.length * 4, 24), 420), 0.42, 5, false),
               coastEdgeMat
             )
             edge.renderOrder = 10
             scene.add(edge)
 
             const coast = new THREE.Mesh(
-              new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.26, 4, false),
+              new THREE.TubeGeometry(curve, Math.min(Math.max(pts.length * 4, 24), 420), 0.26, 6, false),
               coastMat
             )
             coast.renderOrder = 11
@@ -464,7 +466,7 @@ function clampYaw(v) {
             return
           }
           const thin = new THREE.Mesh(
-            new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.19, 4, false),
+            new THREE.TubeGeometry(curve, Math.min(Math.max(pts.length * 4, 24), 420), 0.19, 6, false),
             provMat
           )
           thin.renderOrder = 2
