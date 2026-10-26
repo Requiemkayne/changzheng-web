@@ -1426,11 +1426,15 @@ function cityLabelSprite(text) {
     function baseDist() {
       const aspect = (container.clientWidth || 1) / (container.clientHeight || 1)
       const hFov = 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * aspect)
-      // 视野宽度（世界单位）。34 约合 10° 经度，只覆盖到 113.7°E，
-      // 台湾（120–122°E）压根进不了画面；88 约合 26°，覆盖 95.7–121.7°E，
-      // 台湾边界能完整看到，同时长征主线仍在画面主体。
-      const need = 88
-      return Math.min(240, Math.max(78, need / Math.tan(hFov / 2)))
+      // 视野宽度（世界单位）：70 约合 20.6° 经度，覆盖约 98.4–119.0°E。
+      // 取这个值是为了两头兼顾：
+      //   · 长征主线（101–116°E）占画面主体，不会被缩得太小；
+      //   · 台湾（120–122°E）刚好落在东界之外，完全不出现在画面里。
+      const need = 70
+      // 视野宽度 = 2 · d · tan(hFov/2)，反解距离必须除以 2。
+      // 早先写成 need / tan(hFov/2)，少除了一个 2，实际视野一直是目标值的两倍
+      // （need=70 却铺开 41° 经度，把整幅中国都框进来，台湾自然也进来了）。
+      return Math.min(240, Math.max(50, need / 2 / Math.tan(hFov / 2)))
     }
 
     // 缩放范围只由 zoom 自己决定（0.7–1.12），不再按俯角反向压。
