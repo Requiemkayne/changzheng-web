@@ -469,16 +469,23 @@ function clampYaw(v) {
             return
           }
           const thin = new THREE.Mesh(
-            new THREE.TubeGeometry(curve, Math.min(Math.max(pts.length * 4, 24), 420), 0.19, 6, false),
+            new THREE.TubeGeometry(curve, Math.min(Math.max(pts.length * 4, 24), 420), 0.22, 6, false),
             provMat
           )
-          thin.renderOrder = 2
+          // 11：高于区域迷雾（9），台湾这类雾区省界才透得出来
+          thin.renderOrder = 11
           scene.add(thin)
         }
         
+        // 岛屿省白名单与「按省界描线」名单。
+        // 必须放在 emitSeg 外层：早先写在 provData.forEach 回调里，
+        // emitSeg 引用不到 → ReferenceError，整个 3D 挂不上。
+        const ISLAND_NAMES = { '海南省': 1, '香港特别行政区': 1, '澳门特别行政区': 1 }
+        const PROVINCE_OUTLINE = { '台湾省': 1 }
+
         // 按边类型把折线切成「连续同类段」，再逐段落笔
         // forceCoast = true：岛屿省（台湾、海南等）整圈都是海岸线，只画白线
-        const emitSeg = (seg, forceCoast) => {
+        const emitSeg = (seg, forceCoast, provinceName) => {
           let curType = null
           let curPts = []
           const flush = () => {
@@ -526,7 +533,8 @@ function clampYaw(v) {
             for (let d = 0; d < PROBE.length; d++) {
               if (groundY(mx + PROBE[d][0] * NEAR, mz + PROBE[d][1] * NEAR) < SEA) { coastal = true; break }
             }
-            const type = cnt >= 2 ? 0 : (coastal ? 2 : 1)
+            // 台湾省强制按省界（type 0）绘制，与大陆各省保持一致
+            const type = PROVINCE_OUTLINE[provinceName] ? 0 : (cnt >= 2 ? 0 : (coastal ? 2 : 1))
             if (curPts.length === 0) push(seg[i], type)
             push(seg[i + 1], type)
           }
@@ -542,7 +550,8 @@ function clampYaw(v) {
           // ② 几何判定：整省没有任何一条边与别的省共享（纯孤立多边形）
           // 注意台湾省数据里有少量边与福建重复（14/52），只靠 ② 判不出来，
           // 否则岛内会被当成国界画蓝线。
-          const ISLAND_NAMES = { '台湾省': 1, '海南省': 1, '香港特别行政区': 1, '澳门特别行政区': 1 }
+          // 台湾省要描边界（省级行政区），不放进「整圈海岸线、不描线」的白名单。
+        // 海南、港澳仍按岛屿处理（全在迷雾区，描线只会把轮廓重新暴露）。
           let island = !!ISLAND_NAMES[p.name]
           if (!island) {
             island = true
@@ -562,7 +571,7 @@ function clampYaw(v) {
             const rev = seg.slice().reverse().map(pt => pt[0] + ',' + pt[1]).join('|')
             if (seen.has(fwd) || seen.has(rev)) return
             seen.add(fwd)
-            emitSeg(seg, island)
+            emitSeg(seg, island, p.name)
           })
         })
 
@@ -1409,7 +1418,7 @@ function cityLabelSprite(text) {
       camera.updateProjectionMatrix()
       // 视野收窄：46/40 → 38/32。台湾在图幅东侧 121°E，
       // 长征路线核心在 101–116°E，窄视野下根本不会把它框进来。
-      camera.fov = w / h < 0.8 ? 38 : 32
+      camera.fov = w / h < 0.8 ? 44 : 38
       camera.updateProjectionMatrix()
       updateCamera()
     }
@@ -1417,7 +1426,10 @@ function cityLabelSprite(text) {
     function baseDist() {
       const aspect = (container.clientWidth || 1) / (container.clientHeight || 1)
       const hFov = 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * aspect)
-      const need = 34
+      // 视野宽度（世界单位）。34 约合 10° 经度，只覆盖到 113.7°E，
+      // 台湾（120–122°E）压根进不了画面；88 约合 26°，覆盖 95.7–121.7°E，
+      // 台湾边界能完整看到，同时长征主线仍在画面主体。
+      const need = 88
       return Math.min(240, Math.max(78, need / Math.tan(hFov / 2)))
     }
 
@@ -1429,7 +1441,7 @@ function cityLabelSprite(text) {
       const denom = Math.sin(pitch) / Math.tan(theta) - Math.cos(pitch)
       if (denom <= 0.0001) return
       const maxD = halfDepth / denom
-      const maxZoom = Math.min(1.0, maxD / baseDist())
+      const maxZoom = Math.min(1.12, maxD / baseDist())
       if (zoom > maxZoom) zoom = Math.max(0.45, maxZoom)
     }
 
@@ -1545,7 +1557,7 @@ function cityLabelSprite(text) {
     dom.addEventListener('wheel', e => {
       e.preventDefault()
       yawVel = 0
-      zoom = Math.max(0.7, Math.min(1.0, zoom * (1 + e.deltaY * 0.0008)))
+      zoom = Math.max(0.7, Math.min(1.12, zoom * (1 + e.deltaY * 0.0008)))
       updateCamera()
     }, { passive: false })
 
@@ -1558,7 +1570,7 @@ function cityLabelSprite(text) {
       const midY = (a.clientY + b.clientY) / 2
       if (twoPrev) {
         if (twoPrev.dist > 10 && dist > 10) {
-          zoom = Math.max(0.7, Math.min(1.0, zoom * (twoPrev.dist / dist)))
+          zoom = Math.max(0.7, Math.min(1.12, zoom * (twoPrev.dist / dist)))
         }
         pitch = Math.max(0.72, Math.min(1.38, pitch - (midY - twoPrev.midY) * 0.0038))
         updateCamera()
