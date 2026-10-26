@@ -393,6 +393,8 @@ function clampYaw(v) {
         
         // 边界配色统一为蓝（省界 / 国界 / 沿海段都用它），
         // 海岸线额外套一圈白色粗虚线做「整体外框」，蓝色细线压在白线之上。
+        // 虚线贴图：32px 周期里 27 实 5 空（约 84% 实线）。
+        // 之前 24/8 空隙偏大，叠加细管后沿岸看起来断断续续（反馈「沿海残缺」）。
         const makeDashTex = (color) => {
           const W = 32
           const H = 4
@@ -401,7 +403,7 @@ function clampYaw(v) {
           cv.height = H
           const c = cv.getContext('2d')
           c.fillStyle = color
-          c.fillRect(0, 0, 24, H)
+          c.fillRect(0, 0, 27, H)
           const tex = new THREE.CanvasTexture(cv)
           tex.wrapS = THREE.RepeatWrapping
           tex.wrapT = THREE.ClampToEdgeWrapping
@@ -414,8 +416,8 @@ function clampYaw(v) {
         const coastMat = new THREE.MeshBasicMaterial({
           map: makeDashTex('#FFFDF5'),
           transparent: true,
-          opacity: 0.95,
-          alphaTest: 0.36,
+          opacity: 0.96,
+          alphaTest: 0.22,
           depthWrite: false,
           fog: false
         })
@@ -430,10 +432,10 @@ function clampYaw(v) {
           const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.02)
           if (role === 'coast') {
             const coast = new THREE.Mesh(
-              new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.26, 4, false),
+              new THREE.TubeGeometry(curve, Math.min(pts.length * 2, 220), 0.32, 4, false),
               coastMat
             )
-            coast.renderOrder = 3
+            coast.renderOrder = 11   // 高于区域迷雾（9）：海岸线要透出来
             scene.add(coast)
             return
           }
@@ -522,6 +524,9 @@ function clampYaw(v) {
             })
           }
 
+          // 岛屿省整体落在迷雾区，轮廓不描（白线会把形状重新暴露出来）
+          if (ISLAND_NAMES[p.name]) return
+
           p.segs.forEach(seg => {
             // 同一条边（正反两种走向）只画一次，避免相邻省重复描同一条省界
             const fwd = seg.map(pt => pt[0] + ',' + pt[1]).join('|')
@@ -537,8 +542,13 @@ function clampYaw(v) {
           if (!p.c) return
           const lx = worldX(p.c[0])
           const lz = worldZ(p.c[1])
-          const ly = groundY(lx, lz)
-          if (ly < 0.05) return        // 海上不标
+          // 省名不再按地形高度过滤：
+          // 高程图 1400px 覆盖 63°（约 5 km/像素），上海、江苏、天津这些
+          // 沿海平原的城市中心经常正好落在水域像素上（读数为 0），
+          // 任何高程阈值都会把它们整片删掉（用户反馈「安徽、江苏、上海没名字」）。
+          // 省界中心点一定在陆地上，直接标；只把九段线排除在外。
+          if (p.name === '100000_JD') return
+          const ly = Math.max(0.12, groundY(lx, lz))
           const sp = provinceLabelSprite(p.name)
           if (!sp) return
           sp.position.set(lx, ly + 1.4, lz)
@@ -552,8 +562,8 @@ function clampYaw(v) {
             if (!ct.c) return
             const cx = worldX(ct.c[0])
             const cz = worldZ(ct.c[1])
-            const cy = groundY(cx, cz)
-            if (cy < 0.05) return
+            // 与省名同理：沿海城市中心可能落在水域像素，不做高程过滤
+            const cy = Math.max(0.12, groundY(cx, cz))
             const sp = cityLabelSprite(ct.name)
             if (!sp) return
             sp.position.set(cx, cy + (ct.lv === 'key' ? 1.95 : 2.25), cz)
@@ -728,7 +738,7 @@ function cityLabelSprite(text) {
   }))
   const hUnit = 1.5
   sp.scale.set(hUnit * cv.width / cv.height, hUnit, 1)
-  sp.renderOrder = 7
+  sp.renderOrder = 13   // 同省名：压在区域迷雾之上
   return sp
 }
 
@@ -750,9 +760,9 @@ function cityLabelSprite(text) {
       c.font = '700 ' + FS + 'px "Noto Serif SC", serif'
       c.textAlign = 'center'
       c.textBaseline = 'middle'
-      c.lineWidth = 9
-      c.strokeStyle = 'rgba(38,28,18,0.8)'
-      c.strokeText(short, cv.width / 2, cv.height / 2)
+      // 描边加重：雾区底色是米白，白字几乎融进去，必须靠深描边撑出对比
+      c.lineWidth = 13
+      c.strokeStyle = 'rgba(28,20,12,0.94)'
       c.fillStyle = '#FFFFFF'
       c.fillText(short, cv.width / 2, cv.height / 2)
       const tex = new THREE.CanvasTexture(cv)
@@ -762,7 +772,7 @@ function cityLabelSprite(text) {
       }))
       const hUnit = 2.6
       sp.scale.set(hUnit * cv.width / cv.height, hUnit, 1)
-      sp.renderOrder = 6
+      sp.renderOrder = 12   // 高于区域迷雾（9）：雾只模糊地形，省名仍可读
       return sp
     }
 
@@ -947,7 +957,7 @@ function cityLabelSprite(text) {
         const lx = worldX(l.at[0])
         const lz = worldZ(l.at[1])
         const ly = groundY(lx, lz)
-        if (ly < 0.05) return
+        if (ly < 0.002) return
         const sp = factionLabel(l.label, '#E8F0FA', 'rgba(18, 38, 62, 0.85)')
         if (!sp) return
         sp.position.set(lx, ly + 2.4, lz)
