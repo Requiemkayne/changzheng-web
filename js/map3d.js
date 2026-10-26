@@ -480,8 +480,10 @@ function clampYaw(v) {
         // 岛屿省白名单与「按省界描线」名单。
         // 必须放在 emitSeg 外层：早先写在 provData.forEach 回调里，
         // emitSeg 引用不到 → ReferenceError，整个 3D 挂不上。
-        const ISLAND_NAMES = { '海南省': 1, '香港特别行政区': 1, '澳门特别行政区': 1 }
-        const PROVINCE_OUTLINE = { '台湾省': 1 }
+        const ISLAND_NAMES = { '台湾省': 1, '海南省': 1, '香港特别行政区': 1, '澳门特别行政区': 1 }
+        // 视野扩到 37° 后台湾会落到画面东侧，为了「看不到台湾」，
+        // 它的轮廓不再描线（只靠区域迷雾压住地形）。要显示时把它放回这里即可。
+        const PROVINCE_OUTLINE = {}
 
         // 按边类型把折线切成「连续同类段」，再逐段落笔
         // forceCoast = true：岛屿省（台湾、海南等）整圈都是海岸线，只画白线
@@ -1426,11 +1428,11 @@ function cityLabelSprite(text) {
     function baseDist() {
       const aspect = (container.clientWidth || 1) / (container.clientHeight || 1)
       const hFov = 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * aspect)
-      // 视野宽度（世界单位）：70 约合 20.6° 经度，覆盖约 98.4–119.0°E。
-      // 取这个值是为了两头兼顾：
-      //   · 长征主线（101–116°E）占画面主体，不会被缩得太小；
-      //   · 台湾（120–122°E）刚好落在东界之外，完全不出现在画面里。
-      const need = 70
+      // 视野宽度（世界单位）：126 约合 37° 经度，覆盖约 85–122°E，
+      // 也就是「甘肃西缘 → 福建海岸、海南 → 河北」这一整块可见陆地。
+      // 台湾（120–122°E）落在这一带的最东侧，靠区域迷雾压住（雾 0.8–0.95），
+      // 画面上不会显出岛屿轮廓。
+      const need = 126
       // 视野宽度 = 2 · d · tan(hFov/2)，反解距离必须除以 2。
       // 早先写成 need / tan(hFov/2)，少除了一个 2，实际视野一直是目标值的两倍
       // （need=70 却铺开 41° 经度，把整幅中国都框进来，台湾自然也进来了）。
