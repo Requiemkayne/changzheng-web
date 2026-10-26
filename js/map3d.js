@@ -1407,7 +1407,9 @@ function cityLabelSprite(text) {
       renderer.setSize(w, h, false)
       camera.aspect = w / h
       camera.updateProjectionMatrix()
-      camera.fov = w / h < 0.8 ? 46 : 40
+      // 视野收窄：46/40 → 38/32。台湾在图幅东侧 121°E，
+      // 长征路线核心在 101–116°E，窄视野下根本不会把它框进来。
+      camera.fov = w / h < 0.8 ? 38 : 32
       camera.updateProjectionMatrix()
       updateCamera()
     }
@@ -1427,7 +1429,7 @@ function cityLabelSprite(text) {
       const denom = Math.sin(pitch) / Math.tan(theta) - Math.cos(pitch)
       if (denom <= 0.0001) return
       const maxD = halfDepth / denom
-      const maxZoom = maxD / baseDist()
+      const maxZoom = Math.min(1.0, maxD / baseDist())
       if (zoom > maxZoom) zoom = Math.max(0.45, maxZoom)
     }
 
@@ -1543,7 +1545,7 @@ function cityLabelSprite(text) {
     dom.addEventListener('wheel', e => {
       e.preventDefault()
       yawVel = 0
-      zoom = Math.max(0.7, Math.min(1.18, zoom * (1 + e.deltaY * 0.0008)))
+      zoom = Math.max(0.7, Math.min(1.0, zoom * (1 + e.deltaY * 0.0008)))
       updateCamera()
     }, { passive: false })
 
@@ -1556,7 +1558,7 @@ function cityLabelSprite(text) {
       const midY = (a.clientY + b.clientY) / 2
       if (twoPrev) {
         if (twoPrev.dist > 10 && dist > 10) {
-          zoom = Math.max(0.7, Math.min(1.18, zoom * (twoPrev.dist / dist)))
+          zoom = Math.max(0.7, Math.min(1.0, zoom * (twoPrev.dist / dist)))
         }
         pitch = Math.max(0.72, Math.min(1.38, pitch - (midY - twoPrev.midY) * 0.0038))
         updateCamera()
