@@ -30,6 +30,13 @@
       let meta = null
       let submitting = false
       let isLastNode = false   // 是否 11 节点中的最后一个（完成答题后直达总分结算页）
+      let resultTimer = null   // 末节点结果页 → 总分结算页的自动跳转定时器
+
+      // 末节点结果页停留时长：让用户看完本场对错与得分，再自动进入总分结算
+      const RESULT_AUTO_MS = 2600
+      function clearResultTimer() {
+        if (resultTimer) { clearTimeout(resultTimer); resultTimer = null }
+      }
 
       rootEl.innerHTML = '<div class="page-center">' + UI.icon('lantern', 'page-center-icon') + '<div>正在出题…</div></div>'
 
@@ -129,6 +136,7 @@
       }
 
       function renderQuiz() {
+        clearResultTimer()
         const q = questions[step]
         const typeText = q.type === 'multiple' ? '多选题' : q.type === 'judge' ? '判断题' : '单选题'
         const isLast = step >= questions.length - 1
@@ -372,6 +380,9 @@
             '<h2 class="review-title">答题解析</h2>' +
             review +
           '</div>' +
+          (mode === 'node' && isLastNode
+            ? '<div class="result-auto-tip">已走完全部 11 个节点，正在为你进入总分结算页…</div>'
+            : '') +
           '<div class="quiz-actions">' +
             (mode === 'node'
               ? '<a class="btn btn-primary" href="' + (isLastNode ? '#/result' : '#/') + '">' +
@@ -384,7 +395,7 @@
         // 返回列表：用 button 而非 <a href>，history 为空时也能正确回跳
         const backBtnResult = rootEl.querySelector('.back-link')
         if (backBtnResult) {
-          backBtnResult.addEventListener('click', () => { location.hash = '#/' })
+          backBtnResult.addEventListener('click', () => { clearResultTimer(); location.hash = '#/' })
         }
 
         // 超时交卷时给一句说明，避免用户不知道发生了什么
@@ -397,6 +408,7 @@
         }
 
         rootEl.querySelector('#btn-restart').addEventListener('click', () => {
+          clearResultTimer()
           step = 0; selected = []; submitting = false
           Object.keys(answerMap).forEach(k => delete answerMap[k])
           stopTimer()
@@ -406,12 +418,19 @@
           renderQuiz()
           window.scrollTo(0, 0)
         })
+
+        // 末节点：本场对错与得分展示片刻后自动进入总分结算页（需求：完成最后一个节点答题后直达结算，不回列表）
+        clearResultTimer()
+        if (mode === 'node' && isLastNode) {
+          resultTimer = setTimeout(() => { location.hash = '#/result' }, RESULT_AUTO_MS)
+        }
       }
 
-      // 离开页面：清掉倒计时，避免它在后台继续跑
+      // 离开页面：清掉倒计时与自动跳转定时器，避免它在后台继续跑
       return () => {
         disposed = true
         stopTimer()
+        clearResultTimer()
       }
     }
   }
