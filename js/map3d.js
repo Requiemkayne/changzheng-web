@@ -173,6 +173,11 @@
     let destroying = false
     const HOME = { yaw: 0.14, pitch: 0.86, zoom: 1 }
 
+    // 视角锁死：只保留「点击节点」，不允许旋转、缩放、双击复位。
+    // 目的：取景固定成一张完整的中国西南—东南版图（台湾不在画面内），
+    // 用户怎么拖、怎么滚都还是这一帧。要恢复交互把它改成 false 即可。
+    const VIEW_LOCKED = true
+
 // 水平旋转范围：只允许正面偏左右的小角度。
 // 目的：长征路线在图幅中偏西，允许大幅旋转时镜头会扫到东部沿海与台湾，
 // 把不该强调的区域带进画面。±0.40 rad ≈ ±23°。
@@ -1428,11 +1433,10 @@ function cityLabelSprite(text) {
     function baseDist() {
       const aspect = (container.clientWidth || 1) / (container.clientHeight || 1)
       const hFov = 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * aspect)
-      // 视野宽度（世界单位）：126 约合 37° 经度，覆盖约 85–122°E，
-      // 也就是「甘肃西缘 → 福建海岸、海南 → 河北」这一整块可见陆地。
-      // 台湾（120–122°E）落在这一带的最东侧，靠区域迷雾压住（雾 0.8–0.95），
-      // 画面上不会显出岛屿轮廓。
-      const need = 126
+      // 视野宽度（世界单位）：92 约合 27° 经度，对齐参考图的取景
+      // ——西起甘肃西缘（约 95°E），东到福建/浙江海岸（约 122°E），
+      // 南北从内蒙古（约 42°N）到海南（约 18°N）。
+      const need = 92
       // 视野宽度 = 2 · d · tan(hFov/2)，反解距离必须除以 2。
       // 早先写成 need / tan(hFov/2)，少除了一个 2，实际视野一直是目标值的两倍
       // （need=70 却铺开 41° 经度，把整幅中国都框进来，台湾自然也进来了）。
@@ -1520,6 +1524,7 @@ function cityLabelSprite(text) {
     })
 
     dom.addEventListener('pointermove', e => {
+      if (VIEW_LOCKED) return
       if (!dragging) return
       const dx = e.clientX - lastX, dy = e.clientY - lastY
       moved += Math.abs(dx) + Math.abs(dy)
@@ -1563,6 +1568,7 @@ function cityLabelSprite(text) {
 
     dom.addEventListener('wheel', e => {
       e.preventDefault()
+      if (VIEW_LOCKED) return
       yawVel = 0
       zoom = Math.max(0.7, Math.min(1.12, zoom * (1 + e.deltaY * 0.0008)))
       updateCamera()
@@ -1570,6 +1576,7 @@ function cityLabelSprite(text) {
 
     // 双指：捏合缩放 + 上下拖动调俯仰（不影响页面滚动）
     dom.addEventListener('touchmove', e => {
+      if (VIEW_LOCKED) return
       if (e.touches.length !== 2) return
       e.preventDefault()
       const a = e.touches[0], b = e.touches[1]
