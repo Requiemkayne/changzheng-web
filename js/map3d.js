@@ -1433,10 +1433,15 @@ function cityLabelSprite(text) {
     function baseDist() {
       const aspect = (container.clientWidth || 1) / (container.clientHeight || 1)
       const hFov = 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * aspect)
-      // 视野宽度（世界单位）：92 约合 27° 经度，对齐参考图的取景
-      // ——西起甘肃西缘（约 95°E），东到福建/浙江海岸（约 122°E），
-      // 南北从内蒙古（约 42°N）到海南（约 18°N）。
-      const need = 92
+      // 视野宽度（世界单位）：按「路线 > 涉及省市 > 无关省份」排优先级收缩。
+      //
+      //   ① 长征主路线：102.2–116.0°E / 25.5–35.7°N（11 个节点的包围盒）
+      //   ② 路线涉及的省市：江西、广西、贵州、云南、四川、甘肃、陕西、宁夏、重庆、湖南
+      //   ③ 无关省份（内蒙古、山西、河北、山东、江苏、浙江、福建、广东…）不进画面
+      //
+      // need = 58 ≈ 17° 经度，配合下面的取景中心，实际覆盖约 100.5–117.6°E，
+      // 路线两侧各留 1.5° 余量刚好把上述省份的边界含进来。
+      const need = 58
       // 视野宽度 = 2 · d · tan(hFov/2)，反解距离必须除以 2。
       // 早先写成 need / tan(hFov/2)，少除了一个 2，实际视野一直是目标值的两倍
       // （need=70 却铺开 41° 经度，把整幅中国都框进来，台湾自然也进来了）。
@@ -1468,7 +1473,14 @@ function cityLabelSprite(text) {
         if (lat > maxLat) maxLat = lat
       })
       if (!nodes.length) return { x: 0, z: 0 }
-      return { x: worldX((minLng + maxLng) / 2), z: worldZ((minLat + maxLat) / 2) }
+      // 取景中心在路线包围盒中心基础上略偏西（-0.5°）、略偏南（-0.6°）：
+      //   · 西侧云南（皎平渡 102.2°E）本来就是路线最西端，需要留余量；
+      //   · 南侧把广西/贵州南缘带进来，北侧陕甘边界也仍在画面内；
+      //   · 东侧则把福建、浙江挡在画面之外。
+      return {
+        x: worldX((minLng + maxLng) / 2 - 0.5),
+        z: worldZ((minLat + maxLat) / 2 - 0.6)
+      }
     })()
 
     function updateCamera() {
