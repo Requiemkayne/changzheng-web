@@ -273,6 +273,14 @@ function clampYaw(v) {
       const geo = new THREE.PlaneGeometry(SIZE_X, SIZE_Z, seg, seg)
       geo.rotateX(-Math.PI / 2)
       const pos = geo.attributes.position
+      // 台湾（含周边 0.4° 缓冲）在 DEM 归一化坐标里的范围：
+      //   u 0.7397–0.7841（对应 119.6–122.4°E）
+      //   v 0.6209–0.6945（对应 25.7–21.5°N）
+      // 这块地形直接按海处理（海床色 + 压平到水面以下），
+      // 于是无论相机怎么旋转/缩放，台湾都不会出现在画面里。
+      const TW_U0 = 0.7397, TW_U1 = 0.7841
+      const TW_V0 = 0.6209, TW_V1 = 0.6945
+      const inTaiwan = (u, v) => u > TW_U0 && u < TW_U1 && v > TW_V0 && v < TW_V1
       const colors = new Float32Array(pos.count * 3)
       const tmp = new THREE.Color()
       const EDGE = 0.0001                     // 不压平：边缘保留真实高度，由侧壁补厚度
@@ -288,9 +296,8 @@ function clampYaw(v) {
         pos.setY(i, elev * ELEV_SCALE * lift)
         // 轻微噪声打散色带，避免等高线式硬边
         const jitter = (Math.sin(x * 0.7) + Math.cos(z * 0.9)) * 60
-        // 0 m 以下才是海。原来用 3 m，把华北平原、江苏平原、辽河平原
-        // （海拔 0–3 m）整片压到水面以下，陆地看起来缺失。
-        if (elev < 0) {
+        // 0 m 以下才是海；台湾区域无条件按海处理（见上方 inTaiwan 说明）
+        if (elev < 0 || inTaiwan(u, v)) {
           tmp.copy(SEA_BED)                    // 海床沉到水面以下
           pos.setY(i, SEA_FLOOR)
         } else {
