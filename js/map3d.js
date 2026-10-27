@@ -173,15 +173,17 @@
     let destroying = false
     const HOME = { yaw: 0.14, pitch: 0.86, zoom: 1 }
 
-    // 视角锁死：只保留「点击节点」，不允许旋转、缩放、双击复位。
-    // 目的：取景固定成一张完整的中国西南—东南版图（台湾不在画面内），
-    // 用户怎么拖、怎么滚都还是这一帧。要恢复交互把它改成 false 即可。
-    const VIEW_LOCKED = true
+    // 视角交互开关。
+    // false = 允许旋转与缩放（当前）；限制见下方 YAW_LIMIT 与 zoom 区间，
+    // 两者共同保证无论怎么转、怎么缩，台湾都不会进入画面。
+    const VIEW_LOCKED = false
 
 // 水平旋转范围：只允许正面偏左右的小角度。
 // 目的：长征路线在图幅中偏西，允许大幅旋转时镜头会扫到东部沿海与台湾，
 // 把不该强调的区域带进画面。±0.40 rad ≈ ±23°。
-const YAW_LIMIT = 0.40
+// ±0.14 rad ≈ ±8°：视野已经放到 22°，再转多一点东侧就会扫到台湾，
+// 所以转动幅度收得很小，只够微调观察角度。
+const YAW_LIMIT = 0.14
 function clampYaw(v) {
   let a = v
   while (a > Math.PI) a -= Math.PI * 2
@@ -1433,15 +1435,13 @@ function cityLabelSprite(text) {
     function baseDist() {
       const aspect = (container.clientWidth || 1) / (container.clientHeight || 1)
       const hFov = 2 * Math.atan(Math.tan(camera.fov * Math.PI / 360) * aspect)
-      // 视野宽度（世界单位）：按「路线 > 涉及省市 > 无关省份」排优先级收缩。
+      // 视野宽度（世界单位）：76 ≈ 22.3° 经度。
       //
-      //   ① 长征主路线：102.2–116.0°E / 25.5–35.7°N（11 个节点的包围盒）
-      //   ② 路线涉及的省市：江西、广西、贵州、云南、四川、甘肃、陕西、宁夏、重庆、湖南
-      //   ③ 无关省份（内蒙古、山西、河北、山东、江苏、浙江、福建、广东…）不进画面
-      //
-      // need = 58 ≈ 17° 经度，配合下面的取景中心，实际覆盖约 100.5–117.6°E，
-      // 路线两侧各留 1.5° 余量刚好把上述省份的边界含进来。
-      const need = 58
+      // 这一步是在「路线优先」的基础上再往外放一圈，取景两端卡得很死：
+      //   西端 97.5°E —— 云南最西（97.53°E）刚好完整；
+      //   东端 119.8°E —— 台湾最西（约 120.0°E）刚好不进画面。
+      // 再宽一点云南会缺角，再往东一点台湾就会露出来。
+      const need = 76
       // 视野宽度 = 2 · d · tan(hFov/2)，反解距离必须除以 2。
       // 早先写成 need / tan(hFov/2)，少除了一个 2，实际视野一直是目标值的两倍
       // （need=70 却铺开 41° 经度，把整幅中国都框进来，台湾自然也进来了）。
@@ -1458,7 +1458,7 @@ function cityLabelSprite(text) {
     // 地平线越过图幅边缘时本来就有「雾色围裙」兜底（与页面底色同色），
     // 不会露白，不需要这个约束。
     function fitZoom() {
-      zoom = Math.max(0.7, Math.min(1.12, zoom))
+      zoom = Math.max(0.85, Math.min(1.12, zoom))
     }
 
     // 镜头对准「路线包围盒中心」而不是图幅中心——地形比路线大得多，
@@ -1473,13 +1473,12 @@ function cityLabelSprite(text) {
         if (lat > maxLat) maxLat = lat
       })
       if (!nodes.length) return { x: 0, z: 0 }
-      // 取景中心在路线包围盒中心基础上略偏西（-0.5°）、略偏南（-0.6°）：
-      //   · 西侧云南（皎平渡 102.2°E）本来就是路线最西端，需要留余量；
-      //   · 南侧把广西/贵州南缘带进来，北侧陕甘边界也仍在画面内；
-      //   · 东侧则把福建、浙江挡在画面之外。
+      // 取景中心：横向按「云南西界 97.5°E ↔ 台湾以西 119.8°E」的中点 108.65°E 取，
+      // 让整云南与路线东端都在画面里且两端余量对称；
+      // 纵向在路线包围盒中心上略偏南 0.8°，把广西/贵州南缘带进来。
       return {
-        x: worldX((minLng + maxLng) / 2 - 0.5),
-        z: worldZ((minLat + maxLat) / 2 - 0.6)
+        x: worldX(108.65),
+        z: worldZ((minLat + maxLat) / 2 - 0.8)
       }
     })()
 
@@ -1582,7 +1581,7 @@ function cityLabelSprite(text) {
       e.preventDefault()
       if (VIEW_LOCKED) return
       yawVel = 0
-      zoom = Math.max(0.7, Math.min(1.12, zoom * (1 + e.deltaY * 0.0008)))
+      zoom = Math.max(0.85, Math.min(1.12, zoom * (1 + e.deltaY * 0.0008)))
       updateCamera()
     }, { passive: false })
 
@@ -1596,7 +1595,7 @@ function cityLabelSprite(text) {
       const midY = (a.clientY + b.clientY) / 2
       if (twoPrev) {
         if (twoPrev.dist > 10 && dist > 10) {
-          zoom = Math.max(0.7, Math.min(1.12, zoom * (twoPrev.dist / dist)))
+          zoom = Math.max(0.85, Math.min(1.12, zoom * (twoPrev.dist / dist)))
         }
         pitch = Math.max(0.72, Math.min(1.38, pitch - (midY - twoPrev.midY) * 0.0038))
         updateCamera()
