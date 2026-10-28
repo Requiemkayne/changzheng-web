@@ -137,26 +137,26 @@ async function main() {
 
     /* ---------- 2. 注册 ---------- */
     console.log('\n[2] 注册')
-    r = await req('POST', '/api/register', { username: '测试员1', password: 'abc123', nickname: '小测' })
+    r = await req('POST', '/api/register', { username: '20260001', password: 'abc123', nickname: '小测' })
     ok('注册成功返 token + user', r.status === 200 && !!r.body.token && r.body.user.nickname === '小测')
     const token1 = r.body.token
-    r = await req('POST', '/api/register', { username: '测试员1', password: 'abc123' })
+    r = await req('POST', '/api/register', { username: '20260001', password: 'abc123' })
     ok('重复用户名 → 409', r.status === 409 && r.body.error === 'USERNAME_TAKEN')
     r = await req('POST', '/api/register', { username: 'a', password: 'abc123' })
     ok('非法用户名 → 400', r.status === 400)
-    r = await req('POST', '/api/register', { username: '测试员2', password: '123' })
+    r = await req('POST', '/api/register', { username: '20260002', password: '123' })
     ok('短密码 → 400', r.status === 400)
 
     /* ---------- 3. 登录与限速 ---------- */
     console.log('\n[3] 登录 / 限速')
-    r = await req('POST', '/api/login', { username: '测试员1', password: 'wrong1' })
+    r = await req('POST', '/api/login', { username: '20260001', password: 'wrong1' })
     ok('错误密码 → 401', r.status === 401)
-    r = await req('POST', '/api/login', { username: '测试员1', password: 'abc123' })
+    r = await req('POST', '/api/login', { username: '20260001', password: 'abc123' })
     ok('正确密码登录成功', r.status === 200 && !!r.body.token)
     for (let i = 0; i < 5; i++) {
-      await req('POST', '/api/login', { username: '测试员1', password: 'bad' + i })
+      await req('POST', '/api/login', { username: '20260001', password: 'bad' + i })
     }
-    r = await req('POST', '/api/login', { username: '测试员1', password: 'abc123' })
+    r = await req('POST', '/api/login', { username: '20260001', password: 'abc123' })
     ok('连续失败后锁定 → 429', r.status === 429 && r.body.error === 'RATE_LIMITED', '实际 ' + r.status + ' ' + JSON.stringify(r.body))
 
     /* ---------- 4. 未登录拦截 ---------- */
@@ -170,7 +170,7 @@ async function main() {
 
     /* ---------- 5. 打卡链路（另注册一个不被限速的账号） ---------- */
     console.log('\n[5] 打卡链路')
-    r = await req('POST', '/api/register', { username: '打卡员', password: 'check123' })
+    r = await req('POST', '/api/register', { username: '20260003', password: 'check123' })
     const token = r.body.token
     const nodes = (await req('GET', '/api/nodes')).body.nodes
     r = await req('POST', '/api/checkin', { code: nodes[0].code }, token)
@@ -261,7 +261,7 @@ async function main() {
       r.status === 400 && r.body.error === 'INVALID_ANSWER_SET', '实际 ' + r.status + ' ' + JSON.stringify(r.body))
 
     // 未取题不能交卷：新用户打卡后不取题，直接交满 3 条
-    const t3 = (await req('POST', '/api/register', { username: '未取题员', password: 'peek123' })).body.token
+    const t3 = (await req('POST', '/api/register', { username: '20260004', password: 'peek123' })).body.token
     const codeFresh = nodes[0].code
     await req('POST', '/api/checkin', { code: codeFresh }, t3)
     r = await req('POST', '/api/quiz/submit', { mode: 'node', code: codeFresh, answers: answersFor(codeFresh) }, t3)
@@ -274,10 +274,10 @@ async function main() {
 
     /* ---------- 8. final 毕业 ---------- */
     console.log('\n[8] 总结答题')
-    r = await req('POST', '/api/register', { username: '毕业生', password: 'final123' }, token)
+    r = await req('POST', '/api/register', { username: '20260005', password: 'final123' }, token)
     r = await req('GET', '/api/quiz?mode=final', undefined, r.body.token)
     ok('未全打卡 final → NOT_ALL_CHECKED_IN', r.body.error === 'NOT_ALL_CHECKED_IN')
-    const t2 = (await req('POST', '/api/register', { username: '毕业生2', password: 'final123' })).body.token
+    const t2 = (await req('POST', '/api/register', { username: '20260006', password: 'final123' })).body.token
     r = await req('GET', '/api/quiz?mode=final', undefined, t2)
     ok('未全打卡（新账号）→ NOT_ALL_CHECKED_IN', r.body.error === 'NOT_ALL_CHECKED_IN')
     for (const n of nodes) await req('POST', '/api/checkin', { code: n.code }, t2)
@@ -370,10 +370,10 @@ async function main() {
     console.log('\n[10] 密码安全')
     const { DatabaseSync } = require('node:sqlite')
     const db = new DatabaseSync(DB_FILE)
-    const row = db.prepare("SELECT salt, hash FROM users WHERE username = '打卡员'").get()
+    const row = db.prepare("SELECT salt, hash FROM users WHERE username = '20260003'").get()
     ok('库里无明文密码（hash 非原密码）', row && row.hash !== 'check123' && row.hash.length >= 64)
     ok('每用户有随机盐', row && row.salt.length === 32)
-    const row2 = db.prepare("SELECT salt FROM users WHERE username = '测试员1'").get()
+    const row2 = db.prepare("SELECT salt FROM users WHERE username = '20260001'").get()
     ok('不同用户盐不同', row2 && row2.salt !== row.salt)
     db.close()
     /* ---------- 11. 批次⑤：限速 / 锁定粒度 / CORS / 优雅关闭 / 端口占用 ---------- */
@@ -383,16 +383,16 @@ async function main() {
     const rl = await startInstance({ RATE_LIMIT_LOGIN: '3', RATE_LIMIT_REGISTER: '3', CORS_ORIGIN: null })
     const regStatus = []
     for (let i = 0; i < 4; i++) {
-      regStatus.push((await reqRaw(rl.base, 'POST', '/api/register', { username: '限速员' + i, password: 'rl123456' })).status)
+      regStatus.push((await reqRaw(rl.base, 'POST', '/api/register', { username: '2026020' + i, password: 'rl123456' })).status)
     }
     ok('RATE_LIMIT_REGISTER=3 生效（阈值来自环境变量）：前 3 次注册 200、第 4 次 429',
       regStatus.join(',') === '200,200,200,429', '实际 ' + regStatus.join(','))
 
     const loginRes = []
     for (let i = 0; i < 3; i++) {
-      loginRes.push(await reqRaw(rl.base, 'POST', '/api/login', { username: '限速员0', password: 'bad' + i }))
+      loginRes.push(await reqRaw(rl.base, 'POST', '/api/login', { username: '20260100', password: 'bad' + i }))
     }
-    const rateBlocked = await reqRaw(rl.base, 'POST', '/api/login', { username: '限速员0', password: 'rl123456' })
+    const rateBlocked = await reqRaw(rl.base, 'POST', '/api/login', { username: '20260100', password: 'rl123456' })
     ok('RATE_LIMIT_LOGIN=3 生效且按路由独立计数：3 次错密码 401 后第 4 次即使密码正确也 429（注册桶不串到登录桶）',
       loginRes.map(x => x.status).join(',') === '401,401,401' && rateBlocked.status === 429,
       '实际 ' + loginRes.map(x => x.status).join(',') + ' / 第 4 次 ' + rateBlocked.status +
@@ -404,14 +404,14 @@ async function main() {
 
     // 11.1b 开赛限流：排行榜按 SUM(score) 累计，不限次数等于允许刷榜
     const startRl = await startInstance({ RATE_LIMIT_CONTEST_START: '2', CORS_ORIGIN: null })
-    const startTok1 = (await reqRaw(startRl.base, 'POST', '/api/register', { username: '开赛员1', password: 'cs123456' })).body.token
+    const startTok1 = (await reqRaw(startRl.base, 'POST', '/api/register', { username: '20260011', password: 'cs123456' })).body.token
     const startStatus = []
     for (let i = 0; i < 3; i++) {
       startStatus.push((await reqRaw(startRl.base, 'POST', '/api/contest/start', {}, startTok1)).status)
     }
     ok('RATE_LIMIT_CONTEST_START=2 生效（阈值来自环境变量）：前 2 次放行到业务校验（400 NOT_GRADUATED），第 3 次 429',
       startStatus.join(',') === '400,400,429', '实际 ' + startStatus.join(',') + ' @ server/server.js:260-267')
-    const startTok2 = (await reqRaw(startRl.base, 'POST', '/api/register', { username: '开赛员2', password: 'cs123456' })).body.token
+    const startTok2 = (await reqRaw(startRl.base, 'POST', '/api/register', { username: '20260012', password: 'cs123456' })).body.token
     const startOther = await reqRaw(startRl.base, 'POST', '/api/contest/start', {}, startTok2)
     ok('开赛限流另带 IP 桶：同 IP 换账号后第一场也被 429（换号绕不开刷榜）',
       startOther.status === 429 && startOther.body && startOther.body.error === 'TOO_MANY_REQUESTS',
@@ -423,14 +423,14 @@ async function main() {
 
     // 11.2 RATE_LIMIT=off 整体关闭 + 失败计数按「IP + 用户名」
     const unlocked = await startInstance({ RATE_LIMIT: 'off', RATE_LIMIT_LOGIN: '2', RATE_LIMIT_CONTEST_START: '1', CORS_ORIGIN: null })
-    await reqRaw(unlocked.base, 'POST', '/api/register', { username: '锁定员', password: 'ok123456' })
-    await reqRaw(unlocked.base, 'POST', '/api/register', { username: '旁观员', password: 'ok123456' })
+    await reqRaw(unlocked.base, 'POST', '/api/register', { username: '20260013', password: 'ok123456' })
+    await reqRaw(unlocked.base, 'POST', '/api/register', { username: '20260030', password: 'ok123456' })
     const wrongRes = []
     for (let i = 0; i < 5; i++) {
-      wrongRes.push(await reqRaw(unlocked.base, 'POST', '/api/login', { username: '锁定员', password: 'bad' + i }))
+      wrongRes.push(await reqRaw(unlocked.base, 'POST', '/api/login', { username: '20260013', password: 'bad' + i }))
     }
-    const lockedRes = await reqRaw(unlocked.base, 'POST', '/api/login', { username: '锁定员', password: 'ok123456' })
-    const otherUserRes = await reqRaw(unlocked.base, 'POST', '/api/login', { username: '旁观员', password: 'ok123456' })
+    const lockedRes = await reqRaw(unlocked.base, 'POST', '/api/login', { username: '20260013', password: 'ok123456' })
+    const otherUserRes = await reqRaw(unlocked.base, 'POST', '/api/login', { username: '20260030', password: 'ok123456' })
     const allRes = wrongRes.concat([lockedRes, otherUserRes])
     ok('RATE_LIMIT=off 整体关闭：RATE_LIMIT_LOGIN=2 下连打 7 次口令接口也不出现 TOO_MANY_REQUESTS',
       allRes.every(x => !x.body || x.body.error !== 'TOO_MANY_REQUESTS'),
@@ -446,7 +446,7 @@ async function main() {
       '实际 ' + otherUserRes.status + ' ' + JSON.stringify(otherUserRes.body && otherUserRes.body.error) +
       ' @ server/auth.js:76-78')
 
-    const offTok = (await reqRaw(unlocked.base, 'POST', '/api/register', { username: '免限员', password: 'off123456' })).body.token
+    const offTok = (await reqRaw(unlocked.base, 'POST', '/api/register', { username: '20260031', password: 'off123456' })).body.token
     const offStarts = []
     for (let i = 0; i < 2; i++) {
       offStarts.push(await reqRaw(unlocked.base, 'POST', '/api/contest/start', {}, offTok))

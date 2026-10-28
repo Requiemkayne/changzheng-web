@@ -36,7 +36,7 @@
                 '<div class="auth-tab" data-mode="register">注册</div>' +
               '</div>' +
               '<form id="auth-form">' +
-                '<input class="form-input" id="auth-username" maxlength="16" placeholder="用户名" autocomplete="username">' +
+                '<input class="form-input" id="auth-username" maxlength="8" inputmode="numeric" placeholder="8 位学号" autocomplete="username">' +
                 '<input class="form-input" id="auth-password" type="password" maxlength="64" placeholder="密码（6-64 位）" autocomplete="current-password">' +
                 '<input class="form-input" id="auth-nickname" maxlength="20" placeholder="昵称（选填，默认同用户名）" style="display:none">' +
                 '<div class="form-error" id="auth-error"></div>' +
@@ -58,12 +58,21 @@
       const submitBtn = rootEl.querySelector('#auth-submit')
       const errorEl = rootEl.querySelector('#auth-error')
 
+      const passwordInput = rootEl.querySelector('#auth-password')
+      const INITIAL_PASSWORD = '111111'   // 与学校约定：新账号初始密码固定 111111，首次登录后请提醒学生自行修改
+
       function setMode(m) {
         mode = m
         tabs.forEach(t => t.classList.toggle('auth-tab-active', t.dataset.mode === m))
         nicknameInput.style.display = m === 'register' ? '' : 'none'
         submitBtn.textContent = m === 'login' ? '登 录' : '注 册'
         errorEl.textContent = ''
+        // 注册模式下预填初始密码，登录模式清空，避免把初始密码带进正式登录
+        if (passwordInput) passwordInput.value = m === 'register' ? INITIAL_PASSWORD : ''
+        if (mode === 'register') {
+          errorEl.textContent = '账号填写 8 位学号，初始密码 111111（登录后请自行修改）'
+          errorEl.style.color = ''
+        }
       }
 
       tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)))

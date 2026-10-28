@@ -20,7 +20,8 @@ const LOCK_MS = 10 * 60 * 1000
 const FAIL_TTL = 15 * 60 * 1000
 const SWEEP_MS = 60 * 1000
 
-const USERNAME_RE = /^[\w一-龥]{2,16}$/
+// 账号 = 8 位数字学号（学校统一编号，天然可核实）
+const USERNAME_RE = /^\d{8}$/
 
 /* ---------- 密码（异步 scrypt，不阻塞事件循环） ---------- */
 
@@ -133,7 +134,7 @@ async function register(db, username, password, nickname) {
   username = String(username || '').trim()
   nickname = String(nickname || '').trim().slice(0, 20) || username
   if (!USERNAME_RE.test(username)) {
-    return { ok: false, status: 400, error: 'INVALID_USERNAME', message: '用户名需 2-16 位，可用中文、字母、数字、下划线' }
+    return { ok: false, status: 400, error: 'INVALID_USERNAME', message: '账号必须是 8 位数字学号' }
   }
   if (typeof password !== 'string' || password.length < 6 || password.length > 64) {
     return { ok: false, status: 400, error: 'INVALID_PASSWORD', message: '密码需 6-64 位' }
