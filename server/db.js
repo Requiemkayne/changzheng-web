@@ -35,6 +35,18 @@ function openDb(dbPath) {
       expires_at INTEGER NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS password_requests (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      username    TEXT NOT NULL,
+      note        TEXT NOT NULL DEFAULT '',
+      status      TEXT NOT NULL DEFAULT 'pending',
+      created_at  INTEGER NOT NULL,
+      resolved_at INTEGER,
+      resolved_by TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_pwreq_status ON password_requests(status, created_at);
+
     CREATE TABLE IF NOT EXISTS progress (
       user_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
       checkins    TEXT NOT NULL DEFAULT '{}',

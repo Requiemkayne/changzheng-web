@@ -24,3 +24,6 @@ competition-timeline/server/初始管理员.txt
 # 本地临时产物：探针脚本、截图、cdp/Edge 用户数据目录（tmp/ 也覆盖 .impeccable/tmp/）
 tmp/
 *.log
+
+# 管理员接口口令（本地保存，切勿提交）
+.admin-key

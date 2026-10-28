@@ -40,6 +40,18 @@
                 '<input class="form-input" id="auth-password" type="password" maxlength="64" placeholder="密码（6-64 位）" autocomplete="current-password">' +
                 '<input class="form-input" id="auth-nickname" maxlength="20" placeholder="昵称（选填，默认同用户名）" style="display:none">' +
                 '<div class="form-error" id="auth-error"></div>' +
+                '<div class="forgot-area" id="forgot-area">' +
+                  '<button class="forgot-link" id="forgot-link" type="button">忘记密码？</button>' +
+                '</div>' +
+                '<div class="forgot-panel" id="forgot-panel">' +
+                  '<div class="forgot-tip">提交后由老师统一处理，重置后的密码为 <b>111111</b></div>' +
+                  '<input class="form-input" id="forgot-note" maxlength="100" placeholder="补充说明（选填，如：高二3班 张三）">' +
+                  '<div class="forgot-actions">' +
+                    '<button class="btn btn-primary" type="button" id="forgot-submit">提交申请</button>' +
+                    '<button class="btn btn-ghost" type="button" id="forgot-cancel">取消</button>' +
+                  '</div>' +
+                  '<div class="form-error" id="forgot-error"></div>' +
+                '</div>' +
                 '<button class="btn btn-primary" type="submit" id="auth-submit">登 录</button>' +
                 (isMock
                   ? '<button class="btn btn-ghost action-gap" type="button" id="guest-entry">游客体验 · 先随便看看</button>'
@@ -73,9 +85,60 @@
           errorEl.textContent = '账号填写 8 位学号，初始密码 111111（登录后请自行修改）'
           errorEl.style.color = ''
         }
+        const forgotArea = rootEl.querySelector('#forgot-area')
+        const forgotPanel = rootEl.querySelector('#forgot-panel')
+        if (forgotArea) forgotArea.style.display = (m === 'login' && !isMock) ? 'block' : 'none'
+        if (forgotPanel) forgotPanel.style.display = 'none'
       }
 
       tabs.forEach(t => t.addEventListener('click', () => setMode(t.dataset.mode)))
+
+      /* ---------- 忘记密码 ---------- */
+      const forgotLink = rootEl.querySelector('#forgot-link')
+      const forgotPanel = rootEl.querySelector('#forgot-panel')
+      const forgotSubmit = rootEl.querySelector('#forgot-submit')
+      const forgotCancel = rootEl.querySelector('#forgot-cancel')
+      const forgotError = rootEl.querySelector('#forgot-error')
+
+      if (forgotLink) {
+        forgotLink.addEventListener('click', () => {
+          if (forgotPanel) forgotPanel.style.display = 'block'
+          if (forgotError) forgotError.textContent = ''
+        })
+      }
+      if (forgotCancel) {
+        forgotCancel.addEventListener('click', () => {
+          if (forgotPanel) forgotPanel.style.display = 'none'
+        })
+      }
+      if (forgotSubmit) {
+        forgotSubmit.addEventListener('click', () => {
+          const username = rootEl.querySelector('#auth-username').value.trim()
+          const noteInput = rootEl.querySelector('#forgot-note')
+          const note = noteInput ? noteInput.value.trim() : ''
+          if (!/^\d{8}$/.test(username)) {
+            if (forgotError) forgotError.textContent = '请先在上方填写 8 位学号'
+            return
+          }
+          forgotSubmit.disabled = true
+          forgotSubmit.textContent = '提交中…'
+          api.forgotPassword(username, note).then(r => {
+            if (forgotError) {
+              forgotError.style.color = 'var(--ok, #2e7d32)'
+              forgotError.textContent = (r && r.message) || '已提交，请等待老师处理'
+            }
+            forgotSubmit.textContent = '已提交'
+            setTimeout(() => { if (forgotPanel) forgotPanel.style.display = 'none' }, 2500)
+          }).catch(err => {
+            if (forgotError) {
+              forgotError.style.color = ''
+              forgotError.textContent = err.message || '提交失败，请重试'
+            }
+            forgotSubmit.disabled = false
+            forgotSubmit.textContent = '提交申请'
+          })
+        })
+      }
 
       // 游客体验：建立本地游客态 → 进首页（mock 模式下登录页唯一的可用出口）
       const guestBtn = rootEl.querySelector('#guest-entry')

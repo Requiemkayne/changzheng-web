@@ -97,6 +97,8 @@ const RATE_CONTEST_WINDOW_MS = 300 * 1000
 const RATE_LIMITS = {
   login: { max: Number(process.env.RATE_LIMIT_LOGIN) || 10, window: RATE_WINDOW_MS },
   register: { max: Number(process.env.RATE_LIMIT_REGISTER) || 10, window: RATE_WINDOW_MS },
+  // 忘记密码申请：单 IP 10 分钟最多 5 次，防刷表
+  pwforgot: { max: 5, window: 10 * 60e3 },
   // 开赛两个桶：用户桶防同账号连开，IP 桶防换号绕过；任一超限即 429
   contestStartUser: { max: Number(process.env.RATE_LIMIT_CONTEST_START) || 5, window: RATE_CONTEST_WINDOW_MS },
   contestStartIp: { max: Number(process.env.RATE_LIMIT_CONTEST_START) || 5, window: RATE_CONTEST_WINDOW_MS }
@@ -258,6 +260,87 @@ async function handleApi(db, req, res, pathname, query) {
     if (!r.ok) return fail(res, r.status, r.error, r.message)
     return json(res, 200, { ok: true, token: r.token, user: { username: r.username, nickname: r.nickname } })
   }
+  /* ---------- 忘记密码：学生提交申请 ---------- */
+  if (req.method === 'POST' && pathname === '/api/password/forgot') {
+    // 同一个 IP 10 分钟内最多提交 5 次，避免刷爆申请表
+    if (rateLimited('pwforgot', clientIp(req))) {
+      return fail(res, 429, 'TOO_MANY_REQUESTS', '提交过于频繁，请稍后再试')
+    }
+    const b = await readBody(req)
+    const username = String(b.username || '').trim()
+    if (!/^\d{8}$/.test(username)) {
+      return fail(res, 400, 'INVALID_USERNAME', '账号必须是 8 位数字学号')
+    }
+    const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(username)
+    if (!exists) {
+      // 不暴露账号是否存在，统一返回成功（防枚举）
+      return json(res, 200, { ok: true, message: '已提交，请等待老师处理' })
+    }
+    // 同一账号已有待处理申请就不重复插
+    const dup = db.prepare("SELECT id FROM password_requests WHERE username = ? AND status = 'pending'").get(username)
+    if (dup) {
+      return json(res, 200, { ok: true, message: '已有待处理申请，请等待老师处理' })
+    }
+    const note = String(b.note || '').slice(0, 200)
+    db.prepare('INSERT INTO password_requests (username, note, status, created_at) VALUES (?, ?, ?, ?)')
+      .run(username, note, 'pending', Date.now())
+    return json(res, 200, { ok: true, message: '已提交，请等待老师处理' })
+  }
+
+  /* ---------- 管理员接口（x-admin-key 鉴权） ---------- */
+  const ADMIN_KEY = String(process.env.ADMIN_KEY || '')
+  const requireAdmin = () => {
+    if (!ADMIN_KEY) return { ok: false, code: 403, error: 'ADMIN_DISABLED', message: '管理员接口未启用（未配置 ADMIN_KEY）' }
+    const got = String(req.headers['x-admin-key'] || '')
+    if (!got || got !== ADMIN_KEY) return { ok: false, code: 401, error: 'ADMIN_UNAUTHORIZED', message: '管理员口令错误' }
+    return { ok: true }
+  }
+
+  // 查看忘记密码申请
+  if (req.method === 'GET' && pathname === '/api/admin/password-requests') {
+    const g = requireAdmin()
+    if (!g.ok) return fail(res, g.code, g.error, g.message)
+    const u = new URL(req.url, 'http://x')
+    const status = u.searchParams.get('status') || 'pending'
+    const rows = db.prepare(
+      'SELECT id, username, note, status, created_at, resolved_at, resolved_by FROM password_requests WHERE status = ? ORDER BY created_at DESC LIMIT 200'
+    ).all(status)
+    return json(res, 200, { ok: true, items: rows })
+  }
+
+  // 批准 / 拒绝某条申请
+  if (req.method === 'POST' && /^\/api\/admin\/password-requests\/\d+\/resolve$/.test(pathname)) {
+    const g = requireAdmin()
+    if (!g.ok) return fail(res, g.code, g.error, g.message)
+    const id = Number(pathname.split('/')[4])
+    const b = await readBody(req)
+    const action = b.action === 'reject' ? 'reject' : 'approve'
+    const row = db.prepare('SELECT * FROM password_requests WHERE id = ?').get(id)
+    if (!row) return fail(res, 404, 'REQUEST_NOT_FOUND', '申请不存在')
+    if (row.status !== 'pending') return fail(res, 409, 'ALREADY_RESOLVED', '该申请已处理')
+
+    if (action === 'approve') {
+      const r = await auth.resetPassword(db, row.username, String(b.password || '111111'))
+      if (!r.ok) return fail(res, r.status, r.error, r.message)
+    }
+    db.prepare('UPDATE password_requests SET status = ?, resolved_at = ?, resolved_by = ? WHERE id = ?')
+      .run(action === 'approve' ? 'approved' : 'rejected', Date.now(), String(b.by || 'admin'), id)
+    return json(res, 200, { ok: true, action, username: row.username, password: action === 'approve' ? String(b.password || '111111') : '' })
+  }
+
+  // 批量导入学生账号（8 位学号 + 统一初始密码）
+  if (req.method === 'POST' && pathname === '/api/admin/users/bulk') {
+    const g = requireAdmin()
+    if (!g.ok) return fail(res, g.code, g.error, g.message)
+    const b = await readBody(req)
+    const list = Array.isArray(b.usernames) ? b.usernames : []
+    if (!list.length) return fail(res, 400, 'EMPTY_LIST', '没有要导入的账号')
+    if (list.length > 2000) return fail(res, 400, 'TOO_MANY', '单次最多 2000 个')
+    const password = String(b.password || '111111')
+    const r = await auth.bulkCreateUsers(db, list, password, String(b.nicknamePrefix || ''))
+    return json(res, 200, { ok: true, created: r.created.length, skipped: r.skipped.length, invalid: r.invalid, password })
+  }
+
   if (req.method === 'GET' && pathname === '/api/config') {
     return json(res, 200, { ok: true, config: game.getConfigDoc() })
   }

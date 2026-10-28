@@ -199,6 +199,46 @@ function getUserByToken(db, token) {
   return { id: Number(row.id), username: row.username, nickname: row.nickname }
 }
 
+/**
+ * 重置某个账号的密码（管理员用）
+ */
+async function resetPassword(db, username, newPassword) {
+  if (!USERNAME_RE.test(String(username || ''))) {
+    return { ok: false, status: 400, error: 'INVALID_USERNAME', message: '账号必须是 8 位数字学号' }
+  }
+  if (typeof newPassword !== 'string' || newPassword.length < 6 || newPassword.length > 64) {
+    return { ok: false, status: 400, error: 'INVALID_PASSWORD', message: '密码需 6-64 位' }
+  }
+  const row = db.prepare('SELECT id FROM users WHERE username = ?').get(username)
+  if (!row) return { ok: false, status: 404, error: 'USER_NOT_FOUND', message: '账号不存在' }
+
+  const salt = crypto.randomBytes(16).toString('hex')
+  const hash = (await scryptAsync(newPassword, Buffer.from(salt, 'hex'), KEY_LEN)).toString('hex')
+  db.prepare('UPDATE users SET salt = ?, hash = ? WHERE id = ?').run(salt, hash, row.id)
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(row.id)
+  return { ok: true, username }
+}
+
+/**
+ * 批量创建学生账号（8 位学号 + 统一初始密码），已存在的跳过
+ */
+async function bulkCreateUsers(db, usernames, initialPassword, nicknamePrefix) {
+  const created = []
+  const skipped = []
+  const invalid = []
+  for (const raw of usernames) {
+    const u = String(raw || '').trim()
+    if (!u) continue
+    if (!USERNAME_RE.test(u)) { invalid.push(u); continue }
+    const exists = db.prepare('SELECT id FROM users WHERE username = ?').get(u)
+    if (exists) { skipped.push(u); continue }
+    const r = await register(db, u, initialPassword, nicknamePrefix ? nicknamePrefix + u : '')
+    if (r.ok) created.push(u)
+    else invalid.push(u)
+  }
+  return { created, skipped, invalid }
+}
+
 function logout(db, token) {
   if (typeof token === 'string') {
     db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash(token))
@@ -212,6 +252,7 @@ function sweepSessions(db) {
 
 module.exports = {
   register, login, createSession, getUserByToken, logout, sweepSessions,
+  resetPassword, bulkCreateUsers,
   hashPassword, verifyPassword,
   // 失败计数（导出供单测 / server 定时清理）
   failKey, isLocked, recordFail, clearFails, sweepFails, failsSize

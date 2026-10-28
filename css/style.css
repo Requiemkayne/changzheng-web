@@ -2872,3 +2872,43 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   font-family: var(--font-title);
   font-weight: 700;
 }
+
+/* ---------- 忘记密码 ---------- */
+.forgot-area {
+  text-align: right;
+  margin: -2px 0 12px;
+}
+.forgot-link {
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--muted);
+  text-decoration: none;
+  letter-spacing: 0.5px;
+}
+.forgot-link:hover { color: var(--red-dark); text-decoration: underline; }
+
+.forgot-panel {
+  display: none;
+  padding: 14px;
+  margin-bottom: 12px;
+  background: rgba(201, 162, 39, 0.06);
+  border: 1px dashed rgba(201, 162, 39, 0.42);
+  border-radius: var(--r-md);
+}
+.forgot-tip {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.65;
+  margin-bottom: 10px;
+}
+.forgot-tip b { color: var(--red-dark); }
+.forgot-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+.forgot-actions .btn { flex: 1; }

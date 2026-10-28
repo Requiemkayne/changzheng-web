@@ -209,7 +209,11 @@
               const err = new Error(body.message || ('请求失败（' + res.status + '）'))
               err.code = body.error || ''
               err.status = res.status
-              if (res.status === 401) {
+              // 登录/注册本身的 401 是「账号或密码错」，不是会话失效：
+              // 此时本来就没登录，清 token 和弹「请先登录」都是误报。
+              // 只对其它需要鉴权的接口做全局登出。
+              const isAuthEndpoint = /^(login|register)$/.test(String(path || '').split('?')[0])
+              if (res.status === 401 && !isAuthEndpoint) {
                 setToken('') // 令牌失效，本地登出
                 if (typeof window !== 'undefined') {
                   window.dispatchEvent(new CustomEvent('cz:unauthorized'))
@@ -299,7 +303,16 @@
   }
 
   /** 当前用户进度（不存在返回空结构，不报错；未登录返回空结构，游客可浏览） */
-  function getProgress() {
+  /**
+ * 提交「忘记密码」申请（免登录）。
+ * 老师会在管理端看到申请，重置后密码统一回到 111111。
+ */
+function forgotPassword(username, note) {
+  if (config.USE_MOCK) return Promise.reject(apiError('MOCK_MODE', '当前是游客体验模式，不需要找回密码'))
+  return http('password/forgot', { username: username, note: note || '' })
+}
+
+function getProgress() {
     if (config.USE_MOCK) {
       return Promise.resolve(mockProgress())
     }
@@ -779,7 +792,8 @@
     getConfig,
     getNodes,
     getNode,
-    getProgress,
+    forgotPassword,
+  getProgress,
     getCheckins,
     saveNickname,
     checkin,
