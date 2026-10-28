@@ -382,11 +382,20 @@ function getProgress() {
     const acc = config.DEV_AUTO_LOGIN
     if (!acc) return Promise.reject(new Error('未配置 DEV_AUTO_LOGIN'))
     if (config.USE_MOCK) return Promise.resolve({ ok: true, mock: true })
-    // 先注册：已存在只会返回 409，不会触发 401 登出事件
-    return register(acc.username, acc.password, acc.nickname)
-      .catch(err => (err && err.code === 'USERNAME_TAKEN'
-        ? login(acc.username, acc.password)
-        : Promise.reject(err)))
+    // 先登录：演示账号在绝大多数环境里已经存在。
+    // （早先是「先注册」，但账号规则改成 8 位数字学号后，
+    //  demo 这类非数字账号注册会被 INVALID_USERNAME 拒掉，
+    //  导致 ?demo=1 静默登录失效、直接落到登录页。）
+    return login(acc.username, acc.password)
+      .catch(err => {
+        // 账号不存在时才尝试注册一次（全新部署）
+        if (err && (err.code === 'BAD_CREDENTIALS' || err.code === 'USER_NOT_FOUND')) {
+          return register(acc.username, acc.password, acc.nickname)
+            .then(() => login(acc.username, acc.password))
+            .catch(() => Promise.reject(err))
+        }
+        return Promise.reject(err)
+      })
   }
 
   /* ================= 核心链路（后端 / mock 同构） ================= */
