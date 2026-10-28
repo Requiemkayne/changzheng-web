@@ -16,6 +16,14 @@
 
   var $ = function (id) { return document.getElementById(id); };
 
+  // 安全绑定：元素不存在时静默跳过。
+  // 早先直接写 $('btn-logout').addEventListener(...)，一旦 HTML 少一个按钮，
+  // 整份脚本就会在这一行崩掉，后面所有绑定（含新增管理员）都不再执行。
+  function on(id, evt, fn) {
+    var el = $(id);
+    if (el) el.addEventListener(evt, fn);
+  }
+
   var viewLogin = $('view-login');
   var viewPanel = $('view-panel');
   var topbarActions = $('topbar-actions');
@@ -78,6 +86,13 @@
     viewPanel.hidden = false;
     topbarActions.hidden = false;
     if ($('whoami')) $('whoami').textContent = state.user ? state.user.username : '—';
+
+    // 按当前主机名推导主站地址，换 IP / 换机器都不用改代码
+    var host = location.hostname || '127.0.0.1';
+    var demoLink = $('goto-demo');
+    var siteLink = $('goto-site');
+    if (demoLink) demoLink.href = 'http://' + host + ':8088/?demo=1';
+    if (siteLink) siteLink.href = 'http://' + host + ':8088/';
   }
 
   /* ---------------- 列表 ---------------- */
@@ -385,7 +400,7 @@
       .then(function () { btn.disabled = false; });
   });
 
-  $('btn-logout').addEventListener('click', function () {
+  on('btn-logout', 'click', function () {
     api('/api/admin/logout', { method: 'POST' }).finally(function () { showLogin(); });
   });
 
@@ -419,23 +434,23 @@
     });
   });
 
-  $('chk-all').addEventListener('change', function (e) {
+  on('chk-all', 'change', function (e) {
     if (e.target.checked) state.items.forEach(function (m) { state.selected.add(m.id); });
     else state.selected.clear();
     renderList();
   });
 
-  $('btn-approve').addEventListener('click', function () { audit(Array.from(state.selected), 'approve'); });
-  $('btn-reject').addEventListener('click', function () { audit(Array.from(state.selected), 'reject'); });
-  $('btn-pin').addEventListener('click', function () { pinSelected(true); });
-  $('btn-unpin').addEventListener('click', function () { pinSelected(false); });
-  $('btn-del-sel').addEventListener('click', removeSelected);
+  on('btn-approve', 'click', function () { audit(Array.from(state.selected), 'approve'); });
+  on('btn-reject', 'click', function () { audit(Array.from(state.selected), 'reject'); });
+  on('btn-pin', 'click', function () { pinSelected(true); });
+  on('btn-unpin', 'click', function () { pinSelected(false); });
+  on('btn-del-sel', 'click', removeSelected);
 
   Array.prototype.forEach.call(document.querySelectorAll('[data-clear]'), function (b) {
     b.addEventListener('click', function () { clearScope(b.dataset.clear); });
   });
 
-  $('btn-add-user').addEventListener('click', function () {
+  on('btn-add-user', 'click', function () {
     var u = $('new-user').value.trim();
     var p = $('new-pass').value;
     if (!u || !p) return hint(userHint, '请输入用户名和密码');
@@ -449,7 +464,7 @@
       .catch(function (e) { hint(userHint, e.message); });
   });
 
-  $('btn-change-pw').addEventListener('click', function () {
+  on('btn-change-pw', 'click', function () {
     var o = $('pw-old').value;
     var n = $('pw-new').value;
     if (!o || !n) return hint(userHint, '请填写当前密码和新密码');
