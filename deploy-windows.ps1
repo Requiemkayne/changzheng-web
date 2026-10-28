@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  长征网站 · Windows 一键部署脚本
 #  用法：右键「用 PowerShell 运行」，或在项目根目录执行
 #    powershell -ExecutionPolicy Bypass -File deploy-windows.ps1
@@ -14,9 +14,9 @@ param(
 $ErrorActionPreference = 'Stop'
 
 function Say($m) { Write-Host "`n==> $m" -ForegroundColor Cyan }
-function Ok($m)  { Write-Host "  ✓ $m" -ForegroundColor Green }
+function Ok($m)  { Write-Host "  OK $m" -ForegroundColor Green }
 function Warn($m){ Write-Host "  ! $m" -ForegroundColor Yellow }
-function Die($m) { Write-Host "  ✗ $m" -ForegroundColor Red; exit 1 }
+function Die($m) { Write-Host "  X $m" -ForegroundColor Red; exit 1 }
 
 # ---------- 1. 检查目录 ----------
 Say "检查项目目录"
@@ -54,7 +54,7 @@ if (-not $node) {
   Die "缺少 Node.js"
 }
 $ver = & $node -v
-$major = [int]($ver -replace '^v','' -split '\.')[0]
+$major = [int](($ver -replace '^v', '') -split '\.')[0]
 if ($major -lt 22) { Die "Node 版本过低（$ver），需要 22+" }
 Ok "$ver （$node）"
 
@@ -108,16 +108,25 @@ if (Test-Path $bat) {
 
 # ---------- 6. 打印地址 ----------
 Say "部署完成"
-$ips = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
-  Where-Object { $_.IPAddress -notlike '127.*' -and $_.IPAddress -notlike '169.254.*' -and $_.InterfaceAlias -notmatch 'VMware|Loopback|vEthernet' } |
-  Select-Object -ExpandProperty IPAddress
+$exclude = 'VMware|Loopback|vEthernet|Bluetooth'
+$ips = @()
+Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue | ForEach-Object {
+  $ip = $_.IPAddress
+  $alias = [string]$_.InterfaceAlias
+  $isBad = ($ip -like '127.*') -or ($ip -like '169.254.*') -or ($alias -match $exclude)
+  if (-not $isBad) { $ips += $ip }
+}
 
 Write-Host ""
 Write-Host "  局域网访问地址：" -ForegroundColor White
-foreach ($ip in $ips) {
-  Write-Host "    http://${ip}:$PortMain/?demo=1" -ForegroundColor Cyan
-  Write-Host "    http://${ip}:$PortMain/?demo=1#/map" -ForegroundColor Cyan
-  Write-Host "    http://${ip}:$PortMain/competition-timeline/" -ForegroundColor Cyan
+if ($ips.Count -eq 0) {
+  Write-Host "    （没找到可用的网卡 IP，用 ipconfig 查一下）" -ForegroundColor Yellow
+} else {
+  foreach ($ip in $ips) {
+    Write-Host "    http://${ip}:$PortMain/?demo=1" -ForegroundColor Cyan
+    Write-Host "    http://${ip}:$PortMain/?demo=1#/map" -ForegroundColor Cyan
+    Write-Host "    http://${ip}:$PortMain/competition-timeline/" -ForegroundColor Cyan
+  }
 }
 Write-Host ""
 Write-Host "  管理后台（只在本机用）：" -ForegroundColor White
