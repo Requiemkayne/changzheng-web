@@ -12,6 +12,8 @@
     items: [],
     selected: new Set(),
     counts: { all: 0, pending: 0, approved: 0, rejected: 0 },
+    pwStatus: 'pending',       // 密码申请：当前查看的分类
+    pwCounts: { pending: 0, approved: 0, rejected: 0 },
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -120,6 +122,127 @@
       badge.hidden = c.pending === 0;
       $('pending-num').textContent = c.pending;
     }
+  }
+
+  /* ---------------- 密码重置申请 ---------------- */
+
+  function setPwBadge(n) {
+    const badge = $('pwreq-badge');
+    const dot = $('pwreq-dot');
+    if (badge) {
+      badge.textContent = n;
+      badge.hidden = n === 0;
+    }
+    if (dot) dot.hidden = n === 0;
+  }
+
+  function renderPwList(items) {
+    const listEl2 = $('pw-list');
+    const emptyEl2 = $('pw-empty');
+    if (!listEl2) return;
+    listEl2.textContent = '';
+    if (!items.length) {
+      if (emptyEl2) emptyEl2.hidden = false;
+      return;
+    }
+    if (emptyEl2) emptyEl2.hidden = true;
+
+    items.forEach((it) => {
+      const li = document.createElement('li');
+      li.className = 'pw-item';
+
+      const head = document.createElement('div');
+      head.className = 'pw-head';
+      const idEl = document.createElement('strong');
+      idEl.className = 'pw-id';
+      idEl.textContent = it.username;
+      head.appendChild(idEl);
+
+      const stEl = document.createElement('span');
+      stEl.className = 'pw-status pw-status-' + it.status;
+      stEl.textContent = it.status === 'pending' ? '待处理'
+        : it.status === 'approved' ? '已同意' : '已拒绝';
+      head.appendChild(stEl);
+      li.appendChild(head);
+
+      if (it.note) {
+        const note = document.createElement('p');
+        note.className = 'pw-note';
+        note.textContent = it.note;
+        li.appendChild(note);
+      }
+
+      const meta = document.createElement('div');
+      meta.className = 'pw-meta';
+      const t = new Date(it.createdAt);
+      let metaText = '申请于 ' + t.toLocaleString('zh-CN');
+      if (it.resolvedAt) {
+        metaText += ' · ' + new Date(it.resolvedAt).toLocaleString('zh-CN') + ' 处理';
+        if (it.resolvedBy) metaText += '（' + it.resolvedBy + '）';
+      }
+      meta.textContent = metaText;
+      li.appendChild(meta);
+
+      if (it.status === 'pending') {
+        const row = document.createElement('div');
+        row.className = 'pw-actions';
+        const okBtn = document.createElement('button');
+        okBtn.type = 'button';
+        okBtn.className = 'btn-sm btn-ok';
+        okBtn.textContent = '同意并重置为 111111';
+        okBtn.addEventListener('click', () => resolvePw(it, 'approve', okBtn));
+        const noBtn = document.createElement('button');
+        noBtn.type = 'button';
+        noBtn.className = 'btn-sm btn-reject';
+        noBtn.textContent = '拒绝';
+        noBtn.addEventListener('click', () => resolvePw(it, 'reject', noBtn));
+        row.appendChild(okBtn);
+        row.appendChild(noBtn);
+        li.appendChild(row);
+      }
+
+      listEl2.appendChild(li);
+    });
+  }
+
+  function loadPwRequests() {
+    return api('/api/admin/pw-requests?status=' + encodeURIComponent(state.pwStatus))
+      .then((d) => {
+        state.pwCounts = d.counts || state.pwCounts;
+        setPwBadge(state.pwCounts.pending || 0);
+        renderPwList(d.items || []);
+      })
+      .catch((e) => {
+        hint($('pw-hint'), '密码申请加载失败：' + (e.message || ''));
+      });
+  }
+
+  function resolvePw(it, action, btn) {
+    const tip = action === 'approve'
+      ? '确认把 ' + it.username + ' 的密码重置为 111111？其所有旧登录会立即失效。'
+      : '确认拒绝 ' + it.username + ' 的申请？';
+    UI_CONFIRM(tip, () => {
+      if (btn) btn.disabled = true;
+      api('/api/admin/pw-requests/' + it.id + '/resolve', { method: 'POST', body: { action } })
+        .then((d) => {
+          hint($('pw-hint'),
+            action === 'approve'
+              ? '已重置：' + d.username + ' 的新密码为 111111'
+              : '已拒绝：' + d.username,
+            true);
+          // 处理后回到待处理列表刷新
+          return loadPwRequests();
+        })
+        .catch((e) => {
+          hint($('pw-hint'), e.message || '操作失败');
+          if (btn) btn.disabled = false;
+        });
+    });
+  }
+
+  // 简单确认：后台没有现成 dialog，用原生 confirm 最省事且不会误触
+  function UI_CONFIRM(msg, onOk) {
+    if (window.confirm(msg)) onOk();
   }
 
   function renderList() {
@@ -239,6 +362,8 @@
   }
 
   function load() {
+    // 密码重置申请与留言列表一起刷新，保证顶栏红点及时更新
+    loadPwRequests();
     var qs = '/api/admin/comments?status=' + encodeURIComponent(state.status) +
       '&page=' + encodeURIComponent(state.page);
     return api(qs)
@@ -450,6 +575,24 @@
     if (e.target.checked) state.items.forEach(function (m) { state.selected.add(m.id); });
     else state.selected.clear();
     renderList();
+  });
+
+  // 密码申请：分类切换
+  Array.prototype.forEach.call(document.querySelectorAll('[data-pwstatus]'), function (tab) {
+    tab.addEventListener('click', function () {
+      Array.prototype.forEach.call(document.querySelectorAll('[data-pwstatus]'), function (t) {
+        t.classList.toggle('is-active', t === tab);
+      });
+      state.pwStatus = tab.dataset.pwstatus;
+      loadPwRequests();
+    });
+  });
+
+  // 顶栏「密码申请」：滚动到区块
+  on('goto-pwreq', 'click', function (e) {
+    e.preventDefault();
+    const sec = $('pw-section');
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
   on('btn-approve', 'click', function () { audit(Array.from(state.selected), 'approve'); });

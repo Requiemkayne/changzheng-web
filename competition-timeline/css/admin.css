@@ -373,3 +373,97 @@
   .bulk-actions { margin-left: 0; width: 100%; }
   .bulk-actions .btn-sm { flex: 1; }
 }
+
+/* ---------- 后台：密码重置申请 ---------- */
+.nav-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: #D2213A;
+  vertical-align: middle;
+}
+.pw-badge {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  margin-left: 8px;
+  border-radius: 9px;
+  background: #D2213A;
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  vertical-align: middle;
+}
+.pw-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.pw-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pw-item {
+  border: 1px solid rgba(201, 162, 39, 0.32);
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #FDFAF2;
+}
+.pw-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.pw-id {
+  font-family: var(--font-serif, serif);
+  font-size: 16px;
+  letter-spacing: 1px;
+  color: #8F1220;
+}
+.pw-status {
+  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: 9px;
+  border: 1px solid currentColor;
+}
+.pw-status-pending { color: #A8791B; }
+.pw-status-approved { color: #2E7D32; }
+.pw-status-rejected { color: #9A3A3A; }
+.pw-note {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #4A3A2A;
+  line-height: 1.6;
+}
+.pw-meta {
+  font-size: 11.5px;
+  color: #8A7A62;
+}
+.pw-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.pw-tip {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #8A7A62;
+  line-height: 1.6;
+}
+.pw-tip b { color: #8F1220; }
+.btn-reject {
+  background: transparent;
+  border: 1px solid rgba(154, 58, 58, 0.5);
+  color: #9A3A3A;
+}
+.btn-reject:hover { background: rgba(154, 58, 58, 0.08); }

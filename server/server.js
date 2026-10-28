@@ -383,6 +383,25 @@ async function handleApi(db, req, res, pathname, query) {
     if (!r.ok) return fail(res, 400, r.error, r.message)
     return json(res, 200, { ok: true, nickname: r.nickname })
   }
+  // 我的找回密码申请（含处理结果）：消息中心用
+  if (req.method === 'GET' && pathname === '/api/my/password-requests') {
+    const rows = db.prepare(
+      'SELECT id, username, note, status, created_at, resolved_at, resolved_by ' +
+      'FROM password_requests WHERE username = ? ORDER BY created_at DESC LIMIT 50'
+    ).all(user.username)
+    return json(res, 200, {
+      ok: true,
+      items: rows.map((r) => ({
+        id: r.id,
+        status: r.status,
+        note: r.note,
+        createdAt: r.created_at,
+        resolvedAt: r.resolved_at,
+        resolvedBy: r.resolved_by,
+      })),
+    })
+  }
+
   // 学生自助改密码（需登录）：先验旧密码，成功后可继续用当前会话
   if (req.method === 'POST' && pathname === '/api/password/change') {
     if (rateLimited('pwchange', clientIp(req))) {

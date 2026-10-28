@@ -172,6 +172,16 @@
         '<div class="card">' + foot + '</div>' +
       '</details>' +
 
+      // 消息入口：留言审核结果 + 找回密码处理结果，有未读时冒红点
+      '<div class="card settings-entry" id="messages-entry" role="button" tabindex="0">' +
+        '<div class="entry-ic">' + UI.icon('mail') + '</div>' +
+        '<div style="flex:1">' +
+          '<h2 class="entry-name">消息<span class="entry-dot" id="messages-dot" hidden></span></h2>' +
+          '<div class="entry-sub">留言审核 · 密码重置结果</div>' +
+        '</div>' +
+        UI.icon('chevron', 'tl-arrow') +
+      '</div>' +
+
       // 设置入口：改昵称 / 改密码 / 退出登录都在里面
       '<div class="card settings-entry" id="settings-entry" role="button" tabindex="0">' +
         '<div class="entry-ic">' + UI.icon('user') + '</div>' +
@@ -228,6 +238,15 @@
     }
     userCard.addEventListener('click', openNameEditor)
     onActivate(rootEl.querySelector('#user-card-action'), openNameEditor)
+
+    // 消息入口：进 #/messages
+    const msgEntry = rootEl.querySelector('#messages-entry')
+    if (msgEntry) {
+      msgEntry.addEventListener('click', () => { location.hash = '#/messages' })
+      onActivate(msgEntry, () => { location.hash = '#/messages' })
+    }
+    // 进「我的」就刷新一次红点（有未读即亮）
+    if (root.CZ_MESSAGES && root.CZ_MESSAGES.refreshBadge) root.CZ_MESSAGES.refreshBadge()
 
     // 设置入口：进 #/settings（改昵称 / 改密码 / 退出登录都在那一页）
     const settingsEntry = rootEl.querySelector('#settings-entry')

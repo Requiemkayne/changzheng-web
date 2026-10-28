@@ -39,6 +39,36 @@ const DB_PATH = process.env.DB_PATH
 const PAGES = ['series-1', 'series-2', 'series-3'];
 const DEFAULT_PAGE = 'series-1';
 
+// 主站账号库（users / password_requests）：后台在这里审核「忘记密码」申请。
+// 与留言库分开存放，用 MAIN_DB_PATH 覆盖，缺省是仓库根 server/data.db。
+const MAIN_DB_PATH = process.env.MAIN_DB_PATH
+  ? path.resolve(process.env.MAIN_DB_PATH)
+  : path.resolve(ROOT, '..', 'server', 'data.db');
+
+let mainDb = null;
+try {
+  if (fs.existsSync(MAIN_DB_PATH)) {
+    mainDb = new DatabaseSync(MAIN_DB_PATH);
+    mainDb.exec('PRAGMA journal_mode = WAL');
+  } else {
+    console.warn('[pw] 主站账号库不存在，密码审核不可用：' + MAIN_DB_PATH);
+  }
+} catch (e) {
+  console.warn('[pw] 主站账号库打开失败：' + e.message);
+}
+
+// 与主站 server/auth.js 必须完全一致，否则重置出来的密码登不上
+const MAIN_SCRYPT = { N: 16384, r: 8, p: 1 };
+const MAIN_KEY_LEN = 32;
+function mainHashPassword(password, saltHex) {
+  return new Promise((resolve, reject) => {
+    crypto.scrypt(password, Buffer.from(saltHex, 'hex'), MAIN_KEY_LEN, MAIN_SCRYPT, (err, key) => {
+      if (err) reject(err);
+      else resolve(key.toString('hex'));
+    });
+  });
+}
+
 const MAX_NAME = 16;
 const MAX_TEXT = 200;
 const MAX_TOTAL = 5000;
@@ -467,6 +497,32 @@ const server = http.createServer(async (req, res) => {
   }
 
   /* -------- 公开：已通过留言 -------- */
+  // 我的留言（按归属令牌）：主站「消息」聚合用
+  if (url === '/api/comments/mine' && method === 'GET') {
+    const sp = new URL(rawUrl, 'http://x').searchParams;
+    const owner = String(sp.get('owner') || '');
+    if (!owner || owner.length < 8) {
+      return sendJson(res, 400, { ok: false, error: 'BAD_OWNER', message: '缺少归属令牌' });
+    }
+    let rows;
+    try {
+      rows = db.prepare(
+        'SELECT id, name, text, created_at, status, audited_at, audited_by, page, pinned ' +
+        'FROM comments WHERE owner_hash = ? ORDER BY created_at DESC LIMIT 100'
+      ).all(sha256(owner));
+    } catch (e) {
+      return sendJson(res, 500, { ok: false, error: 'DB_ERROR', message: e.message });
+    }
+    return sendJson(res, 200, {
+      ok: true,
+      items: rows.map((r) => ({
+        id: r.id, name: r.name, text: r.text, createdAt: r.created_at,
+        status: r.status, auditedAt: r.audited_at, auditedBy: r.audited_by,
+        page: r.page, pinned: !!r.pinned,
+      })),
+    });
+  }
+
   if (url.startsWith('/api/comments') && method === 'GET' && !url.startsWith('/api/admin')) {
     // 按篇取留言；不带 page 时按 series-1，保持首页旧行为
     const page = pickPage(new URL(rawUrl, 'http://x').searchParams.get('page'));
@@ -621,6 +677,104 @@ const server = http.createServer(async (req, res) => {
     const u = qUserById.get(s.uid);
     if (!u || u.disabled) return sendJson(res, 401, { ok: false, error: 'UNAUTHORIZED' });
     return sendJson(res, 200, { ok: true, user: { id: u.id, username: u.username, role: u.role } });
+  }
+
+  /* ---------- 密码重置申请（跨库：主站账号库） ---------- */
+
+  if (url.startsWith('/api/admin/pw-requests') && method === 'GET') {
+    if (!requireAuth(req, res)) return;
+    if (!mainDb) {
+      return sendJson(res, 503, { ok: false, error: 'MAIN_DB_UNAVAILABLE', message: '主站账号库不可用' });
+    }
+    const sp = new URL(rawUrl, 'http://x').searchParams;
+    const status = sp.get('status') || 'pending';
+    let rows;
+    try {
+      rows = status === 'all'
+        ? mainDb.prepare(
+            'SELECT id, username, note, status, created_at, resolved_at, resolved_by ' +
+            'FROM password_requests ORDER BY created_at DESC LIMIT 200'
+          ).all()
+        : mainDb.prepare(
+            'SELECT id, username, note, status, created_at, resolved_at, resolved_by ' +
+            'FROM password_requests WHERE status = ? ORDER BY created_at DESC LIMIT 200'
+          ).all(status);
+    } catch (e) {
+      return sendJson(res, 500, { ok: false, error: 'DB_ERROR', message: e.message });
+    }
+    const cnt = (st) => mainDb.prepare('SELECT COUNT(*) AS n FROM password_requests WHERE status = ?').get(st).n;
+    return sendJson(res, 200, {
+      ok: true,
+      items: rows.map((r) => ({
+        id: r.id,
+        username: r.username,
+        note: r.note,
+        status: r.status,
+        createdAt: r.created_at,
+        resolvedAt: r.resolved_at,
+        resolvedBy: r.resolved_by,
+      })),
+      counts: { pending: cnt('pending'), approved: cnt('approved'), rejected: cnt('rejected') },
+    });
+  }
+
+  if (/^\/api\/admin\/pw-requests\/\d+\/resolve$/.test(url) && method === 'POST') {
+    if (!sameOrigin(req)) return sendJson(res, 403, { ok: false, error: 'BAD_ORIGIN' });
+    const s2 = requireAuth(req, res);
+    if (!s2) return;
+    if (!mainDb) {
+      return sendJson(res, 503, { ok: false, error: 'MAIN_DB_UNAVAILABLE', message: '主站账号库不可用' });
+    }
+
+    let body;
+    try { body = await readBody(req, 4 * 1024); } catch (e) {
+      return sendJson(res, 400, { ok: false, error: 'BAD_REQUEST' });
+    }
+    const action = body.action === 'reject' ? 'reject' : 'approve';
+    const id = Number(url.split('/')[4]);
+
+    let row;
+    try {
+      row = mainDb.prepare('SELECT * FROM password_requests WHERE id = ?').get(id);
+    } catch (e) {
+      return sendJson(res, 500, { ok: false, error: 'DB_ERROR', message: e.message });
+    }
+    if (!row) return sendJson(res, 404, { ok: false, error: 'NOT_FOUND', message: '申请不存在' });
+    if (row.status !== 'pending') {
+      return sendJson(res, 409, { ok: false, error: 'ALREADY_RESOLVED', message: '该申请已处理过' });
+    }
+
+    const RESET_PASSWORD = '111111';
+    if (action === 'approve') {
+      const u = mainDb.prepare('SELECT id FROM users WHERE username = ?').get(row.username);
+      if (!u) {
+        return sendJson(res, 404, { ok: false, error: 'USER_NOT_FOUND', message: '该学号不存在（可能已被删除）' });
+      }
+      try {
+        const salt = crypto.randomBytes(16).toString('hex');
+        const hash = await mainHashPassword(RESET_PASSWORD, salt);
+        mainDb.prepare('UPDATE users SET salt = ?, hash = ? WHERE id = ?').run(salt, hash, u.id);
+        // 重置后该学号所有旧会话失效，必须用新密码重新登录
+        mainDb.prepare('DELETE FROM sessions WHERE user_id = ?').run(u.id);
+      } catch (e) {
+        return sendJson(res, 500, { ok: false, error: 'RESET_FAILED', message: e.message });
+      }
+    }
+
+    try {
+      mainDb.prepare(
+        'UPDATE password_requests SET status = ?, resolved_at = ?, resolved_by = ? WHERE id = ?'
+      ).run(action === 'approve' ? 'approved' : 'rejected', Date.now(), s2.username, id);
+    } catch (e) {
+      return sendJson(res, 500, { ok: false, error: 'DB_ERROR', message: e.message });
+    }
+
+    return sendJson(res, 200, {
+      ok: true,
+      action,
+      username: row.username,
+      password: action === 'approve' ? RESET_PASSWORD : '',
+    });
   }
 
   if (url === '/api/admin/comments' && method === 'GET') {

@@ -372,6 +372,22 @@ function getProgress() {
     })
   }
 
+  /** 我的找回密码申请及处理结果（消息中心用） */
+  function getPasswordRequests() {
+    if (config.USE_MOCK) return Promise.resolve([])
+    return http('my/password-requests').then(r => r.items || [])
+  }
+
+  /**
+   * 我的留言及审核状态。
+   * owner 是发表留言时服务端下发的归属令牌，存在 localStorage['tl-comments-own']；
+   * 经主站 /api/comments/* 反代到留言服务（8899）。
+   */
+  function getMyComments(owner) {
+    if (config.USE_MOCK || !owner) return Promise.resolve([])
+    return http('comments/mine?owner=' + encodeURIComponent(owner)).then(r => r.items || [])
+  }
+
   /**
    * 学生自助改密码：需要旧密码，成功后当前会话保持登录。
    * mock 模式（游客体验）没有账号密码，直接拒绝并给可读原因。
@@ -818,6 +834,8 @@ function getProgress() {
     getNode,
     forgotPassword,
   changePassword,
+  getPasswordRequests,
+  getMyComments,
   getProgress,
     getCheckins,
     saveNickname,

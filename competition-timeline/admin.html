@@ -36,6 +36,7 @@
         </span>
       </div>
       <nav class="jump" id="topbar-actions" hidden>
+        <a class="jump-item" id="goto-pwreq" href="#pw-section">密码申请<span class="nav-dot" id="pwreq-dot" hidden></span></a>
         <a class="jump-item" id="goto-demo" href="#" target="_blank" rel="noopener">进入测试账号</a>
         <a class="jump-item" id="goto-site" href="#" target="_blank" rel="noopener">打开网站</a>
         <button class="jump-item" id="btn-logout" type="button">退出登录</button>
@@ -118,6 +119,27 @@
           </div>
         </div>
       </div>
+
+      <!-- 密码重置申请（学生忘记密码 → 老师审核） -->
+      <section class="user-section" id="pw-section">
+        <h2 class="block-title">
+          密 码 重 置 申 请
+          <span class="pw-badge" id="pwreq-badge" hidden>0</span>
+        </h2>
+        <div class="admin-card">
+          <div class="pw-tabs">
+            <button type="button" class="tab is-active" data-pwstatus="pending" id="pw-tab-pending">待处理</button>
+            <button type="button" class="tab" data-pwstatus="approved">已同意</button>
+            <button type="button" class="tab" data-pwstatus="rejected">已拒绝</button>
+          </div>
+
+          <ul class="pw-list" id="pw-list"></ul>
+          <p class="mod-empty" id="pw-empty" hidden>当前分类下没有申请</p>
+
+          <p class="admin-hint" id="pw-hint" role="status" aria-live="polite"></p>
+          <p class="pw-tip">同意后该学号密码立即重置为 <b>111111</b>，其所有旧登录会失效。</p>
+        </div>
+      </section>
 
       <!-- 管理员账号 -->
       <section class="user-section">
