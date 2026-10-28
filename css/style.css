@@ -712,8 +712,26 @@ a { color: var(--red-mid); text-decoration: none; }
   opacity: 0.55;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%238F6E0B'%3E%3Cpath d='M4 12c0-4 2.5-6.5 6-7.5l1 2c-2.5.8-4 2.2-4.4 4.2C7.2 10.7 7.8 11 8.5 11a3 3 0 1 1-4.5 2.6V12zm9 0c0-4 2.5-6.5 6-7.5l1 2c-2.5.8-4 2.2-4.4 4.2.6 0 1.2.3 1.9.3a3 3 0 1 1-4.5 2.6V12z'/%3E%3C/svg%3E") center / contain no-repeat;
 }
-.block-image { border-radius: var(--r-md); overflow: hidden; cursor: pointer; border: var(--gold-border); }
-.block-image img { width: 100%; display: block; }
+.block-image {
+  border-radius: var(--r-md);
+  overflow: hidden;
+  cursor: pointer;
+  border: var(--gold-border);
+  background: #FBF6EA;                 /* 画作留白时与纸色一致，不像破洞 */
+  box-shadow: 0 2px 10px rgba(43, 14, 12, 0.06);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.block-image:hover { box-shadow: 0 4px 16px rgba(43, 14, 12, 0.12); }
+.block-image:active { transform: scale(0.995); }
+/* 学生画作比例不一（1.33–1.58），用 contain 保住完整画面：
+   横竖都不裁切，超高图也不会把手机屏幕撑爆 */
+.block-image img {
+  width: 100%;
+  display: block;
+  max-height: 46vh;
+  object-fit: contain;
+  background: #FBF6EA;
+}
 .block-image .img-ph {
   height: 170px;
   background:
@@ -732,7 +750,20 @@ a { color: var(--red-mid); text-decoration: none; }
   opacity: 0.5;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23C9A227' stroke-width='1.8'%3E%3Cpath d='M4 4h9l6 6v10H4z'/%3E%3Cpath d='M13 4v6h6'/%3E%3C/svg%3E") center / contain no-repeat;
 }
-.block-caption { font-size: 12px; color: var(--muted); text-align: center; margin-top: 7px; letter-spacing: 1px; }
+.block-caption {
+  font-size: 12px;
+  color: var(--muted);
+  text-align: center;
+  margin-top: 7px;
+  letter-spacing: 1px;
+  line-height: 1.6;
+}
+/* 画作题注：上面一条细金线，和正文区分开 */
+.block-image .block-caption {
+  margin: 0;
+  padding: 8px 12px 10px;
+  border-top: 1px solid rgba(201, 162, 39, 0.18);
+}
 
 /* 时间线手风琴：点时间点展开三段式详情 */
 .block-tl-fold {

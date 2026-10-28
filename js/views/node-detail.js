@@ -86,7 +86,8 @@
           const src = F.escapeHtml(b.src || '')
           html += '<div class="block block-image" data-src="' + src + '">' +
             (src
-              ? '<img src="' + src + '" alt="' + F.escapeHtml(b.caption || '') + '">'
+              ? '<img src="' + src + '" alt="' + F.escapeHtml(b.caption || '') + '"' +
+                ' loading="lazy" decoding="async">'
               : '<div class="img-ph">插画素材待交付</div>') +
             (b.caption ? '<div class="block-caption">' + F.escapeHtml(b.caption) + '</div>' : '') +
             '</div>'
