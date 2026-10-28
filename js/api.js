@@ -209,11 +209,15 @@
               const err = new Error(body.message || ('请求失败（' + res.status + '）'))
               err.code = body.error || ''
               err.status = res.status
-              // 登录/注册本身的 401 是「账号或密码错」，不是会话失效：
-              // 此时本来就没登录，清 token 和弹「请先登录」都是误报。
-              // 只对其它需要鉴权的接口做全局登出。
+              // 401 不一定等于「会话失效」：登录密码错（BAD_CREDENTIALS）、
+              // 改密码时旧密码错（BAD_OLD_PASSWORD）都是业务校验失败。
+              // 只有鉴权类错误码才做全局登出，否则会把正在改密码/登录的人踢回登录页。
+              const AUTH_FAIL_CODES = { AUTH_REQUIRED: 1, UNAUTHORIZED: 1, SESSION_EXPIRED: 1, TOKEN_INVALID: 1 }
               const isAuthEndpoint = /^(login|register)$/.test(String(path || '').split('?')[0])
-              if (res.status === 401 && !isAuthEndpoint) {
+              const sessionExpired = res.status === 401 &&
+                !isAuthEndpoint &&
+                (AUTH_FAIL_CODES[err.code] === 1 || !err.code)
+              if (sessionExpired) {
                 setToken('') // 令牌失效，本地登出
                 if (typeof window !== 'undefined') {
                   window.dispatchEvent(new CustomEvent('cz:unauthorized'))
@@ -366,6 +370,17 @@ function getProgress() {
       setToken('')
       return r
     })
+  }
+
+  /**
+   * 学生自助改密码：需要旧密码，成功后当前会话保持登录。
+   * mock 模式（游客体验）没有账号密码，直接拒绝并给可读原因。
+   */
+  function changePassword(oldPassword, newPassword) {
+    if (config.USE_MOCK) {
+      return Promise.reject(apiError('MOCK_MODE', '游客体验模式没有账号密码'))
+    }
+    return http('password/change', { oldPassword, newPassword })
   }
 
   /** 当前用户信息（未登录抛 AUTH_REQUIRED） */
@@ -802,6 +817,7 @@ function getProgress() {
     getNodes,
     getNode,
     forgotPassword,
+  changePassword,
   getProgress,
     getCheckins,
     saveNickname,

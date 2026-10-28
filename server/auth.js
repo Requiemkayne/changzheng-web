@@ -220,6 +220,44 @@ async function resetPassword(db, username, newPassword) {
 }
 
 /**
+ * 学生自助改密码：校验旧密码后重写盐与哈希。
+ * keepToken 用于保留当前会话，其余会话一律清掉（改密后别处应重新登录）。
+ * 返回 { ok, status?, error?, message? }
+ */
+async function changePassword(db, userId, oldPassword, newPassword, keepToken) {
+  if (typeof newPassword !== 'string' || newPassword.length < 6 || newPassword.length > 64) {
+    return { ok: false, status: 400, error: 'INVALID_PASSWORD', message: '新密码需 6-64 位' }
+  }
+  if (typeof oldPassword !== 'string' || !oldPassword) {
+    return { ok: false, status: 400, error: 'OLD_PASSWORD_REQUIRED', message: '请输入当前密码' }
+  }
+  if (oldPassword === newPassword) {
+    return { ok: false, status: 400, error: 'SAME_PASSWORD', message: '新密码不能和当前密码相同' }
+  }
+
+  const row = db.prepare('SELECT id, salt, hash FROM users WHERE id = ?').get(userId)
+  if (!row) return { ok: false, status: 404, error: 'USER_NOT_FOUND', message: '账号不存在' }
+
+  const okOld = await verifyPassword(oldPassword, row.salt, row.hash)
+  if (!okOld) {
+    return { ok: false, status: 401, error: 'BAD_OLD_PASSWORD', message: '当前密码不正确' }
+  }
+
+  const salt = newSalt()
+  const hash = await hashPassword(newPassword, salt)
+  db.prepare('UPDATE users SET salt = ?, hash = ? WHERE id = ?').run(salt, hash, row.id)
+
+  // 改密后其它设备上的会话失效；当前这台保留，避免刚改完就被踢回登录页
+  if (keepToken) {
+    db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?')
+      .run(row.id, tokenHash(keepToken))
+  } else {
+    db.prepare('DELETE FROM sessions WHERE user_id = ?').run(row.id)
+  }
+  return { ok: true }
+}
+
+/**
  * 批量创建学生账号（8 位学号 + 统一初始密码），已存在的跳过
  */
 async function bulkCreateUsers(db, usernames, initialPassword, nicknamePrefix) {
@@ -252,7 +290,7 @@ function sweepSessions(db) {
 
 module.exports = {
   register, login, createSession, getUserByToken, logout, sweepSessions,
-  resetPassword, bulkCreateUsers,
+  resetPassword, bulkCreateUsers, changePassword,
   hashPassword, verifyPassword,
   // 失败计数（导出供单测 / server 定时清理）
   failKey, isLocked, recordFail, clearFails, sweepFails, failsSize

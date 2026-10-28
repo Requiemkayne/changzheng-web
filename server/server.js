@@ -99,6 +99,8 @@ const RATE_LIMITS = {
   register: { max: Number(process.env.RATE_LIMIT_REGISTER) || 10, window: RATE_WINDOW_MS },
   // 忘记密码申请：单 IP 10 分钟最多 5 次，防刷表
   pwforgot: { max: 5, window: 10 * 60e3 },
+  // 自助改密码：单 IP 10 分钟最多 10 次，防暴力试旧密码
+  pwchange: { max: 10, window: 10 * 60e3 },
   // 开赛两个桶：用户桶防同账号连开，IP 桶防换号绕过；任一超限即 429
   contestStartUser: { max: Number(process.env.RATE_LIMIT_CONTEST_START) || 5, window: RATE_CONTEST_WINDOW_MS },
   contestStartIp: { max: Number(process.env.RATE_LIMIT_CONTEST_START) || 5, window: RATE_CONTEST_WINDOW_MS }
@@ -380,6 +382,16 @@ async function handleApi(db, req, res, pathname, query) {
     const r = game.saveNickname(db, user.id, b.nickname)
     if (!r.ok) return fail(res, 400, r.error, r.message)
     return json(res, 200, { ok: true, nickname: r.nickname })
+  }
+  // 学生自助改密码（需登录）：先验旧密码，成功后可继续用当前会话
+  if (req.method === 'POST' && pathname === '/api/password/change') {
+    if (rateLimited('pwchange', clientIp(req))) {
+      return fail(res, 429, 'TOO_MANY_REQUESTS', '请求过于频繁，请稍后再试')
+    }
+    const b = await readBody(req)
+    const r = await auth.changePassword(db, user.id, b.oldPassword, b.newPassword, getToken(req))
+    if (!r.ok) return fail(res, r.status, r.error, r.message)
+    return json(res, 200, { ok: true })
   }
   if (req.method === 'POST' && pathname === '/api/checkin') {
     const b = await readBody(req)

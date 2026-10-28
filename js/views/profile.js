@@ -98,10 +98,10 @@
     }
 
     const editHint = config.USE_MOCK
-      ? '点击编辑昵称 · 长按重置进度（调试用）'
-      : '账号 ' + F.escapeHtml(user.username) + ' · 点击编辑昵称'
-    const logoutBtn = config.USE_MOCK ? '' :
-      '<button class="btn btn-mini btn-mini-ghost action-gap" id="btn-logout">退出登录</button>'
+      ? '游客体验 · 长按重置进度（调试用）'
+      : '账号 ' + F.escapeHtml(user.username) + ' · 可在设置里改昵称和密码'
+    // 退出登录 / 改昵称 / 改密码统一收进「设置」，卡片上只留一句账号提示
+    const logoutBtn = ''
 
     rootEl.innerHTML =
       '<div class="page">' +
@@ -171,6 +171,16 @@
         '</summary>' +
         '<div class="card">' + foot + '</div>' +
       '</details>' +
+
+      // 设置入口：改昵称 / 改密码 / 退出登录都在里面
+      '<div class="card settings-entry" id="settings-entry" role="button" tabindex="0">' +
+        '<div class="entry-ic">' + UI.icon('user') + '</div>' +
+        '<div style="flex:1">' +
+          '<h2 class="entry-name">设置</h2>' +
+          '<div class="entry-sub">修改昵称 · 修改密码 · 退出登录</div>' +
+        '</div>' +
+        UI.icon('chevron', 'tl-arrow') +
+      '</div>' +
       '</div>'
 
     bind(rootEl, cfg, nodes, progress, checkins, states, user)
@@ -218,6 +228,13 @@
     }
     userCard.addEventListener('click', openNameEditor)
     onActivate(rootEl.querySelector('#user-card-action'), openNameEditor)
+
+    // 设置入口：进 #/settings（改昵称 / 改密码 / 退出登录都在那一页）
+    const settingsEntry = rootEl.querySelector('#settings-entry')
+    if (settingsEntry) {
+      settingsEntry.addEventListener('click', () => { location.hash = '#/settings' })
+      onActivate(settingsEntry, () => { location.hash = '#/settings' })
+    }
 
     // 退出登录（仅 http 模式）
     const logoutBtn = rootEl.querySelector('#btn-logout')
