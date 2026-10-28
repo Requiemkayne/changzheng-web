@@ -22,6 +22,7 @@
     check: '<path d="M5 12.5l4.5 4.5L19 7"/>',
     replay: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 3.5v4h4"/>',
     xmark: '<path d="M6 6l12 12M18 6L6 18"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2.8v2.4M12 18.8v2.4M4.5 12H2.1M21.9 12h-2.4M6.7 6.7 5 5M19 19l-1.7-1.7M6.7 17.3 5 19M19 5l-1.7 1.7"/>',
     mail: '<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="M3.8 7l8.2 6 8.2-6"/>',
     lantern: '<rect x="9" y="3.5" width="6" height="2" rx="1"/><path d="M12 5.5c-3.5 0-6 2.2-6 5.3V19h12v-8.2c0-3.1-2.5-5.3-6-5.3z"/><path d="M4.5 12.5h15M8.5 19h-2M17.5 19h-2"/>'
   }

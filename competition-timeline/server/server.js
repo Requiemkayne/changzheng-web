@@ -498,18 +498,26 @@ const server = http.createServer(async (req, res) => {
 
   /* -------- 公开：已通过留言 -------- */
   // 我的留言（按归属令牌）：主站「消息」聚合用
+  // owner 允许逗号分隔多个令牌：专题站按留言逐条下发令牌，
+  // localStorage 里是 { 留言id: token }，一次可能带上来好几个。
   if (url === '/api/comments/mine' && method === 'GET') {
     const sp = new URL(rawUrl, 'http://x').searchParams;
-    const owner = String(sp.get('owner') || '');
-    if (!owner || owner.length < 8) {
+    const owners = String(sp.get('owner') || '')
+      .split(',')
+      .map((x) => x.trim())
+      .filter((x) => x.length >= 16)
+      .slice(0, 200);
+    if (!owners.length) {
       return sendJson(res, 400, { ok: false, error: 'BAD_OWNER', message: '缺少归属令牌' });
     }
     let rows;
     try {
+      const hashes = owners.map((o) => sha256(o));
+      const ph = hashes.map(() => '?').join(',');
       rows = db.prepare(
         'SELECT id, name, text, created_at, status, audited_at, audited_by, page, pinned ' +
-        'FROM comments WHERE owner_hash = ? ORDER BY created_at DESC LIMIT 100'
-      ).all(sha256(owner));
+        'FROM comments WHERE owner_hash IN (' + ph + ') ORDER BY created_at DESC LIMIT 100'
+      ).all(...hashes);
     } catch (e) {
       return sendJson(res, 500, { ok: false, error: 'DB_ERROR', message: e.message });
     }

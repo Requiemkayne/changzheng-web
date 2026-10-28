@@ -43,8 +43,8 @@
 
   function render(rootEl, cfg, nodes, progress, checkins, user) {
     const states = progressUtil.computeStates(nodes, progress, cfg)
-    // mock：昵称存进度；http：昵称在账号里（服务端 users 表）
-    const nickname = user ? (user.nickname || user.username) : (progress.nickname || '长征战士')
+    // 已取消昵称：标题直接显示 8 位学号（mock 模式没有学号，兜底为「长征战士」）
+    const nickname = user ? user.username : (progress.nickname || '长征战士')
     const graduated = states.finalState === 'passed'
     const grad = states.graduation || { avgScore: 0, passScore: 70, ready: false }
     const certSub = graduated
@@ -99,18 +99,24 @@
 
     const editHint = config.USE_MOCK
       ? '游客体验 · 长按重置进度（调试用）'
-      : '账号 ' + F.escapeHtml(user.username) + ' · 可在设置里改昵称和密码'
-    // 退出登录 / 改昵称 / 改密码统一收进「设置」，卡片上只留一句账号提示
-    const logoutBtn = ''
+      : '8 位学号'
+    // 设置 / 退出登录收进右上角齿轮；消息收进右上角信封
 
     rootEl.innerHTML =
       '<div class="page">' +
       '<div class="card user-card" id="user-card">' +
         '<div class="avatar">' + UI.icon('star') + '</div>' +
-        '<div style="flex:1">' +
+        '<div style="flex:1;min-width:0">' +
           '<h1 class="user-name" id="user-name">' + F.escapeHtml(nickname) + '</h1>' +
-          '<div class="user-edit-hint" id="user-card-action" role="button" tabindex="0">' + editHint + '</div>' +
-          logoutBtn +
+          '<div class="user-edit-hint" id="user-card-action">' + editHint + '</div>' +
+        '</div>' +
+        '<div class="user-tools">' +
+          '<button class="user-tool" id="messages-entry" type="button" aria-label="消息">' +
+            UI.icon('mail') + '<span class="entry-dot" id="messages-dot" hidden></span>' +
+          '</button>' +
+          '<button class="user-tool" id="settings-entry" type="button" aria-label="设置">' +
+            UI.icon('gear') +
+          '</button>' +
         '</div>' +
       '</div>' +
 
@@ -172,25 +178,6 @@
         '<div class="card">' + foot + '</div>' +
       '</details>' +
 
-      // 消息入口：留言审核结果 + 找回密码处理结果，有未读时冒红点
-      '<div class="card settings-entry" id="messages-entry" role="button" tabindex="0">' +
-        '<div class="entry-ic">' + UI.icon('mail') + '</div>' +
-        '<div style="flex:1">' +
-          '<h2 class="entry-name">消息<span class="entry-dot" id="messages-dot" hidden></span></h2>' +
-          '<div class="entry-sub">留言审核 · 密码重置结果</div>' +
-        '</div>' +
-        UI.icon('chevron', 'tl-arrow') +
-      '</div>' +
-
-      // 设置入口：改昵称 / 改密码 / 退出登录都在里面
-      '<div class="card settings-entry" id="settings-entry" role="button" tabindex="0">' +
-        '<div class="entry-ic">' + UI.icon('user') + '</div>' +
-        '<div style="flex:1">' +
-          '<h2 class="entry-name">设置</h2>' +
-          '<div class="entry-sub">修改昵称 · 修改密码 · 退出登录</div>' +
-        '</div>' +
-        UI.icon('chevron', 'tl-arrow') +
-      '</div>' +
       '</div>'
 
     bind(rootEl, cfg, nodes, progress, checkins, states, user)
@@ -209,51 +196,15 @@
   }
 
   function bind(rootEl, cfg, nodes, progress, checkins, states, user) {
-    // 昵称编辑（卡片本身接收鼠标点击；键盘走 user-card-action）
-    const userCard = rootEl.querySelector('#user-card')
-    const openNameEditor = () => {
-      const current = user ? (user.nickname || user.username) : (progress.nickname || '长征战士')
-      const nameBox = rootEl.querySelector('#user-name')
-      nameBox.innerHTML =
-        '<input class="name-input" id="name-input" maxlength="12" placeholder="请输入昵称" value="' + F.escapeHtml(current === '长征战士' ? '' : current) + '">' +
-        '<div class="name-actions">' +
-          '<button class="btn-mini btn-mini-primary" id="name-save">保存</button>' +
-          '<button class="btn-mini btn-mini-ghost" id="name-cancel">取消</button>' +
-        '</div>'
-      rootEl.querySelector('#name-save').addEventListener('click', e => {
-        e.stopPropagation()
-        const name = rootEl.querySelector('#name-input').value.trim()
-        if (!name) { UI.toast('请输入昵称'); return }
-        api.saveNickname(name).then(() => {
-          if (user) user.nickname = name
-          else progress.nickname = name
-          UI.toast('已保存')
-          render(rootEl, cfg, nodes, progress, checkins, user)
-        }).catch(() => UI.toast('保存失败'))
-      })
-      rootEl.querySelector('#name-cancel').addEventListener('click', e => {
-        e.stopPropagation()
-        render(rootEl, cfg, nodes, progress, checkins, user)
-      })
-    }
-    userCard.addEventListener('click', openNameEditor)
-    onActivate(rootEl.querySelector('#user-card-action'), openNameEditor)
 
-    // 消息入口：进 #/messages
+    // 右上角两个小图标：消息 / 设置
     const msgEntry = rootEl.querySelector('#messages-entry')
-    if (msgEntry) {
-      msgEntry.addEventListener('click', () => { location.hash = '#/messages' })
-      onActivate(msgEntry, () => { location.hash = '#/messages' })
-    }
-    // 进「我的」就刷新一次红点（有未读即亮）
-    if (root.CZ_MESSAGES && root.CZ_MESSAGES.refreshBadge) root.CZ_MESSAGES.refreshBadge()
-
-    // 设置入口：进 #/settings（改昵称 / 改密码 / 退出登录都在那一页）
+    if (msgEntry) msgEntry.addEventListener('click', () => { location.hash = '#/messages' })
     const settingsEntry = rootEl.querySelector('#settings-entry')
-    if (settingsEntry) {
-      settingsEntry.addEventListener('click', () => { location.hash = '#/settings' })
-      onActivate(settingsEntry, () => { location.hash = '#/settings' })
-    }
+    if (settingsEntry) settingsEntry.addEventListener('click', () => { location.hash = '#/settings' })
+
+    // 进「我的」刷新一次红点（只在真有未读时亮）
+    if (root.CZ_MESSAGES && root.CZ_MESSAGES.refreshBadge) root.CZ_MESSAGES.refreshBadge()
 
     // 退出登录（仅 http 模式）
     const logoutBtn = rootEl.querySelector('#btn-logout')

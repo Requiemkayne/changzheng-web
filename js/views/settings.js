@@ -3,11 +3,10 @@
  * 我的 · 设置页
  *
  * 「我的」页只留一张「设置」入口卡片，具体操作都收在这里：
- *   - 修改昵称
  *   - 修改密码（学生自己改，需验证旧密码）
  *   - 退出登录（仅 http 模式；mock 模式是游客，改密码与退出都不可用）
  *
- * mock 模式：昵称可改（存本地进度），密码/退出显示为不可用说明。
+ * mock 模式：游客没有账号密码，密码/退出显示为不可用说明。
  */
 ;(function (root) {
   const VIEWS = root.CZ_VIEWS || (root.CZ_VIEWS = {})
@@ -19,7 +18,7 @@
   function mount(rootEl, params) {
     const isMock = config.USE_MOCK
 
-    // 先取当前用户与进度，昵称在 mock 下存在进度里
+    // 先取当前用户与进度（游客模式没有 user）
     const ready = Promise.all([
       api.me().catch(() => null),
       api.getProgress().catch(() => null),
@@ -28,9 +27,6 @@
     ready.then(([me, progress]) => {
       // api.me() 直接返回 user 对象（未登录会 reject，上面已 catch 成 null）
       const user = me || null
-      const nickname = user
-        ? (user.nickname || user.username)
-        : ((progress && progress.nickname) || '长征战士')
 
       rootEl.innerHTML =
         '<div class="page">' +
@@ -46,19 +42,6 @@
             '<div class="settings-row settings-row-static">' +
               '<span class="settings-label">账号</span>' +
               '<span class="settings-value">' + (user ? F.escapeHtml(user.username) : '游客体验') + '</span>' +
-            '</div>' +
-            '<div class="settings-row settings-row-static">' +
-              '<span class="settings-label">昵称</span>' +
-              '<span class="settings-value" id="settings-nickname">' + F.escapeHtml(nickname) + '</span>' +
-            '</div>' +
-          '</div>' +
-
-          // 修改昵称
-          '<div class="card settings-card">' +
-            '<h2 class="settings-section">修改昵称</h2>' +
-            '<div class="settings-form">' +
-              '<input class="form-input" id="setting-nickname-input" maxlength="12" placeholder="请输入新昵称（最多 12 字）" value="' + F.escapeHtml(nickname === '长征战士' ? '' : nickname) + '">' +
-              '<button class="btn btn-primary" type="button" id="setting-nickname-save">保存昵称</button>' +
             '</div>' +
           '</div>' +
 
@@ -92,26 +75,6 @@
   function bind(rootEl, isMock, user) {
     const back = rootEl.querySelector('#settings-back')
     if (back) back.addEventListener('click', () => { location.hash = '#/profile' })
-
-    // ---------- 修改昵称 ----------
-    const saveName = rootEl.querySelector('#setting-nickname-save')
-    if (saveName) {
-      saveName.addEventListener('click', () => {
-        const input = rootEl.querySelector('#setting-nickname-input')
-        const name = (input.value || '').trim()
-        if (!name) { UI.toast('请输入昵称'); input.focus(); return }
-        saveName.disabled = true
-        api.saveNickname(name).then(() => {
-          const label = rootEl.querySelector('#settings-nickname')
-          if (label) label.textContent = name
-          UI.toast('昵称已更新')
-          saveName.disabled = false
-        }).catch(err => {
-          UI.toast((err && err.message) || '保存失败')
-          saveName.disabled = false
-        })
-      })
-    }
 
     // ---------- 修改密码 ----------
     const savePass = rootEl.querySelector('#setting-pass-save')

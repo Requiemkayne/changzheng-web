@@ -1027,10 +1027,11 @@ async function chain() {
     atIdx('js/views/profile.js', nProf, oaIdx))
   ok('profile.js 行为（vm 真跑）：onActivate 的 Enter / 空格分支生效、非本元素冒泡被守卫挡住、preventDefault 到位、null 安全')
 
-  // ⑫【契约】profile.js 五处 role=button + tabindex=0，昵称已是 h1
+  // ⑫【契约】profile.js 四处 role=button + tabindex=0，标题已是 h1
+  //     （#user-card-action 已按需求从「点击改昵称的按钮」改为静态提示文字，
+  //      昵称功能整体取消、统一用 8 位学号，故不再要求它是 role=button）
   const roleBtnCases = [
     { name: '.score-row', anchor: 'class="score-row"', re: /class="score-row"[\s\S]{0,160}?role="button"[\s\S]{0,80}?tabindex="0"/ },
-    { name: '#user-card-action', anchor: 'id="user-card-action"', re: /id="user-card-action"[\s\S]{0,80}?role="button"[\s\S]{0,60}?tabindex="0"/ },
     { name: '#cert-entry', anchor: 'id="cert-entry"', re: /id="cert-entry"[\s\S]{0,80}?role="button"[\s\S]{0,60}?tabindex="0"/ },
     { name: '#contest-entry', anchor: 'id="contest-entry"', re: /id="contest-entry"[\s\S]{0,80}?role="button"[\s\S]{0,60}?tabindex="0"/ },
     { name: '#lb-entry', anchor: 'id="lb-entry"', re: /id="lb-entry"[\s\S]{0,80}?role="button"[\s\S]{0,60}?tabindex="0"/ }
@@ -1044,7 +1045,7 @@ async function chain() {
     '期望 .user-name 是 <h1>（我的页主标题；<div> 会让读屏标题大纲里没有「昵称」），实际 ' +
     JSON.stringify((nProf.match(/<[a-z0-9]+ class="user-name"/) || ['(未找到该 class)'])[0]) +
     ' @ ' + at('js/views/profile.js', nProf, 'class="user-name"'))
-  ok('profile.js 契约：.score-row / #user-card-action / #cert-entry / #contest-entry / #lb-entry 均 role=button+tabindex=0，.user-name 为 <h1>')
+  ok('profile.js 契约：.score-row / #cert-entry / #contest-entry / #lb-entry 均 role=button+tabindex=0，.user-name 为 <h1>')
 
   // ⑬【契约】contest 进度条 progressbar 语义 / leaderboard 两个 lb-tab 的 aria-pressed
   const pbIdx = nContest.indexOf('role="progressbar"')

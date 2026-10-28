@@ -143,12 +143,22 @@
 
   /** 刷新「我的」入口与 tabBar 上的红点 */
   function refreshBadge() {
-    if (config.USE_MOCK) return
+    if (config.USE_MOCK) {
+      // 游客模式没有账号、没有消息，任何红点都必须藏起来
+      document.querySelectorAll('#tabbar .tab-dot, #messages-dot').forEach((d) => { d.hidden = true })
+      return
+    }
     unreadCount().then((n) => {
+      const show = Number(n) > 0   // 没有未读就一定不显示
       const dot = document.querySelector('#tabbar .tab[data-tab="profile"] .tab-dot')
-      if (dot) dot.hidden = n === 0
-      const entryDot = document.querySelector('#messages-entry .entry-dot')
-      if (entryDot) entryDot.hidden = n === 0
+      if (dot) dot.hidden = !show
+      const entryDot = document.querySelector('#messages-dot')
+      if (entryDot) entryDot.hidden = !show
+    }).catch(() => {
+      const dot = document.querySelector('#tabbar .tab[data-tab="profile"] .tab-dot')
+      if (dot) dot.hidden = true
+      const entryDot = document.querySelector('#messages-dot')
+      if (entryDot) entryDot.hidden = true
     })
   }
 

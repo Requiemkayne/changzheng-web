@@ -380,12 +380,27 @@ function getProgress() {
 
   /**
    * 我的留言及审核状态。
-   * owner 是发表留言时服务端下发的归属令牌，存在 localStorage['tl-comments-own']；
-   * 经主站 /api/comments/* 反代到留言服务（8899）。
+   *
+   * 专题站把归属令牌存成 **JSON 对象** localStorage['tl-comments-own'] = { 留言id: token }，
+   * 每条留言一个独立令牌，所以这里要先解析出全部 token 再逗号拼接交给后端做 IN 查询。
+   * （早先把整串 JSON 当单个令牌传，sha256 永远匹配不上，消息里永远是空的。）
+   * 请求经主站 /api/comments/* 反代到留言服务（8899）。
    */
-  function getMyComments(owner) {
-    if (config.USE_MOCK || !owner) return Promise.resolve([])
-    return http('comments/mine?owner=' + encodeURIComponent(owner)).then(r => r.items || [])
+  function getMyComments() {
+    if (config.USE_MOCK) return Promise.resolve([])
+    let tokens = []
+    try {
+      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('tl-comments-own') : ''
+      if (raw) {
+        const map = JSON.parse(raw)
+        if (map && typeof map === 'object') {
+          tokens = Object.keys(map).map(k => map[k]).filter(t => typeof t === 'string' && t.length >= 16)
+        }
+      }
+    } catch (e) { tokens = [] }
+    tokens = Array.from(new Set(tokens))
+    if (!tokens.length) return Promise.resolve([])
+    return http('comments/mine?owner=' + encodeURIComponent(tokens.join(','))).then(r => r.items || [])
   }
 
   /**
