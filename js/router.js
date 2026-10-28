@@ -63,7 +63,11 @@
   // ★ 开发开关（config.DEV_AUTO_LOGIN）：进入页面前静默登录演示账号，屏蔽登录页
   let demoLoginTried = false
   function ensureDemoLogin() {
-    if (!config.DEV_AUTO_LOGIN || demoLoginTried || api.isLoggedIn()) return null
+    if (!config.DEV_AUTO_LOGIN || demoLoginTried) return null
+    // 普通场景：已登录就不再切账号；
+    // 但 ?demo=1 是「强制进演示」，即使当前登录着别的账号也要切到 demo，
+    // 否则用户会看到自己账号的部分进度，误以为演示没全通关。
+    if (!config.DEMO_FORCE && api.isLoggedIn()) return null
     demoLoginTried = true
     return api.devLogin()
   }

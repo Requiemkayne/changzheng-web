@@ -60,6 +60,13 @@
     USE_MOCK: USE_MOCK,
     API_BASE: '',            // 后端接口根地址（'' = 同源；后端部署他处时填 http://ip:port）
     CACHE_TTL: 10 * 60 * 1000,
-    DEV_AUTO_LOGIN: DEV_AUTO_LOGIN   // 见上方说明，默认关闭
+    DEV_AUTO_LOGIN: DEV_AUTO_LOGIN,  // 见上方说明，默认关闭
+
+    // ?demo=1 视为「强制进入演示」：即使当前登录着别的账号，也切到演示账号。
+    // 用于「打开链接就应该是全通关状态」的演示场景。
+    DEMO_FORCE: (typeof location !== 'undefined') &&
+      ((/^127\./.test(HOST) || HOST === 'localhost' || /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(HOST) || IS_TUNNEL_HOST) &&
+       new URLSearchParams(location.search).get('demo') === '1' &&
+       new URLSearchParams(location.search).get('login') !== '1')
   }
 })
