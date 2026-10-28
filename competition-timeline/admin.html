@@ -125,11 +125,13 @@
         <div class="admin-card">
           <ul class="user-list" id="user-list"></ul>
 
-          <h3 class="sub-title">新增管理员</h3>
-          <div class="user-form">
-            <input class="cmt-input" id="new-user" type="text" placeholder="用户名（2-20 位）" autocomplete="off">
-            <input class="cmt-input" id="new-pass" type="password" placeholder="密码（至少 6 位）" autocomplete="new-password">
-            <button type="button" class="btn-sm btn-ok" id="btn-add-user">添加</button>
+          <div id="add-admin-block">
+            <h3 class="sub-title">新增管理员（仅主管理员）</h3>
+            <div class="user-form">
+              <input class="cmt-input" id="new-user" type="text" placeholder="用户名（2-20 位）" autocomplete="off">
+              <input class="cmt-input" id="new-pass" type="password" placeholder="密码（至少 6 位）" autocomplete="new-password">
+              <button type="button" class="btn-sm btn-ok" id="btn-add-user">添加</button>
+            </div>
           </div>
 
           <h3 class="sub-title">修改我的密码</h3>

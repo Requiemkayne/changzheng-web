@@ -93,6 +93,17 @@
     var siteLink = $('goto-site');
     if (demoLink) demoLink.href = 'http://' + host + ':8088/?demo=1';
     if (siteLink) siteLink.href = 'http://' + host + ':8088/';
+
+    syncOwnerUI(state.user);
+  }
+
+  // 「新增管理员」只有主管理员（role=owner）能看见。
+  // 单独抽出来，在「登录成功」和「会话恢复」两个明确的时间点各调用一次，
+  // 避免在 showPanel 里依赖异步接口的返回值。
+  function syncOwnerUI(user) {
+    var addBlock = $('add-admin-block');
+    if (!addBlock) return;
+    addBlock.hidden = !(user && user.role === 'owner');
   }
 
   /* ---------------- 列表 ---------------- */
@@ -394,6 +405,7 @@
         $('login-pass').value = '';
         hint(loginHint, '');
         showPanel();
+        syncOwnerUI(d.user);
         return load().then(loadUsers);
       })
       .catch(function (err) { hint(loginHint, err.message); })
@@ -483,6 +495,7 @@
     .then(function (d) {
       state.user = d.user;
       showPanel();
+      syncOwnerUI(d.user);
       return load().then(loadUsers);
     })
     .catch(function () { showLogin(); });

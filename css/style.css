@@ -2912,3 +2912,13 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   margin-top: 10px;
 }
 .forgot-actions .btn { flex: 1; }
+
+/* 忘记密码前未填学号时，输入框抖一下提示 */
+@keyframes inputShake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-5px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(3px); }
+}
+.input-shake { animation: inputShake 0.45s ease; }

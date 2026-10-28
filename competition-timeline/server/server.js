@@ -758,7 +758,13 @@ const server = http.createServer(async (req, res) => {
 
   if (url === '/api/admin/users' && method === 'POST') {
     if (!sameOrigin(req)) return sendJson(res, 403, { ok: false, error: 'BAD_ORIGIN' });
-    if (!requireAuth(req, res)) return;
+    const sAdd = requireAuth(req, res);
+    if (!sAdd) return;
+    // 只有主管理员（role=owner）能新增管理员；普通 admin 只能审核留言
+    const meAdd = qUserById.get(sAdd.uid);
+    if (!meAdd || meAdd.role !== 'owner') {
+      return sendJson(res, 403, { ok: false, error: 'OWNER_ONLY', message: '只有主管理员能新增管理员' });
+    }
 
     let body;
     try { body = await readBody(req, 4 * 1024); } catch (e) {
@@ -791,6 +797,11 @@ const server = http.createServer(async (req, res) => {
     if (!sameOrigin(req)) return sendJson(res, 403, { ok: false, error: 'BAD_ORIGIN' });
     const s = requireAuth(req, res);
     if (!s) return;
+    // 与新增对称：只有主管理员能删管理员
+    const meDel = qUserById.get(s.uid);
+    if (!meDel || meDel.role !== 'owner') {
+      return sendJson(res, 403, { ok: false, error: 'OWNER_ONLY', message: '只有主管理员能删除管理员' });
+    }
 
     if (qUserCount.get().n <= 1) {
       return sendJson(res, 400, { ok: false, error: 'LAST_ADMIN', message: '至少保留一个管理员' });

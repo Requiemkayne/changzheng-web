@@ -102,8 +102,28 @@
 
       if (forgotLink) {
         forgotLink.addEventListener('click', () => {
+          // 必须先在登录表单里填好 8 位学号，才允许展开找回面板：
+          // 否则学生会在面板里乱点，最后提交时才发现学号没填。
+          const usernameInput = rootEl.querySelector('#auth-username')
+          const u = usernameInput ? usernameInput.value.trim() : ''
+          if (!/^\d{8}$/.test(u)) {
+            if (errorEl) {
+              errorEl.style.color = ''
+              errorEl.textContent = '请先在上方「8 位学号」里填写你的学号，再点忘记密码'
+            }
+            if (usernameInput) {
+              usernameInput.focus()
+              usernameInput.classList.add('input-shake')
+              setTimeout(() => usernameInput.classList.remove('input-shake'), 500)
+            }
+            return
+          }
           if (forgotPanel) forgotPanel.style.display = 'block'
           if (forgotError) forgotError.textContent = ''
+          // 把学号带进面板，避免重复输入
+          const noteInput = rootEl.querySelector('#forgot-note')
+          if (noteInput) noteInput.placeholder = '补充说明（选填，如：高二3班 张三）'
+          if (errorEl) errorEl.textContent = ''
         })
       }
       if (forgotCancel) {
